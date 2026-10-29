@@ -168,7 +168,8 @@ dialog h2{font:600 1.4rem var(--f-display);text-transform:uppercase;letter-spaci
     <div class="resumo" id="notasResumo"></div>
     <div class="sheet-tools">
       <input id="nfBusca" placeholder="Buscar por nota, OS, aeroporto ou serviço">
-      <select id="nfFiltro"><option value="">Todas</option><option value="emitida">Emitidas</option><option value="sem">Sem nota</option></select>
+      <select id="nfFiltro"><option value="">Todas</option><option value="emitida">Emitidas</option><option value="sem">Sem nota</option><option value="avulsa">Avulsas (sem OS)</option></select>
+      <button class="btn primary" id="btnNovaNf" type="button" style="margin-left:auto">+ Nova nota fiscal</button>
     </div>
     <div class="notas" id="notasList"></div>
   </section>
@@ -213,6 +214,32 @@ dialog h2{font:600 1.4rem var(--f-display);text-transform:uppercase;letter-spaci
   </form>
 </dialog>
 
+<dialog id="dlgNf">
+  <form id="formNf" method="dialog">
+    <h2 id="dlgNfTitulo">Nova nota fiscal</h2>
+    <p class="sub" style="margin:-8px 0 14px">Nota avulsa, sem vínculo com uma solicitação de serviço.</p>
+    <div class="fields">
+      <div class="field"><label for="aNum">Nº da nota</label><input id="aNum" class="mono" required></div>
+      <div class="field"><label for="aData">Data de emissão</label><input id="aData" type="date" required></div>
+      <div class="field"><label for="aDataServ">Data do serviço</label><input id="aDataServ" type="date"></div>
+      <div class="field" style="grid-column:span 2"><label for="aAero">Aeroporto</label><input id="aAero" placeholder="SBGR · Guarulhos"></div>
+      <div class="field"><label for="aValor">Valor (R$)</label><input id="aValor" class="mono" type="number" min="0" step="0.01" required></div>
+      <div class="field full"><label for="aObs">Discriminação</label><textarea id="aObs" placeholder="Descrição dos serviços cobrados"></textarea></div>
+      <div class="field full">
+        <label>Serviços da nota</label>
+        <div class="pick">
+          <div class="pick-head"><span class="sub" id="aPickCount" style="margin:0"></span><button type="button" class="linkbtn" id="aPickAll">Marcar todos</button></div>
+          <div class="pick-list" id="aPickList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="row-actions">
+      <button class="btn" type="button" id="aCancelar">Cancelar</button>
+      <button class="btn primary" type="submit" id="aSalvar">Criar nota fiscal</button>
+    </div>
+  </form>
+</dialog>
+
 <script>
 const CHECK_PADRAO = [
   "Comissaria",
@@ -239,6 +266,8 @@ const EXEMPLOS = [
 ];
 
 let db=null, canWrite=false, items=[], selId=null, live=false;
+let notas=[{id:"nx1", exemplo:true, numero:"000.201", data:"2026-11-04", dataServ:"2026-11-04", aeroporto:"SBGR · Guarulhos",
+  obs:"Locação de sala VIP para tripulação e serviço de internet.", servicos:["Locação","Internet"], valor:980, criado:1}];
 let checkPadrao=[...CHECK_PADRAO], keepPadrao=true;
 const $=s=>document.querySelector(s);
 const brl=v=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(v)||0);
@@ -264,22 +293,26 @@ function renderList(){
   }).join("");
 }
 
-function nfHtml(it){
-  const nf=it.nf||{};
+function nfDoc(n){
   return `<div class="nf">
-      <div class="nf-head"><b>NFS-e Nº ${esc(nf.numero||"—")}</b><span>Ref. ${esc(it.numero)}</span></div>
+      <div class="nf-head"><b>NFS-e Nº ${esc(n.numero||"—")}</b><span>${esc(n.ref)}</span></div>
       <div class="nf-grid">
-        <div class="nf-cell"><span>Data de emissão</span>${dataBR(nf.data)}</div>
-        <div class="nf-cell"><span>Aeroporto</span>${esc(it.aeroporto)}</div>
-        <div class="nf-cell"><span>Data do serviço</span>${dataBR(it.data)}</div>
+        <div class="nf-cell"><span>Data de emissão</span>${dataBR(n.data)}</div>
+        <div class="nf-cell"><span>Aeroporto</span>${esc(n.aeroporto||"—")}</div>
+        <div class="nf-cell"><span>Data do serviço</span>${dataBR(n.dataServ)}</div>
       </div>
-      <div class="nf-cell"><span>Discriminação dos serviços</span><div style="white-space:pre-wrap">${esc(it.obs||"—")}</div></div>
-      <div class="nf-cell"><span>Serviços solicitados (${it.checklist.length})</span>
-        ${it.checklist.length?`<ul class="nf-serv">${it.checklist.map(c=>`<li>${esc(c.t)}${c.ok?"<b>OK</b>":"<i>pendente</i>"}</li>`).join("")}</ul>`:"—"}
+      <div class="nf-cell"><span>Discriminação dos serviços</span><div style="white-space:pre-wrap">${esc(n.obs||"—")}</div></div>
+      <div class="nf-cell"><span>Serviços (${n.servicos.length})</span>
+        ${n.servicos.length?`<ul class="nf-serv">${n.servicos.map(c=>`<li>${esc(c.t)}${c.ok===undefined?"":c.ok?"<b>OK</b>":"<i>pendente</i>"}</li>`).join("")}</ul>`:"—"}
       </div>
-      <div class="nf-total"><span>VALOR TOTAL DO SERVIÇO</span><strong>${brl(nf.valor)}</strong></div>
+      <div class="nf-total"><span>VALOR TOTAL DO SERVIÇO</span><strong>${brl(n.valor)}</strong></div>
     </div>`;
 }
+function nfHtml(it){
+  const nf=it.nf||{};
+  return nfDoc({numero:nf.numero, ref:"Ref. "+it.numero, data:nf.data, aeroporto:it.aeroporto, dataServ:it.data, obs:it.obs, servicos:it.checklist, valor:nf.valor});
+}
+const avulsaDoc=a=>nfDoc({numero:a.numero, ref:"Avulsa", data:a.data, aeroporto:a.aeroporto, dataServ:a.dataServ, obs:a.obs, servicos:(a.servicos||[]).map(t=>({t})), valor:a.valor});
 
 function renderDetail(){
   const el=$("#detail"); const it=items.find(i=>i.id===selId);
@@ -380,19 +413,71 @@ $("#fStatus").addEventListener("change",renderSheet);
 // --- notas fiscais ---
 function renderNotas(){
   const q=$("#nfBusca").value.trim().toLowerCase(), f=$("#nfFiltro").value;
-  const emitida=it=>!!(it.nf&&it.nf.numero);
-  const rows=items.filter(it=>(!f||(f==="emitida")===emitida(it)) &&
-    (!q||[it.nf?.numero,it.numero,it.aeroporto,it.obs,...it.checklist.map(c=>c.t)].join(" ").toLowerCase().includes(q)));
-  const total=rows.reduce((s,it)=>s+(Number(it.nf?.valor)||0),0);
-  $("#notasResumo").innerHTML=`<div><span>Notas emitidas</span><strong>${items.filter(emitida).length}</strong></div>
-    <div><span>Sem nota</span><strong>${items.filter(it=>!emitida(it)).length}</strong></div>
+  const emitida=it=>!!(it.nf&&it.nf.numero), dis=canWrite?"":"disabled";
+  const has=arr=>!q||arr.join(" ").toLowerCase().includes(q);
+  const rowsOs=f==="avulsa"?[]:items.filter(it=>(!f||(f==="emitida")===emitida(it)) && has([it.nf?.numero,it.numero,it.aeroporto,it.obs,...it.checklist.map(c=>c.t)]));
+  const rowsAv=f==="sem"?[]:notas.filter(a=>has([a.numero,a.aeroporto,a.obs,...(a.servicos||[])]));
+  const total=rowsOs.reduce((s,it)=>s+(Number(it.nf?.valor)||0),0)+rowsAv.reduce((s,a)=>s+(Number(a.valor)||0),0);
+  $("#notasResumo").innerHTML=`<div><span>Notas de OS</span><strong>${items.filter(emitida).length}</strong></div>
+    <div><span>Notas avulsas</span><strong>${notas.length}</strong></div>
+    <div><span>OS sem nota</span><strong>${items.filter(it=>!emitida(it)).length}</strong></div>
     <div><span>Total ${q||f?"filtrado":"geral"}</span><strong>${brl(total)}</strong></div>`;
-  $("#notasList").innerHTML=rows.length?rows.map(it=>`<article>${nfHtml(it)}
-    <div class="nota-foot"><span class="pill ${emitida(it)?"done":"pend"}">${emitida(it)?"Emitida":"Sem nota"}</span>
-    <button type="button" class="open" data-open="${esc(it.id)}">Abrir ficha</button></div></article>`).join("")
-    :`<div class="empty">Nenhuma nota encontrada.</div>`;
+  const cards=[
+    ...rowsAv.map(a=>({ord:a.data||"",html:`<article>${avulsaDoc(a)}
+      <div class="nota-foot"><span class="pill done">Avulsa${a.exemplo?" · exemplo":""}</span>
+      <span class="confirm" data-delwrap="${esc(a.id)}"><button type="button" class="open" data-edit-nf="${esc(a.id)}" ${dis}>Editar</button><button type="button" class="open" data-del-nf="${esc(a.id)}" ${dis}>Excluir</button></span></div></article>`})),
+    ...rowsOs.map(it=>({ord:it.nf?.data||it.data||"",html:`<article>${nfHtml(it)}
+      <div class="nota-foot"><span class="pill ${emitida(it)?"done":"pend"}">${emitida(it)?"Emitida":"Sem nota"}</span>
+      <button type="button" class="open" data-open="${esc(it.id)}">Abrir ficha</button></div></article>`}))
+  ].sort((a,b)=>b.ord.localeCompare(a.ord));
+  $("#notasList").innerHTML=cards.length?cards.map(c=>c.html).join(""):`<div class="empty">Nenhuma nota encontrada. Use <b>+ Nova nota fiscal</b> para emitir uma nota avulsa.</div>`;
 }
-$("#notasList").addEventListener("click",e=>{ const b=e.target.closest("[data-open]"); if(b){ selId=b.dataset.open; setView("fichas"); }});
+$("#notasList").addEventListener("click",e=>{
+  const b=e.target.closest("[data-open]"); if(b){ selId=b.dataset.open; setView("fichas"); return; }
+  const ed=e.target.closest("[data-edit-nf]"); if(ed){ abrirNf(notas.find(a=>a.id===ed.dataset.editNf)); return; }
+  const dl=e.target.closest("[data-del-nf]");
+  if(dl){ const a=notas.find(x=>x.id===dl.dataset.delNf);
+    dl.parentElement.innerHTML=`Excluir nota ${esc(a.numero)}? <button class="btn" type="button" data-nao>Não</button><button class="btn primary" type="button" data-sim-nf="${esc(a.id)}">Sim, excluir</button>`; return; }
+  if(e.target.closest("[data-nao]")){ renderNotas(); return; }
+  const sim=e.target.closest("[data-sim-nf]");
+  if(sim){ const id=sim.dataset.simNf; notas=notas.filter(a=>a.id!==id); renderNotas();
+    if(live) db.collection("notas").doc(id).delete().catch(()=>notice("Não foi possível excluir a nota agora.")); }
+});
+
+// --- nota fiscal avulsa ---
+const dlgNf=$("#dlgNf"); let editNfId=null;
+function aPickUpdate(){
+  const all=[...$("#aPickList").querySelectorAll("input")], n=all.filter(x=>x.checked).length;
+  $("#aPickCount").textContent=`${n} de ${all.length} serviços marcados`;
+  $("#aPickAll").textContent=n===all.length?"Desmarcar todos":"Marcar todos";
+}
+function abrirNf(a){
+  if(!canWrite && live){ notice("Você não tem permissão para criar notas."); return; }
+  editNfId=a?a.id:null; $("#formNf").reset();
+  $("#dlgNfTitulo").textContent=a?"Editar nota fiscal":"Nova nota fiscal"; $("#aSalvar").textContent=a?"Salvar nota fiscal":"Criar nota fiscal";
+  const hoje=new Date().toISOString().slice(0,10);
+  $("#aNum").value=a?.numero||""; $("#aData").value=a?.data||hoje; $("#aDataServ").value=a?.dataServ||"";
+  $("#aAero").value=a?.aeroporto||""; $("#aValor").value=a?.valor||""; $("#aObs").value=a?.obs||"";
+  const sel=a?.servicos||[], lista=[...checkPadrao,...sel.filter(t=>!checkPadrao.includes(t))];
+  $("#aPickList").innerHTML=lista.map((t,i)=>`<label for="apk${i}"><input type="checkbox" id="apk${i}" value="${esc(t)}" ${sel.includes(t)?"checked":""}> ${esc(t)}</label>`).join("");
+  aPickUpdate(); dlgNf.showModal();
+}
+$("#btnNovaNf").addEventListener("click",()=>abrirNf(null));
+$("#aCancelar").addEventListener("click",()=>dlgNf.close());
+$("#aPickList").addEventListener("change",aPickUpdate);
+$("#aPickAll").addEventListener("click",()=>{ const all=[...$("#aPickList").querySelectorAll("input")], on=!all.every(x=>x.checked); all.forEach(x=>x.checked=on); aPickUpdate(); });
+$("#formNf").addEventListener("submit",e=>{
+  e.preventDefault();
+  const id=editNfId||"n"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const antiga=notas.find(a=>a.id===id);
+  const a={numero:$("#aNum").value.trim(), data:$("#aData").value, dataServ:$("#aDataServ").value, aeroporto:$("#aAero").value.trim(),
+    valor:parseFloat($("#aValor").value)||0, obs:$("#aObs").value,
+    servicos:[...$("#aPickList").querySelectorAll("input:checked")].map(x=>x.value), criado:antiga?.criado||Date.now()};
+  if(antiga?.exemplo) a.exemplo=true;
+  notas=antiga?notas.map(x=>x.id===id?{id,...a}:x):[{id,...a},...notas];
+  dlgNf.close(); renderNotas();
+  if(live) db.collection("notas").doc(id).set(a).catch(()=>notice("Não foi possível salvar a nota agora. Tente de novo em instantes."));
+});
 $("#nfBusca").addEventListener("input",renderNotas);
 $("#nfFiltro").addEventListener("change",renderNotas);
 
@@ -516,6 +601,16 @@ function gerarPlanilha(){
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,"Serviços");
   XLSX.utils.book_append_sheet(wb,ws2,"Checklist");
+  const nfs=[
+    ...items.filter(it=>it.nf?.numero).map(it=>({"NF nº":it.nf.numero,"Tipo":"OS "+it.numero,"Data emissão":dataBR(it.nf.data),"Aeroporto":it.aeroporto,"Discriminação":it.obs||"","Serviços":it.checklist.map(c=>c.t).join("; "),"Valor (R$)":Number(it.nf.valor)||0})),
+    ...notas.map(a=>({"NF nº":a.numero,"Tipo":"Avulsa","Data emissão":dataBR(a.data),"Aeroporto":a.aeroporto||"","Discriminação":a.obs||"","Serviços":(a.servicos||[]).join("; "),"Valor (R$)":Number(a.valor)||0}))
+  ];
+  nfs.push({"NF nº":"TOTAL","Valor (R$)":nfs.reduce((s,l)=>s+l["Valor (R$)"],0)});
+  const ws3=XLSX.utils.json_to_sheet(nfs);
+  ws3["!cols"]=[12,12,12,22,44,44,14].map(w=>({wch:w}));
+  const r3=XLSX.utils.decode_range(ws3["!ref"]);
+  for(let r=1;r<=r3.e.r;r++){ const c=ws3[XLSX.utils.encode_cell({r,c:6})]; if(c) c.z='"R$" #,##0.00'; }
+  XLSX.utils.book_append_sheet(wb,ws3,"Notas fiscais");
   return XLSX.write(wb,{bookType:"xlsx",type:"array"});
 }
 $("#btnExcel").addEventListener("click",async()=>{
@@ -547,7 +642,11 @@ setView(view);
   const perm=user ? await Promise.resolve(user.can("data.write")).catch(()=>null) : null;
   canWrite = perm!==false;
   if(!canWrite) notice("Você pode ver as solicitações, mas não tem permissão para alterá-las.");
-  items=[]; selId=null; render();
+  items=[]; notas=[]; selId=null; render();
+  db.collection("notas").orderBy("criado","desc").onSnapshot(snap=>{
+    notas=snap.docs.map(s=>({id:s.id,...structuredClone(s.data())}));
+    renderNotas();
+  },()=>{});
   db.doc("config/checklist").onSnapshot(s=>{
     const l=s.exists?s.data().itens:null;
     if(Array.isArray(l)&&l.length) checkPadrao=[...l];
