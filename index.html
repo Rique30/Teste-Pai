@@ -31,6 +31,7 @@
   --ok:#5CC48E; --ok-bg:#13301F; --paper:#1B2630; color-scheme:dark}
 
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body);margin:0}
 .wrap{max-width:1180px;margin:0 auto;padding-block:20px 48px;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -117,9 +118,27 @@ table.sheet{border-collapse:collapse;width:100%;min-width:1100px;font-size:.88re
 .sheet td.num input{text-align:right;font-family:var(--f-mono)}
 .sheet tr.total td{background:var(--bg);font-weight:600;padding:8px}
 .sheet tr.total td.num{text-align:right;font-family:var(--f-mono)}
-.sheet .open{font:500 .78rem var(--f-body);background:none;border:0;color:var(--accent);cursor:pointer;padding:7px 8px;text-decoration:underline}
+.open{font:500 .78rem var(--f-body);background:none;border:0;color:var(--accent);cursor:pointer;padding:7px 8px;text-decoration:underline}
 
-dialog{border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);padding:20px;width:min(560px,calc(100% - 32px))}
+.nf-serv{list-style:none;margin:6px 0 0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 16px;font-size:.85rem}
+@media (max-width:560px){.nf-serv{grid-template-columns:1fr}}
+.nf-serv li{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dotted var(--line);padding:3px 0}
+.nf-serv li b{font-weight:500;color:var(--ok)}
+.nf-serv li i{font-style:normal;color:var(--muted)}
+.notas{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,460px),1fr));gap:16px;align-items:start}
+.nota-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+.resumo{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:14px}
+.resumo div{display:flex;flex-direction:column}
+.resumo span{font:500 .7rem var(--f-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.resumo strong{font:700 1.6rem var(--f-display);font-variant-numeric:tabular-nums}
+.pick{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:4px}
+.pick-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.pick-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 16px}
+@media (max-width:560px){.pick-list{grid-template-columns:1fr}}
+.pick-list label{display:flex;align-items:center;gap:8px;font:400 .9rem var(--f-body);text-transform:none;letter-spacing:0;color:var(--ink);cursor:pointer;padding:3px 0}
+.pick-list input{width:16px;height:16px;accent-color:var(--accent);flex:none}
+.linkbtn{font:500 .8rem var(--f-body);background:none;border:0;color:var(--accent);cursor:pointer;text-decoration:underline;padding:0}
+dialog{border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);padding:20px;width:min(720px,calc(100% - 32px));max-height:calc(100% - 32px)}
 dialog::backdrop{background:rgb(0 0 0 / .45)}
 dialog h2{font:600 1.4rem var(--f-display);text-transform:uppercase;letter-spacing:.04em;margin:0 0 14px}
 .confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.85rem}
@@ -142,7 +161,17 @@ dialog h2{font:600 1.4rem var(--f-display);text-transform:uppercase;letter-spaci
   <div class="tabs" role="tablist">
     <button type="button" role="tab" id="tabPlanilha" aria-selected="true">Planilha</button>
     <button type="button" role="tab" id="tabFichas" aria-selected="false">Fichas</button>
+    <button type="button" role="tab" id="tabNotas" aria-selected="false">Nota Fiscal</button>
   </div>
+
+  <section id="notasView" hidden>
+    <div class="resumo" id="notasResumo"></div>
+    <div class="sheet-tools">
+      <input id="nfBusca" placeholder="Buscar por nota, OS, aeroporto ou serviço">
+      <select id="nfFiltro"><option value="">Todas</option><option value="emitida">Emitidas</option><option value="sem">Sem nota</option></select>
+    </div>
+    <div class="notas" id="notasList"></div>
+  </section>
 
   <section id="sheetView">
     <div class="sheet-tools">
@@ -166,6 +195,16 @@ dialog h2{font:600 1.4rem var(--f-display);text-transform:uppercase;letter-spaci
       <div class="field"><label for="nData">Data</label><input id="nData" type="date" required></div>
       <div class="field" style="grid-column:span 2"><label for="nAero">Aeroporto</label><input id="nAero" placeholder="SBGR · Guarulhos" required></div>
       <div class="field full"><label for="nObs">Discriminação</label><textarea id="nObs" placeholder="Descrição dos serviços a realizar"></textarea></div>
+      <div class="field full">
+        <label>Serviços solicitados (checklist)</label>
+        <div class="pick">
+          <div class="pick-head"><span class="sub" id="pickCount" style="margin:0"></span><button type="button" class="linkbtn" id="pickAll">Marcar todos</button></div>
+          <div class="pick-list" id="pickList"></div>
+        </div>
+      </div>
+      <div class="field"><label for="nNfNum">Nº da nota (opcional)</label><input id="nNfNum" class="mono"></div>
+      <div class="field"><label for="nNfData">Data de emissão</label><input id="nNfData" type="date"></div>
+      <div class="field"><label for="nNfValor">Valor (R$)</label><input id="nNfValor" class="mono" type="number" min="0" step="0.01"></div>
     </div>
     <div class="row-actions">
       <button class="btn" type="button" id="btnCancelar">Cancelar</button>
@@ -225,6 +264,23 @@ function renderList(){
   }).join("");
 }
 
+function nfHtml(it){
+  const nf=it.nf||{};
+  return `<div class="nf">
+      <div class="nf-head"><b>NFS-e Nº ${esc(nf.numero||"—")}</b><span>Ref. ${esc(it.numero)}</span></div>
+      <div class="nf-grid">
+        <div class="nf-cell"><span>Data de emissão</span>${dataBR(nf.data)}</div>
+        <div class="nf-cell"><span>Aeroporto</span>${esc(it.aeroporto)}</div>
+        <div class="nf-cell"><span>Data do serviço</span>${dataBR(it.data)}</div>
+      </div>
+      <div class="nf-cell"><span>Discriminação dos serviços</span><div style="white-space:pre-wrap">${esc(it.obs||"—")}</div></div>
+      <div class="nf-cell"><span>Serviços solicitados (${it.checklist.length})</span>
+        ${it.checklist.length?`<ul class="nf-serv">${it.checklist.map(c=>`<li>${esc(c.t)}${c.ok?"<b>OK</b>":"<i>pendente</i>"}</li>`).join("")}</ul>`:"—"}
+      </div>
+      <div class="nf-total"><span>VALOR TOTAL DO SERVIÇO</span><strong>${brl(nf.valor)}</strong></div>
+    </div>`;
+}
+
 function renderDetail(){
   const el=$("#detail"); const it=items.find(i=>i.id===selId);
   if(!it){ el.innerHTML=`<section class="card"><h2>Selecione uma solicitação</h2><p class="sub">Os detalhes, o checklist e a nota fiscal aparecem aqui.</p></section>`; return; }
@@ -265,17 +321,7 @@ function renderDetail(){
 
   <section class="card">
     <h2>Nota fiscal de serviço</h2>
-    <div class="nf">
-      <div class="nf-head"><b>NFS-e Nº ${esc(nf.numero||"—")}</b><span>Ref. ${esc(it.numero)}</span></div>
-      <div class="nf-grid">
-        <div class="nf-cell"><span>Data de emissão</span>${dataBR(nf.data)}</div>
-        <div class="nf-cell"><span>Aeroporto</span>${esc(it.aeroporto)}</div>
-        <div class="nf-cell"><span>Data do serviço</span>${dataBR(it.data)}</div>
-      </div>
-      <div class="nf-cell" style="border-bottom:1px dashed var(--line)"><span>Discriminação dos serviços</span><div style="white-space:pre-wrap">${esc(it.obs||"—")}</div>
-      </div>
-      <div class="nf-total"><span>VALOR TOTAL DO SERVIÇO</span><strong>${brl(nf.valor)}</strong></div>
-    </div>
+    ${nfHtml(it)}
     <div class="fields nf-edit">
       <div class="field"><label for="fNum">Nº da nota</label><input id="fNum" class="mono" value="${esc(nf.numero||"")}" ${dis}></div>
       <div class="field"><label for="fData">Data de emissão</label><input id="fData" type="date" value="${esc(nf.data||"")}" ${dis}></div>
@@ -331,16 +377,36 @@ $("#sheet").addEventListener("focusout",e=>{ if(!$("#sheet").contains(e.relatedT
 $("#sheet").addEventListener("click",e=>{ const b=e.target.closest("[data-open]"); if(b){ selId=b.dataset.open; setView("fichas"); }});
 $("#fBusca").addEventListener("input",renderSheet);
 $("#fStatus").addEventListener("change",renderSheet);
+// --- notas fiscais ---
+function renderNotas(){
+  const q=$("#nfBusca").value.trim().toLowerCase(), f=$("#nfFiltro").value;
+  const emitida=it=>!!(it.nf&&it.nf.numero);
+  const rows=items.filter(it=>(!f||(f==="emitida")===emitida(it)) &&
+    (!q||[it.nf?.numero,it.numero,it.aeroporto,it.obs,...it.checklist.map(c=>c.t)].join(" ").toLowerCase().includes(q)));
+  const total=rows.reduce((s,it)=>s+(Number(it.nf?.valor)||0),0);
+  $("#notasResumo").innerHTML=`<div><span>Notas emitidas</span><strong>${items.filter(emitida).length}</strong></div>
+    <div><span>Sem nota</span><strong>${items.filter(it=>!emitida(it)).length}</strong></div>
+    <div><span>Total ${q||f?"filtrado":"geral"}</span><strong>${brl(total)}</strong></div>`;
+  $("#notasList").innerHTML=rows.length?rows.map(it=>`<article>${nfHtml(it)}
+    <div class="nota-foot"><span class="pill ${emitida(it)?"done":"pend"}">${emitida(it)?"Emitida":"Sem nota"}</span>
+    <button type="button" class="open" data-open="${esc(it.id)}">Abrir ficha</button></div></article>`).join("")
+    :`<div class="empty">Nenhuma nota encontrada.</div>`;
+}
+$("#notasList").addEventListener("click",e=>{ const b=e.target.closest("[data-open]"); if(b){ selId=b.dataset.open; setView("fichas"); }});
+$("#nfBusca").addEventListener("input",renderNotas);
+$("#nfFiltro").addEventListener("change",renderNotas);
+
 function setView(v){
-  view=v; $("#sheetView").hidden=v!=="planilha"; $("#fichasView").hidden=v!=="fichas";
-  $("#tabPlanilha").setAttribute("aria-selected",v==="planilha"); $("#tabFichas").setAttribute("aria-selected",v==="fichas");
+  view=v; $("#sheetView").hidden=v!=="planilha"; $("#fichasView").hidden=v!=="fichas"; $("#notasView").hidden=v!=="notas";
+  $("#tabPlanilha").setAttribute("aria-selected",v==="planilha"); $("#tabFichas").setAttribute("aria-selected",v==="fichas"); $("#tabNotas").setAttribute("aria-selected",v==="notas");
   try{ localStorage.setItem("hangar-view",v); }catch(_){}
   render();
 }
 $("#tabPlanilha").addEventListener("click",()=>setView("planilha"));
 $("#tabFichas").addEventListener("click",()=>setView("fichas"));
+$("#tabNotas").addEventListener("click",()=>setView("notas"));
 
-function render(){ renderList(); renderDetail(); if(!sheetFocused()) renderSheet(); }
+function render(){ renderList(); renderDetail(); if(!sheetFocused()) renderSheet(); renderNotas(); }
 
 // --- gravação ---
 let writing=Promise.resolve();
@@ -397,7 +463,19 @@ $("#detail").addEventListener("click",async e=>{
 const dlg=$("#dlgNova");
 $("#btnNova").addEventListener("click",()=>{
   if(!canWrite && live){ notice("Você não tem permissão para criar solicitações."); return; }
-  $("#formNova").reset(); $("#nData").value=new Date().toISOString().slice(0,10); dlg.showModal();
+  $("#formNova").reset(); $("#nData").value=new Date().toISOString().slice(0,10);
+  $("#pickList").innerHTML=checkPadrao.map((t,i)=>`<label for="pk${i}"><input type="checkbox" id="pk${i}" value="${esc(t)}" checked> ${esc(t)}</label>`).join("");
+  pickUpdate(); dlg.showModal();
+});
+function pickUpdate(){
+  const all=[...$("#pickList").querySelectorAll("input")], n=all.filter(x=>x.checked).length;
+  $("#pickCount").textContent=`${n} de ${all.length} serviços marcados`;
+  $("#pickAll").textContent=n===all.length?"Desmarcar todos":"Marcar todos";
+}
+$("#pickList").addEventListener("change",pickUpdate);
+$("#pickAll").addEventListener("click",()=>{
+  const all=[...$("#pickList").querySelectorAll("input")], on=!all.every(x=>x.checked);
+  all.forEach(x=>x.checked=on); pickUpdate();
 });
 $("#btnCancelar").addEventListener("click",()=>dlg.close());
 $("#formNova").addEventListener("submit",e=>{
@@ -406,7 +484,8 @@ $("#formNova").addEventListener("submit",e=>{
   const id="s"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const it={id, numero:"OS-"+String(max+1).padStart(4,"0"), data:$("#nData").value, aeroporto:$("#nAero").value.trim(),
     obs:$("#nObs").value, criado:Date.now(),
-    checklist:checkPadrao.map(t=>({t,ok:false})), nf:{numero:"",data:"",valor:0}};
+    checklist:[...$("#pickList").querySelectorAll("input:checked")].map(x=>({t:x.value,ok:false})),
+    nf:{numero:$("#nNfNum").value.trim(), data:$("#nNfData").value, valor:parseFloat($("#nNfValor").value)||0}};
   items=[it,...items]; selId=id; dlg.close(); save(it,{});
   if(view==="planilha") setTimeout(()=>{ const f=$(`#sheet [data-id="${id}"][data-k="obs"]`); if(f) f.focus(); },0);
 });
@@ -458,7 +537,7 @@ $("#btnExcel").addEventListener("click",async()=>{
 
 // --- início ---
 items=EXEMPLOS.map(x=>structuredClone(x)); selId=items[0].id;
-try{ if(localStorage.getItem("hangar-view")==="fichas") view="fichas"; }catch(_){}
+try{ const v=localStorage.getItem("hangar-view"); if(v==="fichas"||v==="notas") view=v; }catch(_){}
 setView(view);
 
 (async()=>{
