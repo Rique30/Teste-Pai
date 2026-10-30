@@ -107,6 +107,9 @@ body.planilha-max .sheet-scroll{max-height:calc(100vh - 150px);overflow:auto}
 body.planilha-max #btnMax{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 @media (max-width:860px){ body.planilha-max .app{display:block} }
 
+body.planilha-fit .sheet-scroll{overflow-x:hidden}
+body.planilha-fit #btnFit{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+
 /* indicadores */
 .kpis,.resumo{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 @media (max-width:900px){.kpis,.resumo{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -407,6 +410,7 @@ body.papel-operador .so-admin{display:none!important}
             <input id="fBusca" placeholder="Buscar por OS, local, prestador ou discriminação">
             <select id="fStatus"><option value="">Todos os status</option><option value="pend">Pendentes</option><option value="done">Concluídas</option></select>
             <span class="count" id="sheetCount"></span>
+            <button class="btn" type="button" id="btnFit" aria-pressed="false" title="Diminuir a planilha até caber inteira na largura da tela"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></svg>Ajustar à tela</button>
             <button class="btn" type="button" id="btnMax" title="Usar a tela inteira para a planilha"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" id="maxIcon"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span id="maxTxt">Maximizar planilha</span></button>
           </div>
           <div class="sheet-scroll"><table class="sheet" id="sheet"></table></div>
@@ -668,7 +672,8 @@ function filtered(){
   return items.filter(it=>(!st||(st==="done")===done(it)) &&
     (!q||[it.numero,it.aeroporto,it.prestador,it.obs].join(" ").toLowerCase().includes(q)));
 }
-function renderSheet(){
+function renderSheet(){ renderSheet0(); ajustarPlanilha(); }
+function renderSheet0(){
   const rows=filtered(), dis=canWrite?"":"disabled";
   $("#sheetCount").textContent=`${rows.length} de ${items.length} serviços`;
   const letters=COLS.map((c,i)=>`<th style="width:${c.w}px">${String.fromCharCode(65+i)}</th>`).join("");
@@ -685,6 +690,23 @@ function renderSheet(){
     ${rows.length?"":`<tr><td class="rn">2</td><td class="ro" colspan="${COLS.length}">Nenhum serviço encontrado.</td></tr>`}
     <tr class="total"><td class="rn">${rows.length+2+(rows.length?0:1)}</td>${COLS.map((c,i)=>c.sum?`<td class="num">${brl(rows.reduce((s,it)=>s+(Number(getF(it,c.k))||0),0))}</td>`:`<td>${i===0?"TOTAL":""}</td>`).join("")}</tr></tbody>`;
 }
+// --- ajustar à tela ---
+let ajustar=false;
+function ajustarPlanilha(){
+  const t=$("#sheet"), sc=$("#sheetView .sheet-scroll");
+  t.style.zoom="";
+  if(!ajustar || $("#sheetView").hidden) return;
+  const k=Math.min(1,(sc.clientWidth-2)/t.offsetWidth);
+  t.style.zoom=String(k); sc.scrollLeft=0;
+}
+function setAjustar(on){
+  ajustar=on; document.body.classList.toggle("planilha-fit",on);
+  $("#btnFit").setAttribute("aria-pressed",String(on));
+  try{ localStorage.setItem("cs-ajustar",on?"1":"0"); }catch(_){}
+  ajustarPlanilha();
+}
+$("#btnFit").addEventListener("click",()=>setAjustar(!ajustar));
+addEventListener("resize",()=>ajustarPlanilha());
 const sheetFocused=()=>$("#sheet").contains(document.activeElement);
 $("#sheet").addEventListener("change",e=>{
   const t=e.target;
@@ -1152,7 +1174,7 @@ $("#equipeTabela").addEventListener("click",async e=>{
 
 // --- maximizar planilha ---
 function maximizar(on){
-  document.body.classList.toggle("planilha-max",on);
+  document.body.classList.toggle("planilha-max",on); setTimeout(ajustarPlanilha,0);
   $("#maxTxt").textContent=on?"Sair da tela cheia":"Maximizar planilha";
   $("#maxIcon").innerHTML=on?'<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>':'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>';
 }
@@ -1167,8 +1189,10 @@ function aplicarMenu(recolhido){
   $("#menuSeta").setAttribute("d",recolhido?"M13 10l2 2-2 2":"M15 10l-2 2 2 2");
   try{ localStorage.setItem("cs-menu",recolhido?"1":"0"); }catch(_){}
 }
-$("#btnMenu").addEventListener("click",()=>aplicarMenu(!document.body.classList.contains("menu-recolhido")));
+$("#btnMenu").addEventListener("click",()=>{ aplicarMenu(!document.body.classList.contains("menu-recolhido")); setTimeout(ajustarPlanilha,0); });
 try{ if(localStorage.getItem("cs-menu")==="1") aplicarMenu(true); }catch(_){}
+
+try{ if(localStorage.getItem("cs-ajustar")==="1") setAjustar(true); }catch(_){}
 
 // --- início ---
 items=EXEMPLOS.map(x=>structuredClone(x)); selId=items[0]?.id||null;
