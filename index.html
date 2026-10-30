@@ -17,7 +17,7 @@
   --bg:#F3F5F8; --surface:#FFFFFF; --ink:#16202B; --muted:#5E6B78; --line:#E1E6EC; --line-strong:#CDD5DE;
   --accent:#1F5FAD; --accent-ink:#FFFFFF; --accent-soft:#E8F0FA;
   --side:#0F2236; --side-ink:#AFC0D2; --side-strong:#FFFFFF; --side-active:#1B3957; --side-line:#1E3650;
-  --amber:#9A6508; --amber-bg:#FBF0D9; --ok:#1D7348; --ok-bg:#E1F2E8; --paper:#FFFFFF; --head:#F7F9FB;
+  --amber:#9A6508; --amber-bg:#FBF0D9; --ok:#1D7348; --ok-bg:#E1F2E8; --red:#B42318; --red-bg:#FDE8E6; --paper:#FFFFFF; --head:#F7F9FB;
   --shadow:0 1px 2px rgb(16 34 54 / .06),0 1px 1px rgb(16 34 54 / .04);
   --f-display:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -27,13 +27,13 @@
   --bg:#0C1218; --surface:#141C25; --ink:#E3E9EF; --muted:#8FA0B1; --line:#222E3B; --line-strong:#2E3D4D;
   --accent:#6EA2E4; --accent-ink:#0A1420; --accent-soft:#16283D;
   --side:#08111A; --side-ink:#8FA3B8; --side-strong:#FFFFFF; --side-active:#15283C; --side-line:#152433;
-  --amber:#E2AE4A; --amber-bg:#2E240F; --ok:#5CC48E; --ok-bg:#122B1D; --paper:#18212B; --head:#18212B;
+  --amber:#E2AE4A; --amber-bg:#2E240F; --ok:#5CC48E; --ok-bg:#122B1D; --red:#F28B82; --red-bg:#3A1714; --paper:#18212B; --head:#18212B;
   --shadow:0 1px 2px rgb(0 0 0 / .3); color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0C1218; --surface:#141C25; --ink:#E3E9EF; --muted:#8FA0B1; --line:#222E3B; --line-strong:#2E3D4D;
   --accent:#6EA2E4; --accent-ink:#0A1420; --accent-soft:#16283D;
   --side:#08111A; --side-ink:#8FA3B8; --side-strong:#FFFFFF; --side-active:#15283C; --side-line:#152433;
-  --amber:#E2AE4A; --amber-bg:#2E240F; --ok:#5CC48E; --ok-bg:#122B1D; --paper:#18212B; --head:#18212B;
+  --amber:#E2AE4A; --amber-bg:#2E240F; --ok:#5CC48E; --ok-bg:#122B1D; --red:#F28B82; --red-bg:#3A1714; --paper:#18212B; --head:#18212B;
   --shadow:0 1px 2px rgb(0 0 0 / .3); color-scheme:dark}
 
 *{box-sizing:border-box}
@@ -111,6 +111,8 @@ h1{font:600 1.35rem/1.25 var(--f-display);margin:2px 0 0;text-wrap:balance}
 .pill{font:500 .7rem/1.4 var(--f-body);padding:2px 8px;border-radius:99px;align-self:start;white-space:nowrap;border:1px solid transparent}
 .pill.pend{background:var(--amber-bg);color:var(--amber)}
 .pill.done{background:var(--ok-bg);color:var(--ok)}
+.pill.late{background:var(--red-bg);color:var(--red)}
+.pill.info{background:var(--accent-soft);color:var(--accent)}
 .empty{background:var(--surface);border:1px dashed var(--line-strong);border-radius:8px;padding:18px;color:var(--muted);font-size:.9rem}
 
 .detail{display:flex;flex-direction:column;gap:18px;min-width:0}
@@ -177,7 +179,7 @@ input.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .sheet-tools input,.sheet-tools select{width:auto;flex:1 1 200px;max-width:320px}
 .sheet-tools .count{color:var(--muted);font-size:.82rem;margin-left:auto}
 .sheet-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);box-shadow:var(--shadow)}
-table.sheet{border-collapse:collapse;width:100%;min-width:1560px;font-size:.86rem;font-variant-numeric:tabular-nums}
+table.sheet{border-collapse:collapse;width:100%;min-width:1700px;font-size:.86rem;font-variant-numeric:tabular-nums}
 .sheet th,.sheet td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:0;vertical-align:middle}
 .sheet thead th{position:sticky;top:0;background:var(--head);font:600 .75rem var(--f-body);color:var(--muted);text-align:left;padding:8px;z-index:1}
 .sheet thead tr.letters th{text-align:center;font:500 .66rem var(--f-mono);padding:3px;background:var(--bg)}
@@ -253,7 +255,7 @@ dialog h2+.sub{margin:-6px 0 14px!important}
           <div class="resumo" id="notasResumo"></div>
           <div class="sheet-tools">
             <input id="nfBusca" placeholder="Buscar por nota, OS, local, prestador ou serviço">
-            <select id="nfFiltro"><option value="">Todas</option><option value="emitida">Emitidas</option><option value="sem">Sem nota</option><option value="avulsa">Notas criadas na aba</option></select>
+            <select id="nfFiltro"><option value="">Todas</option><option value="emitida">Emitidas</option><option value="sem">Sem nota</option><option value="avulsa">Notas criadas na aba</option><option value="vencida">Vencidas</option></select>
             <button class="btn primary" id="btnNovaNf" type="button" style="margin-left:auto">+ Nova nota fiscal</button>
           </div>
           <div class="notas" id="notasList"></div>
@@ -312,10 +314,11 @@ dialog h2+.sub{margin:-6px 0 14px!important}
       <div class="field full"><label for="aOs">Ordem de serviço</label><select id="aOs"></select></div>
       <div class="field"><label for="aNum">Nº da nota</label><input id="aNum" class="mono" required></div>
       <div class="field"><label for="aData">Data da NF</label><input id="aData" type="date" required></div>
+      <div class="field"><label for="aVenc">Data de vencimento</label><input id="aVenc" type="date"></div>
       <div class="field"><label for="aDataServ">Data da OS / serviço</label><input id="aDataServ" type="date"></div>
       <div class="field" style="grid-column:span 2"><label for="aAero">Local</label><input id="aAero" placeholder="SBGR · Guarulhos"></div>
+      <div class="field" style="grid-column:span 2"><label for="aPrest">Prestador de serviço</label><input id="aPrest" placeholder="Nome da empresa ou profissional"></div>
       <div class="field"><label for="aValor">Valor da NF (R$)</label><input id="aValor" class="mono" type="number" min="0" step="0.01" required></div>
-      <div class="field full"><label for="aPrest">Prestador de serviço</label><input id="aPrest" placeholder="Nome da empresa ou profissional"></div>
       <div class="field full"><label for="aObs">Discriminação</label><textarea id="aObs" placeholder="Descrição dos serviços cobrados"></textarea></div>
       <div class="field full">
         <label>Serviços da nota</label>
@@ -351,14 +354,14 @@ const CHECK_PADRAO = [
 const EXEMPLOS = [
   {id:"ex1", exemplo:true, numero:"OS-0001", data:"2026-10-27", aeroporto:"SBGR · Guarulhos", prestador:"Sky Handling Serviços Aeroportuários", valorOs:4850,
    obs:"Pernoite e limpeza completa. Cliente chega às 07h.", criado:1,
-   checklist:CHECK_PADRAO.map(t=>({t,ok:true})), nf:{numero:"000.184", data:"2026-10-28", valor:4850}},
+   checklist:CHECK_PADRAO.map(t=>({t,ok:true})), nf:{numero:"000.184", data:"2026-10-28", vencimento:"2026-10-28", valor:4850}},
   {id:"ex2", exemplo:true, numero:"OS-0002", data:"2026-10-30", aeroporto:"SBSP · Congonhas", prestador:"AeroTec Manutenção Ltda.", valorOs:3200,
    obs:"Troca de pneu do trem principal esquerdo e reabastecimento.", criado:2,
    checklist:CHECK_PADRAO.map((t,i)=>({t,ok:i<4})), nf:{numero:"", data:"", valor:0}}
 ];
 
 let db=null, canWrite=false, items=[], selId=null, live=false;
-let notas=[{id:"nx1", exemplo:true, numero:"000.201", data:"2026-11-04", dataServ:"2026-11-04", aeroporto:"SBGR · Guarulhos", prestador:"Sky Handling Serviços Aeroportuários",
+let notas=[{id:"nx1", exemplo:true, numero:"000.201", data:"2026-11-04", vencimento:"2026-12-04", dataServ:"2026-11-04", aeroporto:"SBGR · Guarulhos", prestador:"Sky Handling Serviços Aeroportuários",
   obs:"Locação de sala VIP para tripulação e serviço de internet.", servicos:["Locação","Internet"], valor:980, criado:1}];
 let checkPadrao=[...CHECK_PADRAO], keepPadrao=true;
 const $=s=>document.querySelector(s);
@@ -390,9 +393,10 @@ function nfDoc(n){
       <div class="nf-head"><b>NFS-e Nº ${esc(n.numero||"—")}</b><span>${esc(n.ref)}</span></div>
       <div class="nf-grid">
         <div class="nf-cell"><span>Data de emissão</span>${dataBR(n.data)}</div>
-        <div class="nf-cell"><span>Local</span>${esc(n.aeroporto||"—")}</div>
+        <div class="nf-cell"><span>Data de vencimento</span>${dataBR(n.vencimento)}</div>
         <div class="nf-cell"><span>Data da OS / serviço</span>${dataBR(n.dataServ)}</div>
       </div>
+      <div class="nf-cell"><span>Local</span>${esc(n.aeroporto||"—")}</div>
       <div class="nf-cell"><span>Prestador de serviço</span>${esc(n.prestador||"—")}</div>
       <div class="nf-cell"><span>Discriminação dos serviços</span><div style="white-space:pre-wrap">${esc(n.obs||"—")}</div></div>
       <div class="nf-cell"><span>Serviços (${n.servicos.length})</span>
@@ -403,10 +407,10 @@ function nfDoc(n){
 }
 function nfHtml(it){
   const nf=it.nf||{};
-  return nfDoc({numero:nf.numero, ref:"Ref. "+it.numero, data:nf.data, aeroporto:it.aeroporto, prestador:it.prestador, dataServ:it.data, obs:it.obs, servicos:it.checklist, valor:nf.valor});
+  return nfDoc({numero:nf.numero, ref:"Ref. "+it.numero, data:nf.data, vencimento:nf.vencimento, aeroporto:it.aeroporto, prestador:it.prestador, dataServ:it.data, obs:it.obs, servicos:it.checklist, valor:nf.valor});
 }
 const osDe=a=>a.osId?items.find(i=>i.id===a.osId):null;
-const avulsaDoc=a=>nfDoc({numero:a.numero, ref:osDe(a)?"Ref. "+osDe(a).numero:"Avulsa", data:a.data, aeroporto:a.aeroporto, prestador:a.prestador, dataServ:a.dataServ, obs:a.obs, servicos:(a.servicos||[]).map(t=>({t})), valor:a.valor});
+const avulsaDoc=a=>nfDoc({numero:a.numero, ref:osDe(a)?"Ref. "+osDe(a).numero:"Avulsa", data:a.data, vencimento:a.vencimento, aeroporto:a.aeroporto, prestador:a.prestador, dataServ:a.dataServ, obs:a.obs, servicos:(a.servicos||[]).map(t=>({t})), valor:a.valor});
 
 function renderDetail(){
   const el=$("#detail"); const it=items.find(i=>i.id===selId);
@@ -464,6 +468,7 @@ const COLS=[
   {h:"Status",sq:true,w:130},
   {h:"NF nº",k:"nf.numero",w:100},
   {h:"Data da NF",k:"nf.data",type:"date",w:140},
+  {h:"Vencimento NF",k:"nf.vencimento",type:"date",w:140},
   {h:"Valor da NF (R$)",k:"nf.valor",type:"number",num:true,w:130,sum:true},
   {h:"",ro:true,w:84,v:it=>`<button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button>`,html:true}
 ];
@@ -502,13 +507,22 @@ $("#sheet").addEventListener("click",e=>{ const b=e.target.closest("[data-open]"
 $("#fBusca").addEventListener("input",renderSheet);
 $("#fStatus").addEventListener("change",renderSheet);
 // --- notas fiscais ---
+const hojeISO=()=>{ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
+function vencPill(v){
+  if(!v) return "";
+  const h=hojeISO();
+  if(v<h) return `<span class="pill late">Vencida em ${dataBR(v)}</span>`;
+  if(v===h) return `<span class="pill pend">Vence hoje</span>`;
+  return `<span class="pill info">Vence em ${dataBR(v)}</span>`;
+}
+const vencida=v=>!!v && v<hojeISO();
 const emitida=it=>!!(it.nf&&it.nf.numero)||notas.some(a=>a.osId===it.id);
 function renderNotas(){
   const q=$("#nfBusca").value.trim().toLowerCase(), f=$("#nfFiltro").value;
   const dis=canWrite?"":"disabled";
   const has=arr=>!q||arr.join(" ").toLowerCase().includes(q);
-  const rowsOs=f==="avulsa"?[]:items.filter(it=>!(!it.nf?.numero && notas.some(a=>a.osId===it.id)) && (!f||(f==="emitida")===emitida(it)) && has([it.nf?.numero,it.numero,it.aeroporto,it.prestador,it.obs,...it.checklist.map(c=>c.t)]));
-  const rowsAv=f==="sem"?[]:notas.filter(a=>has([a.numero,a.aeroporto,a.prestador,a.obs,...(a.servicos||[])]));
+  const rowsOs=f==="avulsa"?[]:f==="vencida"?items.filter(it=>vencida(it.nf?.vencimento)):items.filter(it=>!(!it.nf?.numero && notas.some(a=>a.osId===it.id)) && (!f||(f==="emitida")===emitida(it)) && has([it.nf?.numero,it.numero,it.aeroporto,it.prestador,it.obs,...it.checklist.map(c=>c.t)]));
+  const rowsAv=f==="sem"?[]:notas.filter(a=>(f!=="vencida"||vencida(a.vencimento)) && has([a.numero,a.aeroporto,a.prestador,a.obs,...(a.servicos||[])]));
   const total=rowsOs.reduce((s,it)=>s+(Number(it.nf?.valor)||0),0)+rowsAv.reduce((s,a)=>s+(Number(a.valor)||0),0);
   $("#notasResumo").innerHTML=`<div><span>OS com nota</span><strong>${items.filter(emitida).length}</strong></div>
     <div><span>Notas criadas na aba</span><strong>${notas.length}</strong></div>
@@ -516,10 +530,10 @@ function renderNotas(){
     <div><span>Total ${q||f?"filtrado":"geral"}</span><strong>${brl(total)}</strong></div>`;
   const cards=[
     ...rowsAv.map(a=>({ord:a.data||"",html:`<article>${avulsaDoc(a)}
-      <div class="nota-foot"><span class="pill done">${osDe(a)?"Vinculada à "+esc(osDe(a).numero):"Avulsa"}${a.exemplo?" · exemplo":""}</span>
+      <div class="nota-foot"><span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill done">${osDe(a)?"Vinculada à "+esc(osDe(a).numero):"Avulsa"}${a.exemplo?" · exemplo":""}</span>${vencPill(a.vencimento)}</span>
       <span class="confirm" data-delwrap="${esc(a.id)}"><button type="button" class="open" data-edit-nf="${esc(a.id)}" ${dis}>Editar</button><button type="button" class="open" data-del-nf="${esc(a.id)}" ${dis}>Excluir</button></span></div></article>`})),
     ...rowsOs.map(it=>({ord:it.nf?.data||it.data||"",html:`<article>${nfHtml(it)}
-      <div class="nota-foot"><span class="pill ${emitida(it)?"done":"pend"}">${emitida(it)?"Emitida":"Sem nota"}</span>
+      <div class="nota-foot"><span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill ${emitida(it)?"done":"pend"}">${emitida(it)?"Emitida":"Sem nota"}</span>${vencPill(it.nf?.vencimento)}</span>
       <button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button></div></article>`}))
   ].sort((a,b)=>b.ord.localeCompare(a.ord));
   $("#notasList").innerHTML=cards.length?cards.map(c=>c.html).join(""):`<div class="empty">Nenhuma nota encontrada. Use <b>+ Nova nota fiscal</b> para emitir uma nota avulsa.</div>`;
@@ -548,7 +562,7 @@ function abrirNf(a,osId){
   editNfId=a?a.id:null; $("#formNf").reset();
   $("#dlgNfTitulo").textContent=a?"Editar nota fiscal":"Nova nota fiscal"; $("#aSalvar").textContent=a?"Salvar nota fiscal":"Criar nota fiscal";
   const hoje=new Date().toISOString().slice(0,10);
-  $("#aNum").value=a?.numero||""; $("#aData").value=a?.data||hoje; $("#aDataServ").value=a?.dataServ||"";
+  $("#aNum").value=a?.numero||""; $("#aData").value=a?.data||hoje; $("#aDataServ").value=a?.dataServ||""; $("#aVenc").value=a?.vencimento||"";
   $("#aAero").value=a?.aeroporto||""; $("#aPrest").value=a?.prestador||""; $("#aValor").value=a?.valor||""; $("#aObs").value=a?.obs||"";
   const sel=a?.servicos||[], lista=[...checkPadrao,...sel.filter(t=>!checkPadrao.includes(t))];
   $("#aPickList").innerHTML=lista.map((t,i)=>`<label for="apk${i}"><input type="checkbox" id="apk${i}" value="${esc(t)}" ${sel.includes(t)?"checked":""}> ${esc(t)}</label>`).join("");
@@ -576,7 +590,7 @@ $("#formNf").addEventListener("submit",e=>{
   e.preventDefault();
   const id=editNfId||"n"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const antiga=notas.find(a=>a.id===id);
-  const a={numero:$("#aNum").value.trim(), data:$("#aData").value, dataServ:$("#aDataServ").value, aeroporto:$("#aAero").value.trim(), prestador:$("#aPrest").value.trim(),
+  const a={numero:$("#aNum").value.trim(), data:$("#aData").value, vencimento:$("#aVenc").value, dataServ:$("#aDataServ").value, aeroporto:$("#aAero").value.trim(), prestador:$("#aPrest").value.trim(),
     valor:parseFloat($("#aValor").value)||0, obs:$("#aObs").value,
     servicos:[...$("#aPickList").querySelectorAll("input:checked")].map(x=>x.value), osId:$("#aOs").value, criado:antiga?.criado||Date.now()};
   if(antiga?.exemplo) a.exemplo=true;
@@ -711,14 +725,14 @@ function gerarPlanilha(){
       "Discriminação":it.obs||"", "Valor da OS (R$)":Number(it.valorOs)||0,
       "Checklist":`${n}/${it.checklist.length}`, "Status":done(it)?"Concluída":"Pendente",
       "Itens pendentes":it.checklist.filter(c=>!c.ok).map(c=>c.t).join("; "),
-      "NF nº":it.nf?.numero||"", "Data da NF":it.nf?.data?dataBR(it.nf.data):"", "Valor da NF (R$)":Number(it.nf?.valor)||0
+      "NF nº":it.nf?.numero||"", "Data da NF":it.nf?.data?dataBR(it.nf.data):"", "Vencimento NF":it.nf?.vencimento?dataBR(it.nf.vencimento):"", "Valor da NF (R$)":Number(it.nf?.valor)||0
     };
   });
   linhas.push({"OS":"TOTAL","Valor da OS (R$)":linhas.reduce((s,l)=>s+l["Valor da OS (R$)"],0),"Valor da NF (R$)":linhas.reduce((s,l)=>s+l["Valor da NF (R$)"],0)});
   const ws=XLSX.utils.json_to_sheet(linhas);
-  ws["!cols"]=[10,12,22,30,50,16,10,11,44,12,12,16].map(w=>({wch:w}));
+  ws["!cols"]=[10,12,22,30,50,16,10,11,44,12,12,14,16].map(w=>({wch:w}));
   const range=XLSX.utils.decode_range(ws["!ref"]);
-  for(let r=1;r<=range.e.r;r++){ for(const col of [5,11]){ const c=ws[XLSX.utils.encode_cell({r,c:col})]; if(c) c.z='"R$" #,##0.00'; } }
+  for(let r=1;r<=range.e.r;r++){ for(const col of [5,12]){ const c=ws[XLSX.utils.encode_cell({r,c:col})]; if(c) c.z='"R$" #,##0.00'; } }
   const det=[];
   items.forEach(it=>it.checklist.forEach(c=>det.push({"OS":it.numero,"Local":it.aeroporto,"Item":c.t,"OK":c.ok?"Sim":"Não"})));
   const ws2=XLSX.utils.json_to_sheet(det.length?det:[{"OS":"","Local":"","Item":"","OK":""}]);
@@ -727,14 +741,14 @@ function gerarPlanilha(){
   XLSX.utils.book_append_sheet(wb,ws,"Serviços");
   XLSX.utils.book_append_sheet(wb,ws2,"Checklist");
   const nfs=[
-    ...items.filter(it=>it.nf?.numero).map(it=>({"NF nº":it.nf.numero,"Tipo":"OS "+it.numero,"Data da NF":dataBR(it.nf.data),"Local":it.aeroporto,"Prestador de serviço":it.prestador||"","Discriminação":it.obs||"","Serviços":it.checklist.map(c=>c.t).join("; "),"Valor (R$)":Number(it.nf.valor)||0})),
-    ...notas.map(a=>({"NF nº":a.numero,"Tipo":osDe(a)?"OS "+osDe(a).numero:"Avulsa","Data da NF":dataBR(a.data),"Local":a.aeroporto||"","Prestador de serviço":a.prestador||"","Discriminação":a.obs||"","Serviços":(a.servicos||[]).join("; "),"Valor (R$)":Number(a.valor)||0}))
+    ...items.filter(it=>it.nf?.numero).map(it=>({"NF nº":it.nf.numero,"Tipo":"OS "+it.numero,"Data da NF":dataBR(it.nf.data),"Vencimento":it.nf.vencimento?dataBR(it.nf.vencimento):"","Local":it.aeroporto,"Prestador de serviço":it.prestador||"","Discriminação":it.obs||"","Serviços":it.checklist.map(c=>c.t).join("; "),"Valor (R$)":Number(it.nf.valor)||0})),
+    ...notas.map(a=>({"NF nº":a.numero,"Tipo":osDe(a)?"OS "+osDe(a).numero:"Avulsa","Data da NF":dataBR(a.data),"Vencimento":a.vencimento?dataBR(a.vencimento):"","Local":a.aeroporto||"","Prestador de serviço":a.prestador||"","Discriminação":a.obs||"","Serviços":(a.servicos||[]).join("; "),"Valor (R$)":Number(a.valor)||0}))
   ];
   nfs.push({"NF nº":"TOTAL","Valor (R$)":nfs.reduce((s,l)=>s+l["Valor (R$)"],0)});
   const ws3=XLSX.utils.json_to_sheet(nfs);
-  ws3["!cols"]=[12,12,12,22,30,44,44,14].map(w=>({wch:w}));
+  ws3["!cols"]=[12,12,12,12,22,30,44,44,14].map(w=>({wch:w}));
   const r3=XLSX.utils.decode_range(ws3["!ref"]);
-  for(let r=1;r<=r3.e.r;r++){ const c=ws3[XLSX.utils.encode_cell({r,c:7})]; if(c) c.z='"R$" #,##0.00'; }
+  for(let r=1;r<=r3.e.r;r++){ const c=ws3[XLSX.utils.encode_cell({r,c:8})]; if(c) c.z='"R$" #,##0.00'; }
   XLSX.utils.book_append_sheet(wb,ws3,"Notas fiscais");
   return XLSX.write(wb,{bookType:"xlsx",type:"array"});
 }
