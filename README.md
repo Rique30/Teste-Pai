@@ -13,4 +13,4 @@ Página para registrar ordens de serviço em aeroportos.
 
 Abra o `index.html` no navegador.
 
-Os dados ficam salvos quando a página roda como artefato no claude.ai, que oferece o banco de dados compartilhado. Aberta fora dele, a página entra em modo de demonstração: mostra exemplos e permite testar tudo, inclusive gerar o Excel, mas as alterações não ficam salvas ao recarregar.
+Os dados ficam salvos quando a página roda como artefato no claude.ai, que oferece o banco de dados compartilhado. Aberta fora dele, a página entra em modo de demonstração: começa vazia e permite testar tudo, inclusive gerar o Excel, mas as alterações não ficam salvas ao recarregar.

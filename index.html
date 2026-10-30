@@ -351,18 +351,10 @@ const CHECK_PADRAO = [
   "Telefonia",
   "Banco de dados"
 ];
-const EXEMPLOS = [
-  {id:"ex1", exemplo:true, numero:"OS-0001", data:"2026-10-27", aeroporto:"SBGR · Guarulhos", prestador:"Sky Handling Serviços Aeroportuários", valorOs:4850,
-   obs:"Pernoite e limpeza completa. Cliente chega às 07h.", criado:1,
-   checklist:CHECK_PADRAO.map(t=>({t,ok:true})), nf:{numero:"000.184", data:"2026-10-28", vencimento:"2026-10-28", valor:4850}},
-  {id:"ex2", exemplo:true, numero:"OS-0002", data:"2026-10-30", aeroporto:"SBSP · Congonhas", prestador:"AeroTec Manutenção Ltda.", valorOs:3200,
-   obs:"Troca de pneu do trem principal esquerdo e reabastecimento.", criado:2,
-   checklist:CHECK_PADRAO.map((t,i)=>({t,ok:i<4})), nf:{numero:"", data:"", valor:0}}
-];
+const EXEMPLOS = [];
 
 let db=null, canWrite=false, items=[], selId=null, live=false;
-let notas=[{id:"nx1", exemplo:true, numero:"000.201", data:"2026-11-04", vencimento:"2026-12-04", dataServ:"2026-11-04", aeroporto:"SBGR · Guarulhos", prestador:"Sky Handling Serviços Aeroportuários",
-  obs:"Locação de sala VIP para tripulação e serviço de internet.", servicos:["Locação","Internet"], valor:980, criado:1}];
+let notas=[];
 let checkPadrao=[...CHECK_PADRAO], keepPadrao=true;
 const $=s=>document.querySelector(s);
 const brl=v=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(v)||0);
@@ -770,13 +762,13 @@ $("#btnExcel").addEventListener("click",async()=>{
 });
 
 // --- início ---
-items=EXEMPLOS.map(x=>structuredClone(x)); selId=items[0].id;
+items=EXEMPLOS.map(x=>structuredClone(x)); selId=items[0]?.id||null;
 try{ const v=localStorage.getItem("hangar-view"); if(v==="planilha"||v==="notas") view=v; }catch(_){}
 setView(view);
 
 (async()=>{
   const [d,user]=await Promise.all([window.claude?.use("db"), window.claude?.use("user")].map(p=>Promise.resolve(p).catch(()=>null)));
-  if(!d){ canWrite=true; notice("Modo de demonstração: as solicitações abaixo são exemplos e as alterações não são salvas."); render(); return; }
+  if(!d){ canWrite=true; notice("Modo de demonstração: aqui as alterações não ficam salvas ao recarregar a página."); render(); return; }
   db=d; live=true;
   const perm=user ? await Promise.resolve(user.can("data.write")).catch(()=>null) : null;
   canWrite = perm!==false;
