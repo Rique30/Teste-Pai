@@ -295,12 +295,10 @@ dialog h2+.sub{margin:-6px 0 14px!important}
           <div class="pick-list" id="pickList"></div>
         </div>
       </div>
-      <div class="field"><label for="nNfNum">Nº da nota (opcional)</label><input id="nNfNum" class="mono"></div>
-      <div class="field"><label for="nNfData">Data da NF</label><input id="nNfData" type="date"></div>
-      <div class="field"><label for="nNfValor">Valor da NF (R$)</label><input id="nNfValor" class="mono" type="number" min="0" step="0.01"></div>
     </div>
     <div class="row-actions">
       <button class="btn" type="button" id="btnCancelar">Cancelar</button>
+      <button class="btn" type="button" id="nIrNf">Criar e emitir nota fiscal</button>
       <button class="btn primary" type="submit">Criar solicitação</button>
     </div>
   </form>
@@ -429,6 +427,7 @@ function renderDetail(){
     <div class="row-actions">
       <span class="confirm" id="delWrap"><button class="btn" type="button" id="btnExcluir" ${dis}>Excluir</button></span>
       <span class="saved" id="savedSol"></span>
+      <button class="btn" type="button" id="btnEmitirNf" ${dis}>Emitir nota fiscal</button>
       <button class="btn primary" type="button" id="btnSalvarSol" ${dis}>Salvar solicitação</button>
     </div>
   </section>
@@ -642,7 +641,7 @@ $("#detail").addEventListener("change",e=>{
 });
 $("#detail").addEventListener("click",async e=>{
   const ed=e.target.closest("[data-edit-nf]"); if(ed){ abrirNf(notas.find(a=>a.id===ed.dataset.editNf)); return; }
-  if(e.target.id==="btnNfDaOs"){ abrirNf(null,e.target.dataset.os); return; }
+  if(e.target.id==="btnEmitirNf"){ setView("notas"); abrirNf(null,selId); return; }
   const it=items.find(i=>i.id===selId); if(!it) return;
   const id=e.target.id;
   if(id==="btnSalvarSol"){
@@ -687,6 +686,8 @@ $("#pickAll").addEventListener("click",()=>{
   all.forEach(x=>x.checked=on); pickUpdate();
 });
 $("#btnCancelar").addEventListener("click",()=>dlg.close());
+let irNf=false;
+$("#nIrNf").addEventListener("click",()=>{ irNf=true; $("#formNova").requestSubmit(); if(dlg.open) irNf=false; });
 $("#formNova").addEventListener("submit",e=>{
   e.preventDefault();
   const max=items.reduce((m,i)=>Math.max(m,parseInt(String(i.numero).replace(/\D/g,""))||0),0);
@@ -694,8 +695,9 @@ $("#formNova").addEventListener("submit",e=>{
   const it={id, numero:"OS-"+String(max+1).padStart(4,"0"), data:$("#nData").value, aeroporto:$("#nAero").value.trim(),
     prestador:$("#nPrest").value.trim(), valorOs:parseFloat($("#nValorOs").value)||0, obs:$("#nObs").value, criado:Date.now(),
     checklist:[...$("#pickList").querySelectorAll("input:checked")].map(x=>({t:x.value,ok:false})),
-    nf:{numero:$("#nNfNum").value.trim(), data:$("#nNfData").value, valor:parseFloat($("#nNfValor").value)||0}};
+    nf:{numero:"",data:"",valor:0}};
   items=[it,...items]; selId=id; dlg.close(); save(it,{});
+  if(irNf){ irNf=false; setView("notas"); abrirNf(null,id); return; }
   if(view==="planilha") setTimeout(()=>{ const f=$(`#sheet [data-id="${id}"][data-k="obs"]`); if(f) f.focus(); },0);
 });
 
