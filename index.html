@@ -573,9 +573,9 @@ const COLS=[
   {h:"OS",k:"numero",ro:true,w:80},
   {h:"Data da OS",k:"data",type:"date",w:140},
   {h:"Local",k:"aeroporto",w:160},
-  {h:"Qtd.",qtd:true,w:170},
   {h:"Prestador de serviço",k:"prestador",w:190},
   {h:"Discriminação",k:"obs",area:true,w:280},
+  {h:"Qtd.",qtd:true,w:170},
   {h:"Valor da OS (R$)",k:"valorOs",type:"number",num:true,w:130,sum:true},
   {h:"Status",sq:true,w:70},
   {h:"NF nº",k:"nf.numero",w:100},
@@ -895,8 +895,8 @@ function gerarPlanilha(){
     const n=it.checklist.filter(c=>c.ok).length;
     return {
       "OS":it.numero, "Data da OS":dataBR(it.data), "Local":it.aeroporto,
-      "Qtd.":it.qtd==null?"":Number(it.qtd), "Unidade":it.qtd==null?"":(UNIDADES[it.unidade]||"un"), "Prestador de serviço":it.prestador||"",
-      "Discriminação":it.obs||"", "Valor da OS (R$)":Number(it.valorOs)||0,
+      "Prestador de serviço":it.prestador||"",
+      "Discriminação":it.obs||"", "Qtd.":it.qtd==null?"":Number(it.qtd), "Unidade":it.qtd==null?"":(UNIDADES[it.unidade]||"un"), "Valor da OS (R$)":Number(it.valorOs)||0,
       "Checklist OK":`${n}/${it.checklist.length}`, "Status":done(it)?"Concluída":"Pendente",
       "Itens pendentes":it.checklist.filter(c=>!c.ok).map(c=>c.t).join("; "),
       "NF nº":it.nf?.numero||"", "Data da NF":it.nf?.data?dataBR(it.nf.data):"", "Vencimento NF":it.nf?.vencimento?dataBR(it.nf.vencimento):"", "Valor da NF (R$)":Number(it.nf?.valor)||0
@@ -904,7 +904,7 @@ function gerarPlanilha(){
   });
   linhas.push({"OS":"TOTAL","Valor da OS (R$)":linhas.reduce((s,l)=>s+l["Valor da OS (R$)"],0),"Valor da NF (R$)":linhas.reduce((s,l)=>s+l["Valor da NF (R$)"],0)});
   const ws=XLSX.utils.json_to_sheet(linhas);
-  ws["!cols"]=[10,12,22,10,8,30,50,16,12,11,44,12,12,14,16].map(w=>({wch:w}));
+  ws["!cols"]=[10,12,22,30,50,10,8,16,12,11,44,12,12,14,16].map(w=>({wch:w}));
   const range=XLSX.utils.decode_range(ws["!ref"]);
   for(let r=1;r<=range.e.r;r++){ for(const col of [7,14]){ const c=ws[XLSX.utils.encode_cell({r,c:col})]; if(c) c.z='"R$" #,##0.00'; } }
   const det=[];
