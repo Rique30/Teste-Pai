@@ -192,6 +192,13 @@ table.sheet{border-collapse:collapse;width:100%;min-width:1700px;font-size:.86re
 .sheet td.num input{text-align:right;font-family:var(--f-mono)}
 .sheet tr.total td{background:var(--head);font-weight:600;padding:9px 8px}
 .sheet tr.total td.num{text-align:right;font-family:var(--f-mono)}
+.sheet td.ro .qtd{display:flex;gap:8px;align-items:center;max-width:230px}
+.sheet td.ro .qtd b{font:600 .8rem var(--f-mono);background:var(--accent-soft);color:var(--accent);border-radius:4px;padding:1px 7px;flex:none}
+.sheet td.ro .qtd span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:.82rem}
+.sheet td.qtdcell>div{display:flex;align-items:center}
+.sheet td.qtdcell input{border:0;background:transparent;padding:8px;width:100%;text-align:right;font-family:var(--f-mono);font-size:.86rem;min-width:0}
+.sheet td.qtdcell select{border:0;background:transparent;padding:8px 4px;width:auto;font-size:.82rem;color:var(--muted);flex:none}
+.sheet td.qtdcell input:focus,.sheet td.qtdcell select:focus{outline:2px solid var(--accent);outline-offset:-2px;background:var(--surface)}
 .sheet td.sq{text-align:center;padding:0 8px}
 .sheet td.sq label{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font:500 .78rem var(--f-body);color:var(--muted)}
 .sheet td.sq input{width:20px;height:20px;accent-color:var(--ok);cursor:pointer;margin:0}
@@ -214,6 +221,37 @@ dialog::backdrop{background:rgb(10 20 32 / .5)}
 dialog h2{font:600 1.1rem var(--f-display);margin:0 -22px 16px;padding:16px 22px;border-bottom:1px solid var(--line)}
 dialog h2+.sub{margin:-6px 0 14px!important}
 .confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.85rem}
+/* monitor */
+.mon{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
+@media (max-width:980px){.mon{grid-template-columns:1fr}}
+.mon .card.wide{grid-column:1/-1}
+.bars{display:flex;flex-direction:column;gap:10px}
+.bar-row{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,2fr) auto;gap:10px;align-items:center;font-size:.85rem}
+.bar-row .nome{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{height:10px;background:var(--line);border-radius:5px;overflow:hidden}
+.bar-fill{height:100%;background:var(--accent);border-radius:0 4px 4px 0;min-width:4px}
+.bar-row .val{font:500 .8rem var(--f-mono);color:var(--muted);text-align:right;white-space:nowrap}
+.bar-row:hover .bar-fill{filter:brightness(1.12)}
+.mini{width:100%;border-collapse:collapse;font-size:.85rem;font-variant-numeric:tabular-nums}
+.mini th{font:600 .72rem var(--f-body);color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+.mini td{padding:8px;border-bottom:1px solid var(--line)}
+.mini td.num{text-align:right;font-family:var(--f-mono)}
+/* histórico */
+.hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.hist li{display:grid;grid-template-columns:14px minmax(0,1fr);gap:10px;padding:8px 0;position:relative}
+.hist li::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:6px;margin-left:3px}
+.hist li:not(:last-child)::after{content:"";position:absolute;left:6.5px;top:20px;bottom:-6px;width:1px;background:var(--line)}
+.hist .acao{font-size:.86rem}
+.hist .meta{font-size:.75rem;color:var(--muted)}
+.hist .ref{font:500 .75rem var(--f-mono);color:var(--accent);background:none;border:0;padding:0;cursor:pointer}
+details.hist-nf{margin-top:8px;font-size:.85rem}
+details.hist-nf summary{cursor:pointer;color:var(--accent);font-weight:500;font-size:.8rem}
+details.hist-nf .hist{margin-top:6px}
+/* equipe */
+body.papel-operador .so-admin{display:none!important}
+.equipe-acoes{display:flex;gap:2px;flex-wrap:wrap;justify-content:flex-end}
+.mini td .eu{font-size:.72rem;color:var(--muted);margin-left:6px}
+.cred{font-family:var(--f-mono);user-select:all}
 /* login */
 .login{min-height:100vh;display:grid;place-items:center;background:var(--side);
   padding-block:32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -266,9 +304,11 @@ dialog h2+.sub{margin:-6px 0 14px!important}
     <nav aria-label="Seções">
       <div class="nav-label">Operação</div>
       <div class="tabs" role="tablist" aria-orientation="vertical">
-        <button type="button" role="tab" id="tabFichas" aria-selected="true"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>OS</button>
+        <button type="button" role="tab" id="tabPlanilha" aria-selected="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16"/></svg>Planilha</button>
+        <button type="button" role="tab" id="tabFichas" aria-selected="false"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>OS</button>
         <button type="button" role="tab" id="tabNotas" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>Nota Fiscal</button>
-        <button type="button" role="tab" id="tabPlanilha" aria-selected="false"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16"/></svg>Planilha</button>
+        <button type="button" role="tab" id="tabMonitor" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Monitor</button>
+        <button type="button" role="tab" id="tabEquipe" aria-selected="false" class="so-admin"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.2c3 .2 5.5 2.6 5.5 5.8"/></svg>Equipe</button>
       </div>
     </nav>
     <div class="side-foot"><div class="who" id="who" hidden><span>Conectado como</span><b id="whoEmail"></b><button type="button" id="btnSair">Sair</button></div>Ordens de serviço, checklist e notas fiscais em um só lugar.</div>
@@ -277,8 +317,8 @@ dialog h2+.sub{margin:-6px 0 14px!important}
   <div class="main">
     <header class="topbar">
       <div>
-        <div class="crumb">Controle de Serviços Aéreos / <span id="viewCrumb">OS</span></div>
-        <h1 id="viewTitle">Ordens de serviço</h1>
+        <div class="crumb">Controle de Serviços Aéreos / <span id="viewCrumb">Planilha</span></div>
+        <h1 id="viewTitle">Planilha de serviços</h1>
       </div>
       <div class="actions">
         <button class="btn" id="btnExcel" type="button">Gerar Excel</button>
@@ -289,6 +329,20 @@ dialog h2+.sub{margin:-6px 0 14px!important}
     <div class="content">
       <div class="notice" id="notice" hidden></div>
       <div class="kpis" id="kpis"></div>
+
+      <section id="equipeView" hidden>
+        <section class="card">
+          <h2>Membros da equipe <small id="equipeCount"></small></h2>
+          <p class="sub" style="margin:0 0 14px">Crie a conta de cada pessoa com uma senha provisória. No primeiro acesso ela troca por uma senha própria. <b>Administrador</b> faz tudo, inclusive gerenciar a equipe e excluir. <b>Operador</b> cria e edita OS, dá OK no checklist e emite notas, mas não exclui nem gerencia a equipe.</p>
+          <div class="notice" id="equipeAviso" hidden></div>
+          <div class="sheet-scroll" style="box-shadow:none"><table class="mini" id="equipeTabela"></table></div>
+          <div class="row-actions"><button class="btn primary" type="button" id="btnNovoMembro">+ Novo membro</button></div>
+        </section>
+      </section>
+
+      <section id="monitorView" hidden>
+        <div class="mon" id="monitor"></div>
+      </section>
 
       <section id="notasView" hidden>
         <div style="display:flex;flex-direction:column;gap:16px">
@@ -327,8 +381,10 @@ dialog h2+.sub{margin:-6px 0 14px!important}
     <div class="fields">
       <div class="field"><label for="nData">Data da OS</label><input id="nData" type="date" required></div>
       <div class="field" style="grid-column:span 2"><label for="nAero">Local</label><input id="nAero" placeholder="SBGR · Guarulhos" required></div>
-      <div class="field" style="grid-column:span 2"><label for="nPrest">Prestador de serviço</label><input id="nPrest" placeholder="Nome da empresa ou profissional"></div>
+      <div class="field"><label for="nQtd">Quantidade</label><input id="nQtd" class="mono" type="number" min="0" step="any"></div>
+      <div class="field"><label for="nUnid">Unidade</label><select id="nUnid"><option value="un">Unidade (objeto)</option><option value="L">Litros (líquido)</option><option value="kg">Quilos</option></select></div>
       <div class="field"><label for="nValorOs">Valor da OS (R$)</label><input id="nValorOs" class="mono" type="number" min="0" step="0.01"></div>
+      <div class="field full"><label for="nPrest">Prestador de serviço</label><input id="nPrest" placeholder="Nome da empresa ou profissional"></div>
       <div class="field full"><label for="nObs">Discriminação</label><textarea id="nObs" placeholder="Descrição dos serviços a realizar"></textarea></div>
       <div class="field full">
         <label>Serviços solicitados (checklist)</label>
@@ -342,6 +398,23 @@ dialog h2+.sub{margin:-6px 0 14px!important}
       <button class="btn" type="button" id="btnCancelar">Cancelar</button>
       <button class="btn" type="button" id="nIrNf">Criar e emitir nota fiscal</button>
       <button class="btn primary" type="submit">Criar solicitação</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgMembro">
+  <form id="formMembro" method="dialog">
+    <h2>Novo membro da equipe</h2>
+    <div class="fields">
+      <div class="field" style="grid-column:span 2"><label for="mNome">Nome</label><input id="mNome" required placeholder="Nome e sobrenome"></div>
+      <div class="field"><label for="mPapel">Perfil</label><select id="mPapel"><option value="operador">Operador</option><option value="admin">Administrador</option></select></div>
+      <div class="field" style="grid-column:span 2"><label for="mEmail">E-mail</label><input id="mEmail" type="email" required placeholder="pessoa@empresa.com.br"></div>
+      <div class="field"><label for="mSenha">Senha provisória</label><input id="mSenha" class="mono" required minlength="4"></div>
+    </div>
+    <div class="login-err" id="mErro" hidden style="margin-top:12px"></div>
+    <div class="row-actions">
+      <button class="btn" type="button" id="mCancelar">Cancelar</button>
+      <button class="btn primary" type="submit" id="mSalvar">Criar conta</button>
     </div>
   </form>
 </dialog>
@@ -456,12 +529,14 @@ function renderDetail(){
     <div class="fields">
       <div class="field"><label for="dData">Data da OS</label><input id="dData" type="date" value="${esc(it.data)}" ${dis}></div>
       <div class="field" style="grid-column:span 2"><label for="dAero">Local</label><input id="dAero" value="${esc(it.aeroporto)}" ${dis}></div>
-      <div class="field" style="grid-column:span 2"><label for="dPrest">Prestador de serviço</label><input id="dPrest" value="${esc(it.prestador||"")}" ${dis}></div>
+      <div class="field"><label for="dQtd">Quantidade</label><input id="dQtd" class="mono" type="number" min="0" step="any" value="${it.qtd??""}" ${dis}></div>
+      <div class="field"><label for="dUnid">Unidade</label><select id="dUnid" ${dis}>${unidOpts(it.unidade)}</select></div>
       <div class="field"><label for="dValorOs">Valor da OS (R$)</label><input id="dValorOs" class="mono" type="number" min="0" step="0.01" value="${it.valorOs||""}" ${dis}></div>
+      <div class="field full"><label for="dPrest">Prestador de serviço</label><input id="dPrest" value="${esc(it.prestador||"")}" ${dis}></div>
       <div class="field full"><label for="dObs">Discriminação</label><textarea id="dObs" ${dis}>${esc(it.obs)}</textarea></div>
     </div>
     <div class="row-actions">
-      <span class="confirm" id="delWrap"><button class="btn" type="button" id="btnExcluir" ${dis}>Excluir</button></span>
+      <span class="confirm" id="delWrap"><button class="btn so-admin" type="button" id="btnExcluir" ${dis}>Excluir</button></span>
       <span class="saved" id="savedSol"></span>
       <button class="btn" type="button" id="btnEmitirNf" ${dis}>Emitir nota fiscal</button>
       <button class="btn primary" type="button" id="btnSalvarSol" ${dis}>Salvar solicitação</button>
@@ -484,19 +559,24 @@ function renderDetail(){
       <button class="btn" type="button" id="btnAddItem" ${dis}>Adicionar</button>
     </div>
     <label class="keep" for="salvarPadrao"><input type="checkbox" id="salvarPadrao" ${keepPadrao?"checked":""} ${dis}> Salvar este item para as próximas solicitações</label>
+  </section>
+
+  <section class="card">
+    <h2>Histórico <small>${(it.historico||[]).length} ${(it.historico||[]).length===1?"registro":"registros"}</small></h2>
+    ${histHtml(it.historico,"Nenhuma ação registrada ainda. A partir de agora, cada alteração nesta OS aparece aqui com data, hora e quem fez.")}
   </section>`;
 }
 
 // --- planilha ---
-let view="fichas";
+let view="planilha";
 const COLS=[
   {h:"OS",k:"numero",ro:true,w:80},
   {h:"Data da OS",k:"data",type:"date",w:140},
   {h:"Local",k:"aeroporto",w:160},
   {h:"Prestador de serviço",k:"prestador",w:190},
   {h:"Discriminação",k:"obs",area:true,w:280},
+  {h:"Qtd.",qtd:true,w:170},
   {h:"Valor da OS (R$)",k:"valorOs",type:"number",num:true,w:130,sum:true},
-  {h:"Checklist",ro:true,w:80,v:it=>`${it.checklist.filter(c=>c.ok).length}/${it.checklist.length}`},
   {h:"Status",sq:true,w:70},
   {h:"NF nº",k:"nf.numero",w:100},
   {h:"Data da NF",k:"nf.data",type:"date",w:140},
@@ -517,6 +597,7 @@ function renderSheet(){
   $("#sheet").innerHTML=`<thead><tr class="letters"><th class="rn"></th>${letters}</tr>
     <tr><th class="rn">1</th>${COLS.map(c=>`<th>${c.h}</th>`).join("")}</tr></thead>
     <tbody>${rows.map((it,r)=>`<tr><td class="rn">${r+2}</td>${COLS.map(c=>{
+      if(c.qtd) return `<td class="qtdcell"><div><input data-id="${esc(it.id)}" data-k="qtd" type="number" min="0" step="any" value="${it.qtd??""}" aria-label="Quantidade ${esc(it.numero)}" ${dis}><select data-id="${esc(it.id)}" data-k="unidade" aria-label="Unidade ${esc(it.numero)}" ${dis}>${unidOpts(it.unidade).replace(/ \(objeto\)| \(líquido\)/g,"").replace("Unidade","un").replace("Litros","L").replace("Quilos","kg")}</select></div></td>`;
       if(c.sq) return `<td class="sq"><label><input type="checkbox" data-status="${esc(it.id)}" ${done(it)?"checked":""} ${dis} aria-label="Concluída ${esc(it.numero)}" title="${done(it)?"Concluída":"Pendente"}"></label></td>`;
       if(c.ro) return `<td class="ro">${c.v?(c.html?c.v(it):esc(c.v(it))):esc(getF(it,c.k))}</td>`;
       const val=getF(it,c.k)??""; const a=`data-id="${esc(it.id)}" data-k="${c.k}" aria-label="${c.h} ${esc(it.numero)}" ${dis}`;
@@ -528,11 +609,13 @@ function renderSheet(){
 const sheetFocused=()=>$("#sheet").contains(document.activeElement);
 $("#sheet").addEventListener("change",e=>{
   const t=e.target;
-  if(t.dataset.status){ const it=items.find(i=>i.id===t.dataset.status); if(it){ save(it,{checklist:it.checklist.map(c=>({...c,ok:t.checked}))}); renderSheet(); } return; }
+  if(t.dataset.status){ const it=items.find(i=>i.id===t.dataset.status); if(it){ save(it,{checklist:it.checklist.map(c=>({...c,ok:t.checked}))},t.checked?"Marcou a OS como concluída (OK em todos os itens)":"Marcou a OS como pendente"); renderSheet(); } return; }
   const it=items.find(i=>i.id===t.dataset.id); if(!it||!t.dataset.k) return;
   const k=t.dataset.k;
-  if(k.startsWith("nf.")){ const f=k.slice(3); save(it,{nf:{...it.nf,[f]:f==="valor"?(parseFloat(t.value)||0):t.value.trim()}}); }
-  else save(it,{[k]:t.type==="number"?(parseFloat(t.value)||0):t.type==="date"?t.value:t.value.trim()});
+  const ac="Alterou "+(CAMPOS[k]||k)+" pela planilha";
+  if(k.startsWith("nf.")){ const f=k.slice(3); save(it,{nf:{...it.nf,[f]:f==="valor"?(parseFloat(t.value)||0):t.value.trim()}},ac); }
+  else if(k==="qtd") save(it,{qtd:t.value===""?null:parseFloat(t.value)},ac);
+  else save(it,{[k]:t.type==="number"?(parseFloat(t.value)||0):t.type==="date"?t.value:t.value.trim()},ac);
 });
 $("#sheet").addEventListener("focusout",e=>{ if(!$("#sheet").contains(e.relatedTarget)) setTimeout(()=>{ if(!sheetFocused()) renderSheet(); },0); });
 $("#sheet").addEventListener("click",e=>{ const b=e.target.closest("[data-open]"); if(b){ selId=b.dataset.open; setView("fichas"); }});
@@ -563,10 +646,12 @@ function renderNotas(){
   const cards=[
     ...rowsAv.map(a=>({ord:a.data||"",html:`<article>${avulsaDoc(a)}
       <div class="nota-foot"><span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill done">${osDe(a)?"Vinculada à "+esc(osDe(a).numero):"Avulsa"}${a.exemplo?" · exemplo":""}</span>${vencPill(a.vencimento)}</span>
-      <span class="confirm" data-delwrap="${esc(a.id)}"><button type="button" class="open" data-edit-nf="${esc(a.id)}" ${dis}>Editar</button><button type="button" class="open" data-del-nf="${esc(a.id)}" ${dis}>Excluir</button></span></div></article>`})),
+      <span class="confirm" data-delwrap="${esc(a.id)}"><button type="button" class="open" data-edit-nf="${esc(a.id)}" ${dis}>Editar</button><button type="button" class="open so-admin" data-del-nf="${esc(a.id)}" ${dis}>Excluir</button></span></div>
+      <details class="hist-nf"><summary>Histórico (${(a.historico||[]).length})</summary>${histHtml(a.historico,"Sem registros ainda.")}</details></article>`})),
     ...rowsOs.map(it=>({ord:it.nf?.data||it.data||"",html:`<article>${nfHtml(it)}
       <div class="nota-foot"><span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill ${emitida(it)?"done":"pend"}">${emitida(it)?"Emitida":"Sem nota"}</span>${vencPill(it.nf?.vencimento)}</span>
-      <button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button></div></article>`}))
+      <button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button></div>
+      <details class="hist-nf"><summary>Histórico da OS (${(it.historico||[]).length})</summary>${histHtml(it.historico,"Sem registros ainda.")}</details></article>`}))
   ].sort((a,b)=>b.ord.localeCompare(a.ord));
   $("#notasList").innerHTML=cards.length?cards.map(c=>c.html).join(""):`<div class="empty">Nenhuma nota encontrada. Use <b>+ Nova nota fiscal</b> para emitir uma nota avulsa.</div>`;
 }
@@ -626,6 +711,9 @@ $("#formNf").addEventListener("submit",e=>{
     valor:parseFloat($("#aValor").value)||0, obs:$("#aObs").value,
     servicos:[...$("#aPickList").querySelectorAll("input:checked")].map(x=>x.value), osId:$("#aOs").value, criado:antiga?.criado||Date.now()};
   if(antiga?.exemplo) a.exemplo=true;
+  a.historico=comHist(antiga?.historico,antiga?"Editou a nota fiscal":"Criou a nota fiscal"+(a.osId?"":" (avulsa)"));
+  const os=items.find(i=>i.id===a.osId);
+  if(os && (!antiga || antiga.osId!==a.osId)) save(os,{},"Nota fiscal "+(a.numero||"sem número")+" vinculada a esta OS");
   notas=antiga?notas.map(x=>x.id===id?{id,...a}:x):[{id,...a},...notas];
   dlgNf.close(); render();
   if(live) db.collection("notas").doc(id).set(a).catch(()=>notice("Não foi possível salvar a nota agora. Tente de novo em instantes."));
@@ -634,9 +722,10 @@ $("#nfBusca").addEventListener("input",renderNotas);
 $("#nfFiltro").addEventListener("change",renderNotas);
 
 function setView(v){
-  view=v; $("#sheetView").hidden=v!=="planilha"; $("#fichasView").hidden=v!=="fichas"; $("#notasView").hidden=v!=="notas";
+  view=v; $("#sheetView").hidden=v!=="planilha"; $("#fichasView").hidden=v!=="fichas"; $("#notasView").hidden=v!=="notas"; $("#monitorView").hidden=v!=="monitor"; $("#equipeView").hidden=v!=="equipe"; $("#tabEquipe").setAttribute("aria-selected",v==="equipe");
+  $("#tabMonitor").setAttribute("aria-selected",v==="monitor");
   $("#tabPlanilha").setAttribute("aria-selected",v==="planilha"); $("#tabFichas").setAttribute("aria-selected",v==="fichas"); $("#tabNotas").setAttribute("aria-selected",v==="notas");
-  const T={planilha:["Planilha","Planilha de serviços"],fichas:["OS","Ordens de serviço"],notas:["Nota Fiscal","Notas fiscais"]}[v];
+  const T={planilha:["Planilha","Planilha de serviços"],fichas:["OS","Ordens de serviço"],notas:["Nota Fiscal","Notas fiscais"],monitor:["Monitor","Monitor do sistema"],equipe:["Equipe","Equipe e acessos"]}[v];
   $("#viewCrumb").textContent=T[0]; $("#viewTitle").textContent=T[1];
   try{ localStorage.setItem("hangar-view",v); }catch(_){}
   render();
@@ -644,6 +733,45 @@ function setView(v){
 $("#tabPlanilha").addEventListener("click",()=>setView("planilha"));
 $("#tabFichas").addEventListener("click",()=>setView("fichas"));
 $("#tabNotas").addEventListener("click",()=>setView("notas"));
+$("#tabMonitor").addEventListener("click",()=>setView("monitor"));
+$("#tabEquipe").addEventListener("click",()=>setView("equipe"));
+
+// --- monitor ---
+function barras(mapa,fmt){
+  const l=[...mapa.entries()].sort((a,b)=>b[1].v-a[1].v).slice(0,8), max=Math.max(1,...l.map(x=>x[1].v));
+  return l.length?`<div class="bars">${l.map(([k,x])=>`<div class="bar-row" title="${esc(k)}: ${fmt(x.v)} · ${x.n} OS"><span class="nome">${esc(k)}</span><div class="bar-track"><div class="bar-fill" style="width:${(x.v/max*100).toFixed(1)}%"></div></div><span class="val">${fmt(x.v)}</span></div>`).join("")}</div>`:`<div class="sub">Sem dados ainda.</div>`;
+}
+function renderMonitor(){
+  if(view!=="monitor") return;
+  const h=hojeISO(), em7=new Date(Date.now()+7*864e5).toISOString().slice(0,10);
+  const todas=[...items.filter(it=>it.nf?.numero).map(it=>({num:it.nf.numero,venc:it.nf.vencimento,valor:Number(it.nf.valor)||0,ref:it.numero,id:it.id,tipo:"os"})),
+    ...notas.map(a=>({num:a.numero,venc:a.vencimento,valor:Number(a.valor)||0,ref:osDe(a)?.numero||"Avulsa",id:a.osId||"",tipo:"nf"}))];
+  const venc=todas.filter(n=>n.venc&&n.venc<h), prox=todas.filter(n=>n.venc&&n.venc>=h&&n.venc<=em7);
+  const porPrest=new Map(), porLocal=new Map();
+  items.forEach(it=>{ const v=Number(it.valorOs)||0;
+    for(const [m,k] of [[porPrest,it.prestador||"Sem prestador"],[porLocal,it.aeroporto||"Sem local"]]){ const x=m.get(k)||{v:0,n:0}; x.v+=v; x.n++; m.set(k,x); } });
+  const atv=[...items.flatMap(it=>(it.historico||[]).map(e=>({...e,ref:it.numero,id:it.id}))),
+    ...notas.flatMap(a=>(a.historico||[]).map(e=>({...e,ref:"NF "+(a.numero||"—"),id:a.osId||""})))].sort((a,b)=>b.em.localeCompare(a.em)).slice(0,25);
+  const tabela=(l,vazio)=>l.length?`<table class="mini"><thead><tr><th>NF nº</th><th>Referência</th><th>Vencimento</th><th style="text-align:right">Valor</th></tr></thead><tbody>${l.map(n=>`<tr><td>${esc(n.num)}</td><td>${esc(n.ref)}</td><td>${dataBR(n.venc)}</td><td class="num">${brl(n.valor)}</td></tr>`).join("")}</tbody></table>`:`<div class="sub">${vazio}</div>`;
+  const usuarios=[...new Set(atv.map(e=>e.por))];
+  $("#monitor").innerHTML=`
+    <section class="card wide"><h2>Resumo <small>atualizado agora</small></h2>
+      <div class="resumo">
+        <div><span>Total das OS</span><strong>${brl(items.reduce((s,it)=>s+(Number(it.valorOs)||0),0))}</strong></div>
+        <div><span>Total faturado (NF)</span><strong>${brl(todas.reduce((s,n)=>s+n.valor,0))}</strong></div>
+        <div><span>Notas vencidas</span><strong style="color:${venc.length?"var(--red)":"inherit"}">${venc.length} · ${brl(venc.reduce((s,n)=>s+n.valor,0))}</strong></div>
+        <div><span>Vencem em 7 dias</span><strong>${prox.length} · ${brl(prox.reduce((s,n)=>s+n.valor,0))}</strong></div>
+      </div>
+    </section>
+    <section class="card"><h2>Valor das OS por prestador</h2>${barras(porPrest,brl)}</section>
+    <section class="card"><h2>Valor das OS por local</h2>${barras(porLocal,brl)}</section>
+    <section class="card"><h2>Notas vencidas <small>${venc.length}</small></h2>${tabela(venc,"Nenhuma nota vencida.")}</section>
+    <section class="card"><h2>Vencem nos próximos 7 dias <small>${prox.length}</small></h2>${tabela(prox,"Nenhuma nota vence nos próximos 7 dias.")}</section>
+    <section class="card wide"><h2>Atividade recente <small>${usuarios.length} ${usuarios.length===1?"usuário":"usuários"} · últimas ${atv.length} ações</small></h2>
+      ${atv.length?`<ul class="hist">${atv.map(e=>`<li><div><div class="acao">${e.id?`<button type="button" class="ref" data-open-os="${esc(e.id)}">${esc(e.ref)}</button>`:`<span class="ref">${esc(e.ref)}</span>`} — ${esc(e.acao)}</div><div class="meta">${quando(e.em)} · ${esc(e.por)}</div></div></li>`).join("")}</ul>`:`<div class="sub">Nenhuma atividade registrada ainda. As ações feitas nas OS e nas notas aparecem aqui.</div>`}
+    </section>`;
+}
+$("#monitor").addEventListener("click",e=>{ const b=e.target.closest("[data-open-os]"); if(b && items.some(i=>i.id===b.dataset.openOs)){ selId=b.dataset.openOs; setView("fichas"); } });
 
 function renderKpis(){
   const conc=items.filter(done).length, pend=items.length-conc;
@@ -653,13 +781,26 @@ function renderKpis(){
     <div><span>Em andamento</span><strong>${pend}</strong><em>com itens pendentes no checklist</em></div>
     <div><span>Concluídas</span><strong>${conc}</strong><em>checklist completo</em></div>
     <div><span>Faturado</span><strong>${brl(fat)}</strong><em>${semNota} OS ainda sem nota</em></div>`;
-  $("#kpis").hidden=view==="notas";
+  $("#kpis").hidden=view==="notas"||view==="monitor"||view==="equipe";
 }
-function render(){ renderList(); renderDetail(); if(!sheetFocused()) renderSheet(); renderNotas(); renderKpis(); }
+function render(){ renderList(); renderDetail(); if(!sheetFocused()) renderSheet(); renderNotas(); renderKpis(); renderMonitor(); renderEquipe(); }
 
 // --- gravação ---
 let writing=Promise.resolve();
-function save(it, patch){
+const quem=()=>usuarioAtual?(usuarioAtual.nome||usuarioAtual.email):"demonstração";
+const evento=acao=>({em:new Date().toISOString(),por:quem(),acao});
+const comHist=(lista,acao)=>[...(lista||[]),evento(acao)].slice(-150);
+const quando=iso=>{ if(!iso) return ""; const d=new Date(iso); return d.toLocaleDateString("pt-BR")+" às "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); };
+function histHtml(lista,vazio){
+  const l=[...(lista||[])].reverse();
+  return l.length?`<ul class="hist">${l.map(h=>`<li><div><div class="acao">${esc(h.acao)}</div><div class="meta">${quando(h.em)} · ${esc(h.por)}</div></div></li>`).join("")}</ul>`:`<div class="sub">${vazio}</div>`;
+}
+const UNIDADES={un:"un",L:"L",kg:"kg"};
+const unidOpts=v=>`<option value="un">Unidade (objeto)</option><option value="L">Litros (líquido)</option><option value="kg">Quilos</option>`.replace(`value="${v||"un"}"`,`value="${v||"un"}" selected`);
+const qtdTxt=it=>it.qtd==null||it.qtd===""?"":`${String(it.qtd).replace(".",",")} ${UNIDADES[it.unidade]||"un"}`;
+const CAMPOS={qtd:"Quantidade",unidade:"Unidade",data:"Data da OS",aeroporto:"Local",prestador:"Prestador de serviço",obs:"Discriminação",valorOs:"Valor da OS","nf.numero":"Nº da NF","nf.data":"Data da NF","nf.vencimento":"Vencimento da NF","nf.valor":"Valor da NF"};
+function save(it, patch, acao){
+  if(acao) patch={...patch,historico:comHist(it.historico,acao)};
   Object.assign(it, patch); render();
   if(!live) return Promise.resolve(true);
   const body={...it}; delete body.id;
@@ -677,12 +818,12 @@ $("#list").addEventListener("click",e=>{ const b=e.target.closest(".item"); if(b
 
 $("#detail").addEventListener("change",e=>{
   if(e.target.id==="dConc"){
-    const it=items.find(i=>i.id===selId); save(it,{checklist:it.checklist.map(c=>({...c,ok:e.target.checked}))}); return;
+    const it=items.find(i=>i.id===selId); save(it,{checklist:it.checklist.map(c=>({...c,ok:e.target.checked}))},e.target.checked?"Marcou a OS como concluída (OK em todos os itens)":"Marcou a OS como pendente"); return;
   }
   if(e.target.matches(".checks input[type=checkbox]")){
     const it=items.find(i=>i.id===selId); const i=+e.target.dataset.i;
     const checklist=it.checklist.map((c,k)=>k===i?{...c,ok:e.target.checked}:c);
-    save(it,{checklist});
+    save(it,{checklist},(e.target.checked?"Deu OK em ":"Retirou o OK de ")+it.checklist[i].t);
   }
 });
 $("#detail").addEventListener("click",async e=>{
@@ -691,7 +832,7 @@ $("#detail").addEventListener("click",async e=>{
   const it=items.find(i=>i.id===selId); if(!it) return;
   const id=e.target.id;
   if(id==="btnSalvarSol"){
-    const ok=await save(it,{data:$("#dData").value, aeroporto:$("#dAero").value.trim(), prestador:$("#dPrest").value.trim(), valorOs:parseFloat($("#dValorOs").value)||0, obs:$("#dObs").value});
+    const ok=await save(it,{data:$("#dData").value, aeroporto:$("#dAero").value.trim(), prestador:$("#dPrest").value.trim(), valorOs:parseFloat($("#dValorOs").value)||0, qtd:$("#dQtd").value===""?null:parseFloat($("#dQtd").value), unidade:$("#dUnid").value, obs:$("#dObs").value},"Editou os dados da OS");
     if(ok) flash("#savedSol","Solicitação salva");
   } else if(id==="btnSalvarNf"){
     const ok=await save(it,{nf:{numero:$("#fNum").value.trim(), data:$("#fData").value, valor:parseFloat($("#fValor").value)||0}});
@@ -703,7 +844,7 @@ $("#detail").addEventListener("click",async e=>{
       checkPadrao=[...checkPadrao,t];
       if(live) db.doc("config/checklist").set({itens:checkPadrao}).catch(()=>notice("O item foi adicionado, mas não foi salvo para as próximas solicitações."));
     }
-    save(it,{checklist:[...it.checklist,{t,ok:false}]});
+    save(it,{checklist:[...it.checklist,{t,ok:false}]},"Adicionou o item "+t+" ao checklist");
   } else if(id==="btnExcluir"){
     $("#delWrap").innerHTML=`Excluir ${esc(it.numero)}? <button class="btn" type="button" id="btnNao">Não</button><button class="btn primary" type="button" id="btnSim">Sim, excluir</button>`;
   } else if(id==="btnNao"){ renderDetail();
@@ -739,10 +880,10 @@ $("#formNova").addEventListener("submit",e=>{
   const max=items.reduce((m,i)=>Math.max(m,parseInt(String(i.numero).replace(/\D/g,""))||0),0);
   const id="s"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const it={id, numero:"OS-"+String(max+1).padStart(4,"0"), data:$("#nData").value, aeroporto:$("#nAero").value.trim(),
-    prestador:$("#nPrest").value.trim(), valorOs:parseFloat($("#nValorOs").value)||0, obs:$("#nObs").value, criado:Date.now(),
+    prestador:$("#nPrest").value.trim(), valorOs:parseFloat($("#nValorOs").value)||0, qtd:$("#nQtd").value===""?null:parseFloat($("#nQtd").value), unidade:$("#nUnid").value, obs:$("#nObs").value, criado:Date.now(),
     checklist:[...$("#pickList").querySelectorAll("input:checked")].map(x=>({t:x.value,ok:false})),
     nf:{numero:"",data:"",valor:0}};
-  items=[it,...items]; selId=id; dlg.close(); save(it,{});
+  items=[it,...items]; selId=id; dlg.close(); save(it,{},"Criou a OS");
   if(irNf){ irNf=false; setView("notas"); abrirNf(null,id); return; }
   if(view==="planilha") setTimeout(()=>{ const f=$(`#sheet [data-id="${id}"][data-k="obs"]`); if(f) f.focus(); },0);
 });
@@ -753,18 +894,19 @@ function gerarPlanilha(){
   const linhas=items.map(it=>{
     const n=it.checklist.filter(c=>c.ok).length;
     return {
-      "OS":it.numero, "Data da OS":dataBR(it.data), "Local":it.aeroporto, "Prestador de serviço":it.prestador||"",
-      "Discriminação":it.obs||"", "Valor da OS (R$)":Number(it.valorOs)||0,
-      "Checklist":`${n}/${it.checklist.length}`, "Status":done(it)?"Concluída":"Pendente",
+      "OS":it.numero, "Data da OS":dataBR(it.data), "Local":it.aeroporto,
+      "Prestador de serviço":it.prestador||"",
+      "Discriminação":it.obs||"", "Qtd.":it.qtd==null?"":Number(it.qtd), "Unidade":it.qtd==null?"":(UNIDADES[it.unidade]||"un"), "Valor da OS (R$)":Number(it.valorOs)||0,
+      "Checklist OK":`${n}/${it.checklist.length}`, "Status":done(it)?"Concluída":"Pendente",
       "Itens pendentes":it.checklist.filter(c=>!c.ok).map(c=>c.t).join("; "),
       "NF nº":it.nf?.numero||"", "Data da NF":it.nf?.data?dataBR(it.nf.data):"", "Vencimento NF":it.nf?.vencimento?dataBR(it.nf.vencimento):"", "Valor da NF (R$)":Number(it.nf?.valor)||0
     };
   });
   linhas.push({"OS":"TOTAL","Valor da OS (R$)":linhas.reduce((s,l)=>s+l["Valor da OS (R$)"],0),"Valor da NF (R$)":linhas.reduce((s,l)=>s+l["Valor da NF (R$)"],0)});
   const ws=XLSX.utils.json_to_sheet(linhas);
-  ws["!cols"]=[10,12,22,30,50,16,10,11,44,12,12,14,16].map(w=>({wch:w}));
+  ws["!cols"]=[10,12,22,30,50,10,8,16,12,11,44,12,12,14,16].map(w=>({wch:w}));
   const range=XLSX.utils.decode_range(ws["!ref"]);
-  for(let r=1;r<=range.e.r;r++){ for(const col of [5,12]){ const c=ws[XLSX.utils.encode_cell({r,c:col})]; if(c) c.z='"R$" #,##0.00'; } }
+  for(let r=1;r<=range.e.r;r++){ for(const col of [7,14]){ const c=ws[XLSX.utils.encode_cell({r,c:col})]; if(c) c.z='"R$" #,##0.00'; } }
   const det=[];
   items.forEach(it=>it.checklist.forEach(c=>det.push({"OS":it.numero,"Local":it.aeroporto,"Item":c.t,"OK":c.ok?"Sim":"Não"})));
   const ws2=XLSX.utils.json_to_sheet(det.length?det:[{"OS":"","Local":"","Item":"","OK":""}]);
@@ -816,7 +958,8 @@ const limparSessao=()=>{ try{ localStorage.removeItem(SESSAO); }catch(_){} };
 let usuarioAtual=null, aoEntrar=null;
 function mostrarApp(email){
   $("#loginView").hidden=true; $("#appView").hidden=false;
-  if(email){ $("#who").hidden=false; $("#whoEmail").textContent=email; }
+  if(email){ $("#who").hidden=false; $("#whoEmail").textContent=(usuarioAtual?.nome?usuarioAtual.nome+" · ":"")+email; }
+  aplicarPapel();
   if(aoEntrar){ const f=aoEntrar; aoEntrar=null; f(); }
 }
 function mostrarLogin(){
@@ -855,18 +998,87 @@ async function trocarSenha(){
 }
 $("#btnSair").addEventListener("click",()=>{ limparSessao(); usuarioAtual=null; mostrarLogin(); });
 
+// --- equipe ---
+let equipe=[], unsubEquipe=null;
+const ehAdmin=()=>!live || usuarioAtual?.papel==="admin";
+function aplicarPapel(){
+  document.body.classList.toggle("papel-operador",!ehAdmin());
+  if(!ehAdmin() && view==="equipe") setView("planilha");
+  if(ehAdmin() && live && !unsubEquipe){
+    unsubEquipe=db.collection("usuarios").onSnapshot(snap=>{ equipe=snap.docs.map(d=>({email:d.id,...d.data()})); renderEquipe(); },()=>{});
+  }
+}
+const PAPEL={admin:"Administrador",operador:"Operador"};
+function renderEquipe(){
+  if(view!=="equipe") return;
+  const lista=[...equipe].sort((a,b)=>(a.nome||a.email).localeCompare(b.nome||b.email,"pt-BR"));
+  const admins=lista.filter(u=>u.papel==="admin").length, eu=usuarioAtual?.email;
+  $("#equipeCount").textContent=`${lista.length} ${lista.length===1?"pessoa":"pessoas"}`;
+  $("#equipeTabela").innerHTML=`<thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Situação</th><th></th></tr></thead><tbody>${lista.map(u=>{
+    const souEu=u.email===eu, ultimoAdmin=u.papel==="admin"&&admins<=1;
+    return `<tr><td>${esc(u.nome||"—")}${souEu?`<span class="eu">(você)</span>`:""}</td><td>${esc(u.email)}</td><td>${PAPEL[u.papel]||"Operador"}</td>
+      <td>${u.trocarSenha?`<span class="pill pend">Aguardando 1º acesso</span>`:`<span class="pill done">Ativo</span>`}</td>
+      <td><div class="equipe-acoes" data-u="${esc(u.email)}">
+        <button type="button" class="open" data-acao="senha">Nova senha provisória</button>
+        ${souEu||ultimoAdmin?"":`<button type="button" class="open" data-acao="papel">${u.papel==="admin"?"Tornar operador":"Tornar administrador"}</button><button type="button" class="open" data-acao="remover">Remover</button>`}
+      </div></td></tr>`;}).join("")||`<tr><td colspan="5" class="sub">Ninguém cadastrado ainda.</td></tr>`}</tbody>`;
+}
+const senhaAleatoria=()=>String(Math.floor(100000+Math.random()*900000));
+function avisoEquipe(html){ const a=$("#equipeAviso"); a.innerHTML=html; a.hidden=!html; }
+async function gravarMembro(email,dados){
+  if(live) await db.collection("usuarios").doc(email).set(dados);
+  else { equipe=[...equipe.filter(u=>u.email!==email),{email,...dados}]; renderEquipe(); }
+}
+const dlgM=$("#dlgMembro");
+$("#btnNovoMembro").addEventListener("click",()=>{ $("#formMembro").reset(); $("#mSenha").value=senhaAleatoria(); erroLogin("#mErro",""); dlgM.showModal(); $("#mNome").focus(); });
+$("#mCancelar").addEventListener("click",()=>dlgM.close());
+$("#formMembro").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const email=$("#mEmail").value.trim().toLowerCase(), nome=$("#mNome").value.trim(), papel=$("#mPapel").value, senha=$("#mSenha").value;
+  if(equipe.some(u=>u.email===email)) return erroLogin("#mErro","Já existe uma conta com este e-mail.");
+  $("#mSalvar").disabled=true;
+  try{
+    const salt=b64(crypto.getRandomValues(new Uint8Array(16))), iter=120000;
+    await gravarMembro(email,{email,nome,papel,salt,iter,hash:await hashSenha(senha,salt,iter),trocarSenha:true,criadoEm:new Date().toISOString(),criadoPor:quem()});
+    dlgM.close();
+    avisoEquipe(`Conta criada para <b>${esc(nome)}</b>. Passe para a pessoa: e-mail <span class="cred">${esc(email)}</span> e senha provisória <span class="cred">${esc(senha)}</span>. No primeiro acesso ela cria a própria senha.`);
+  }catch(_){ erroLogin("#mErro","Não foi possível criar a conta agora. Tente de novo."); }
+  finally{ $("#mSalvar").disabled=false; }
+});
+$("#equipeTabela").addEventListener("click",async e=>{
+  const b=e.target.closest("[data-acao]"); if(!b) return;
+  const box=b.closest("[data-u]"), email=box.dataset.u, u=equipe.find(x=>x.email===email); if(!u) return;
+  const ac=b.dataset.acao;
+  if(ac==="remover"){ box.innerHTML=`<span class="confirm">Remover ${esc(u.nome||u.email)}? <button class="btn" type="button" data-acao="nao">Não</button><button class="btn primary" type="button" data-acao="sim">Sim, remover</button></span>`; return; }
+  if(ac==="nao"){ renderEquipe(); return; }
+  try{
+    if(ac==="sim"){
+      if(live) await db.collection("usuarios").doc(email).delete(); else { equipe=equipe.filter(x=>x.email!==email); renderEquipe(); }
+      avisoEquipe(`Conta de <b>${esc(u.nome||u.email)}</b> removida.`);
+    } else if(ac==="papel"){
+      const papel=u.papel==="admin"?"operador":"admin";
+      await gravarMembro(email,{...u,papel});
+      avisoEquipe(`${esc(u.nome||email)} agora é <b>${PAPEL[papel]}</b>.`);
+    } else if(ac==="senha"){
+      const senha=senhaAleatoria(), salt=b64(crypto.getRandomValues(new Uint8Array(16))), iter=120000;
+      await gravarMembro(email,{...u,salt,iter,hash:await hashSenha(senha,salt,iter),trocarSenha:true});
+      avisoEquipe(`Nova senha provisória de <b>${esc(u.nome||email)}</b>: <span class="cred">${esc(senha)}</span>. No próximo acesso a pessoa cria uma senha própria.`);
+    }
+  }catch(_){ avisoEquipe("Não foi possível concluir agora. Tente de novo."); }
+});
+
 // --- início ---
 items=EXEMPLOS.map(x=>structuredClone(x)); selId=items[0]?.id||null;
-try{ const v=localStorage.getItem("hangar-view"); if(v==="planilha"||v==="notas") view=v; }catch(_){}
+try{ const v=localStorage.getItem("hangar-view"); if(["fichas","notas","monitor","equipe"].includes(v)) view=v; }catch(_){}
 setView(view);
 
 (async()=>{
   const [d,user]=await Promise.all([window.claude?.use("db"), window.claude?.use("user")].map(p=>Promise.resolve(p).catch(()=>null)));
-  if(!d){ canWrite=true; notice("Modo de demonstração: aqui as alterações não ficam salvas ao recarregar a página."); mostrarApp(null); render(); return; }
+  if(!d){ canWrite=true; notice("Modo de demonstração: aqui as alterações não ficam salvas ao recarregar a página."); equipe=[{email:"demo@exemplo.com",nome:"Administrador (demonstração)",papel:"admin",trocarSenha:false}]; mostrarApp(null); render(); return; }
   db=d; live=true;
   const sess=lerSessao();
   let ok=false;
-  if(sess){ try{ const s=await db.collection("usuarios").doc(sess.email).get(); ok=s.exists && !s.data().trocarSenha; }catch(_){} }
+  if(sess){ try{ const s=await db.collection("usuarios").doc(sess.email).get(); ok=s.exists && !s.data().trocarSenha; if(ok) usuarioAtual={email:sess.email,...s.data()}; }catch(_){} }
   if(ok) mostrarApp(sess.email); else { limparSessao(); mostrarLogin(); }
   const perm=user ? await Promise.resolve(user.can("data.write")).catch(()=>null) : null;
   canWrite = perm!==false;
@@ -874,7 +1086,7 @@ setView(view);
   items=[]; notas=[]; selId=null; render();
   db.collection("notas").orderBy("criado","desc").onSnapshot(snap=>{
     notas=snap.docs.map(s=>({id:s.id,...structuredClone(s.data())}));
-    renderNotas(); renderKpis();
+    renderNotas(); renderKpis(); renderMonitor();
     if(!$("#detail").contains(document.activeElement)) renderDetail();
   },()=>{});
   db.doc("config/checklist").onSnapshot(s=>{
