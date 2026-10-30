@@ -210,7 +210,7 @@ input.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .sheet-tools input,.sheet-tools select{width:auto;flex:1 1 200px;max-width:320px}
 .sheet-tools .count{color:var(--muted);font-size:.82rem;margin-left:auto}
 .sheet-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);box-shadow:var(--shadow)}
-table.sheet{border-collapse:collapse;width:100%;min-width:1900px;font-size:.86rem;font-variant-numeric:tabular-nums}
+table.sheet{border-collapse:collapse;width:100%;min-width:2050px;font-size:.86rem;font-variant-numeric:tabular-nums}
 .sheet th,.sheet td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:0;vertical-align:middle}
 .sheet thead th{position:sticky;top:0;background:var(--head);font:600 .75rem var(--f-body);color:var(--muted);text-align:left;padding:8px;z-index:1}
 .sheet thead tr.letters th{text-align:center;font:500 .66rem var(--f-mono);padding:3px;background:var(--bg)}
@@ -237,7 +237,7 @@ table.sheet{border-collapse:collapse;width:100%;min-width:1900px;font-size:.86re
 .ck2 b{font-size:.78rem;font-weight:600;color:var(--ok);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ck2 i{font-style:normal;font-size:.7rem;color:var(--muted)}
 .sheet td.ck2cell{padding:6px 8px}
-.duplo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.duplo{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}
 @media (max-width:640px){.duplo{grid-template-columns:1fr}}
 .duplo .status-sq{margin-bottom:0;align-items:flex-start}
 .duplo .status-sq .ck2{flex:none}
@@ -527,16 +527,10 @@ const done=it=>!!(it.exec && it.conf);
 const curto=iso=>{ if(!iso) return ""; const d=new Date(iso); return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"}); };
 const euMesmo=()=>usuarioAtual?.email||"demo";
 // Regras dos dois checks: retorna {ok:boolean, motivo:string} para cada ação
+const CHK={cien:"① Ciente",exec:"② Confirmado",conf:"③ Pago"};
 function podeCheck(it,qual,marcar){
   if(!canWrite) return {ok:false,motivo:"Sem permissão para alterar."};
-  if(qual==="exec"){
-    if(!marcar && live && it.exec?.email!==euMesmo() && !ehAdmin()) return {ok:false,motivo:"Só quem marcou o Confirmado ou um administrador pode retirar este check."};
-    return {ok:true};
-  }
-  if(marcar){
-    return {ok:true};
-  }
-  if(live && it.conf?.email!==euMesmo() && !ehAdmin()) return {ok:false,motivo:"Só quem marcou o Pago ou um administrador pode retirar este check."};
+  if(!marcar && live && it[qual]?.email!==euMesmo() && !ehAdmin()) return {ok:false,motivo:`Só quem marcou o ${CHK[qual].slice(2)} ou um administrador pode retirar este check.`};
   return {ok:true};
 }
 function aplicarCheck(it,qual,marcar){
@@ -544,13 +538,12 @@ function aplicarCheck(it,qual,marcar){
   if(!r.ok){ notice(r.motivo); render(); renderSheet(); return; }
   notice("");
   const assin={por:quem(),email:euMesmo(),em:new Date().toISOString()};
-  if(qual==="exec") save(it,{exec:marcar?assin:null},marcar?"Marcou ① Confirmado":"Retirou o ① Confirmado");
-  else save(it,{conf:marcar?assin:null},marcar?"Marcou ② Pago":"Retirou o ② Pago");
+  save(it,{[qual]:marcar?assin:null},(marcar?"Marcou ":"Retirou o ")+CHK[qual]);
   renderSheet();
 }
 function checkCell(it,qual,soCaixa){
   const a=it[qual], dis=canWrite?"":"disabled", bloq=false;
-  return `<label class="ck2${a?" on":""}"><input type="checkbox" data-check="${qual}" data-id="${esc(it.id)}" ${a?"checked":""} ${dis} ${bloq?"disabled":""} aria-label="${qual==="exec"?"Confirmado":"Pago"} ${esc(it.numero)}">${soCaixa?"":a?`<span><b>${esc(a.por)}</b><i>${curto(a.em)}</i></span>`:bloq?`<span><i>aguarda ①</i></span>`:""}</label>`;
+  return `<label class="ck2${a?" on":""}"><input type="checkbox" data-check="${qual}" data-id="${esc(it.id)}" ${a?"checked":""} ${dis} ${bloq?"disabled":""} aria-label="${CHK[qual].slice(2)} ${esc(it.numero)}">${soCaixa?"":a?`<span><b>${esc(a.por)}</b><i>${curto(a.em)}</i></span>`:bloq?`<span><i>aguarda ①</i></span>`:""}</label>`;
 }
 
 function notice(msg){ const n=$("#notice"); n.textContent=msg||""; n.hidden=!msg; }
@@ -624,8 +617,9 @@ function renderDetail(){
   <section class="card">
     <h2>Checklist <small>${n} de ${it.checklist.length} ok · ${pct}%</small></h2>
     <div class="duplo">
-      <div class="status-sq">${checkCell(it,"exec",true)}<span><b>① Confirmado</b> ${it.exec?`Marcado por <strong>${esc(it.exec.por)}</strong> em ${quando(it.exec.em)}`:"Quem recebe a OS confirma o serviço."}</span></div>
-      <div class="status-sq">${checkCell(it,"conf",true)}<span><b>② Pago</b> ${it.conf?`Marcado por <strong>${esc(it.conf.por)}</strong> em ${quando(it.conf.em)}`:"Marque quando o pagamento for feito. A OS fica concluída com os dois marcados."}</span></div>
+      <div class="status-sq">${checkCell(it,"cien",true)}<span><b>① Ciente</b> ${it.cien?`Marcado por <strong>${esc(it.cien.por)}</strong> em ${quando(it.cien.em)}`:"Marque para registrar que você está ciente da OS."}</span></div>
+      <div class="status-sq">${checkCell(it,"exec",true)}<span><b>② Confirmado</b> ${it.exec?`Marcado por <strong>${esc(it.exec.por)}</strong> em ${quando(it.exec.em)}`:"Quem recebe a OS confirma o serviço."}</span></div>
+      <div class="status-sq">${checkCell(it,"conf",true)}<span><b>③ Pago</b> ${it.conf?`Marcado por <strong>${esc(it.conf.por)}</strong> em ${quando(it.conf.em)}`:"Marque quando o pagamento for feito. A OS fica concluída com Confirmado e Pago marcados."}</span></div>
     </div>
     <div class="progress"><i style="width:${pct}%"></i></div>
     <ul class="checks">
@@ -658,12 +652,13 @@ const COLS=[
   {h:"Discriminação",k:"obs",area:true,w:280},
   {h:"Qtd.",qtd:true,w:170},
   {h:"Valor da OS (R$)",k:"valorOs",type:"number",num:true,w:130,sum:true},
-  {h:"① Confirmado",chk:"exec",w:150},
-  {h:"② Pago",chk:"conf",w:150},
+  {h:"① Ciente",chk:"cien",w:150},
   {h:"NF nº",k:"nf.numero",w:100},
   {h:"Data da NF",k:"nf.data",type:"date",w:140},
   {h:"Vencimento NF",k:"nf.vencimento",type:"date",w:140},
   {h:"Valor da NF (R$)",k:"nf.valor",type:"number",num:true,w:130,sum:true},
+  {h:"② Confirmado",chk:"exec",w:150},
+  {h:"③ Pago",chk:"conf",w:150},
   {h:"",ro:true,w:84,v:it=>`<button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button>`,html:true}
 ];
 const getF=(it,k)=>k.startsWith("nf.")?(it.nf||{})[k.slice(3)]:it[k];
@@ -1002,7 +997,7 @@ function gerarPlanilha(){
       "OS":it.numero, "Data da OS":dataBR(it.data), "Local":it.aeroporto,
       "Prestador de serviço":it.prestador||"",
       "Discriminação":it.obs||"", "Qtd.":it.qtd==null?"":Number(it.qtd), "Unidade":it.qtd==null?"":(UNIDADES[it.unidade]||"un"), "Valor da OS (R$)":Number(it.valorOs)||0,
-      "Checklist OK":`${n}/${it.checklist.length}`, "Status":done(it)?"Concluída":it.exec?"Aguardando pagamento":it.conf?"Paga, falta confirmar":"Pendente", "Confirmado por":it.exec?`${it.exec.por} (${dataBR(it.exec.em.slice(0,10))})`:"", "Pago por":it.conf?`${it.conf.por} (${dataBR(it.conf.em.slice(0,10))})`:"",
+      "Checklist OK":`${n}/${it.checklist.length}`, "Status":done(it)?"Concluída":it.exec?"Aguardando pagamento":it.conf?"Paga, falta confirmar":"Pendente", "Ciente por":it.cien?`${it.cien.por} (${dataBR(it.cien.em.slice(0,10))})`:"", "Confirmado por":it.exec?`${it.exec.por} (${dataBR(it.exec.em.slice(0,10))})`:"", "Pago por":it.conf?`${it.conf.por} (${dataBR(it.conf.em.slice(0,10))})`:"",
       "Itens pendentes":it.checklist.filter(c=>!c.ok).map(c=>c.t).join("; "),
       "NF nº":it.nf?.numero||"", "Data da NF":it.nf?.data?dataBR(it.nf.data):"", "Vencimento NF":it.nf?.vencimento?dataBR(it.nf.vencimento):"", "Valor da NF (R$)":Number(it.nf?.valor)||0
     };
