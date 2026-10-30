@@ -9,153 +9,273 @@
 <title>Controle de Serviços Aéreos</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-/* Layout: lista de solicitações à esquerda, ficha da ordem à direita (Solicitação → Checklist → Nota fiscal). Empilha no celular. */
+/* Layout: sistema com menu lateral fixo (Planilha, Fichas, Nota Fiscal), barra superior com título e ações, indicadores e conteúdo. No celular o menu vira barra superior. */
 :root{
-  --bg:#EEF1F4; --surface:#FFFFFF; --ink:#14212C; --muted:#5B6B79; --line:#D5DCE3;
-  --accent:#1D5AA6; --accent-ink:#FFFFFF; --amber:#B7790A; --amber-bg:#FBF1DC;
-  --ok:#1E7A4C; --ok-bg:#E2F3EA; --paper:#FCFCFA;
-  --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --bg:#F3F5F8; --surface:#FFFFFF; --ink:#16202B; --muted:#5E6B78; --line:#E1E6EC; --line-strong:#CDD5DE;
+  --accent:#1F5FAD; --accent-ink:#FFFFFF; --accent-soft:#E8F0FA;
+  --side:#0F2236; --side-ink:#AFC0D2; --side-strong:#FFFFFF; --side-active:#1B3957; --side-line:#1E3650;
+  --amber:#9A6508; --amber-bg:#FBF0D9; --ok:#1D7348; --ok-bg:#E1F2E8; --paper:#FFFFFF; --head:#F7F9FB;
+  --shadow:0 1px 2px rgb(16 34 54 / .06),0 1px 1px rgb(16 34 54 / .04);
+  --f-display:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0F161D; --surface:#17212B; --ink:#E4EAF0; --muted:#93A3B2; --line:#2A3743;
-  --accent:#6FA3E6; --accent-ink:#0B1520; --amber:#E2AE4A; --amber-bg:#33280F;
-  --ok:#5CC48E; --ok-bg:#13301F; --paper:#1B2630; color-scheme:dark}}
+  --bg:#0C1218; --surface:#141C25; --ink:#E3E9EF; --muted:#8FA0B1; --line:#222E3B; --line-strong:#2E3D4D;
+  --accent:#6EA2E4; --accent-ink:#0A1420; --accent-soft:#16283D;
+  --side:#08111A; --side-ink:#8FA3B8; --side-strong:#FFFFFF; --side-active:#15283C; --side-line:#152433;
+  --amber:#E2AE4A; --amber-bg:#2E240F; --ok:#5CC48E; --ok-bg:#122B1D; --paper:#18212B; --head:#18212B;
+  --shadow:0 1px 2px rgb(0 0 0 / .3); color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0F161D; --surface:#17212B; --ink:#E4EAF0; --muted:#93A3B2; --line:#2A3743;
-  --accent:#6FA3E6; --accent-ink:#0B1520; --amber:#E2AE4A; --amber-bg:#33280F;
-  --ok:#5CC48E; --ok-bg:#13301F; --paper:#1B2630; color-scheme:dark}
+  --bg:#0C1218; --surface:#141C25; --ink:#E3E9EF; --muted:#8FA0B1; --line:#222E3B; --line-strong:#2E3D4D;
+  --accent:#6EA2E4; --accent-ink:#0A1420; --accent-soft:#16283D;
+  --side:#08111A; --side-ink:#8FA3B8; --side-strong:#FFFFFF; --side-active:#15283C; --side-line:#152433;
+  --amber:#E2AE4A; --amber-bg:#2E240F; --ok:#5CC48E; --ok-bg:#122B1D; --paper:#18212B; --head:#18212B;
+  --shadow:0 1px 2px rgb(0 0 0 / .3); color-scheme:dark}
 
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body);margin:0}
-.wrap{max-width:1180px;margin:0 auto;padding-block:20px 48px;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-header.top{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px;margin-bottom:18px}
-h1{font:700 2.1rem/1 var(--f-display);letter-spacing:.01em;margin:0;text-wrap:balance}
-.sub{color:var(--muted);font-size:.9rem;margin-top:4px}
-.btn{font:600 .9rem var(--f-body);border:1px solid var(--line);background:var(--surface);color:var(--ink);
-  padding:9px 14px;border-radius:6px;cursor:pointer}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--f-body);margin:0}
+
+/* estrutura */
+.app{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:100vh}
+.side{background:var(--side);color:var(--side-ink);display:flex;flex-direction:column;gap:24px;
+  padding-block:20px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:16px;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:10px;color:var(--side-strong)}
+.brand-mark{width:34px;height:34px;border-radius:8px;background:var(--accent);display:grid;place-items:center;flex:none}
+.brand-mark svg{width:20px;height:20px;fill:#fff}
+.brand b{display:block;font:600 .95rem/1.2 var(--f-display)}
+.brand small{display:block;font-size:.72rem;color:var(--side-ink);letter-spacing:.02em}
+.nav-label{font:500 .68rem var(--f-mono);text-transform:uppercase;letter-spacing:.1em;color:var(--side-ink);opacity:.75;margin:0 10px 6px}
+.tabs{display:flex;flex-direction:column;gap:2px}
+.tabs button{display:flex;align-items:center;gap:10px;font:500 .9rem var(--f-body);border:0;background:transparent;color:var(--side-ink);
+  padding:9px 10px;border-radius:6px;cursor:pointer;text-align:left;width:100%}
+.tabs button svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.tabs button:hover{color:var(--side-strong);background:var(--side-active)}
+.tabs button[aria-selected="true"]{background:var(--side-active);color:var(--side-strong);box-shadow:inset 3px 0 0 var(--accent)}
+.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.side-foot{margin-top:auto;font-size:.75rem;line-height:1.4;border-top:1px solid var(--side-line);padding-top:14px}
+
+.main{min-width:0;display:flex;flex-direction:column}
+.topbar{background:var(--surface);border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;
+  padding-block:16px;padding-left:28px;padding-right:max(28px,env(safe-area-inset-right,0px))}
+.crumb{font-size:.78rem;color:var(--muted)}
+h1{font:600 1.35rem/1.25 var(--f-display);margin:2px 0 0;text-wrap:balance}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.content{padding-block:24px 48px;padding-left:28px;padding-right:max(28px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px;max-width:1320px;width:100%}
+
+@media (max-width:860px){
+  .app{display:block}
+  .side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:12px;padding-block:12px;padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .nav-label,.side-foot{display:none}
+  .side nav{width:100%}
+  .tabs{flex-direction:row;overflow-x:auto}
+  .tabs button{width:auto;white-space:nowrap}
+  .tabs button[aria-selected="true"]{box-shadow:inset 0 -2px 0 var(--accent)}
+  .topbar,.content{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+}
+
+/* indicadores */
+.kpis,.resumo{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:900px){.kpis,.resumo{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpis>div,.resumo>div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:4px;min-width:0}
+.kpis span,.resumo span{font-size:.78rem;color:var(--muted)}
+.kpis strong,.resumo strong{font:600 1.45rem/1.15 var(--f-display);font-variant-numeric:tabular-nums}
+.kpis em{font-style:normal;font-size:.75rem;color:var(--muted)}
+
+.sub{color:var(--muted);font-size:.85rem;margin-top:2px}
+.btn{display:inline-flex;align-items:center;gap:6px;font:500 .875rem var(--f-body);border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);
+  padding:8px 14px;border-radius:6px;cursor:pointer;box-shadow:var(--shadow)}
+.btn:hover{border-color:var(--muted)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.07)}
 .btn:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,.item:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .btn:disabled{opacity:.5;cursor:not-allowed}
-.notice{font-size:.85rem;color:var(--muted);background:var(--surface);border:1px dashed var(--line);padding:8px 12px;border-radius:6px;margin-bottom:14px}
+.notice{font-size:.85rem;color:var(--ink);background:var(--accent-soft);border:1px solid var(--line);border-left:3px solid var(--accent);padding:9px 12px;border-radius:6px}
 
-.grid{display:grid;grid-template-columns:320px 1fr;gap:20px;align-items:start}
-@media (max-width:820px){.grid{grid-template-columns:1fr}}
-
-.list{display:flex;flex-direction:column;gap:8px;min-width:0}
+/* fichas */
+.grid{display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:980px){.grid{grid-template-columns:1fr}}
+.list{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);overflow:hidden;min-width:0}
 .item{display:grid;grid-template-columns:1fr auto;gap:2px 10px;text-align:left;width:100%;
-  background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;cursor:pointer;color:var(--ink);font:inherit}
-.item[aria-current="true"]{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
-.item .code{font:600 1.15rem/1.1 var(--f-display);letter-spacing:.03em}
-.item .meta{grid-column:1/-1;color:var(--muted);font-size:.85rem}
-.pill{font:500 .72rem var(--f-mono);text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:99px;align-self:start;white-space:nowrap}
+  background:transparent;border:0;border-bottom:1px solid var(--line);padding:12px 14px;cursor:pointer;color:var(--ink);font:inherit}
+.item:last-child{border-bottom:0}
+.item:hover{background:var(--head)}
+.item[aria-current="true"]{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+.item .code{font:600 .9rem/1.3 var(--f-mono)}
+.item .meta{grid-column:1/-1;color:var(--muted);font-size:.8rem}
+.pill{font:500 .7rem/1.4 var(--f-body);padding:2px 8px;border-radius:99px;align-self:start;white-space:nowrap;border:1px solid transparent}
 .pill.pend{background:var(--amber-bg);color:var(--amber)}
 .pill.done{background:var(--ok-bg);color:var(--ok)}
-.empty{background:var(--surface);border:1px dashed var(--line);border-radius:8px;padding:18px;color:var(--muted);font-size:.9rem}
+.empty{background:var(--surface);border:1px dashed var(--line-strong);border-radius:8px;padding:18px;color:var(--muted);font-size:.9rem}
 
 .detail{display:flex;flex-direction:column;gap:18px;min-width:0}
-section.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 20px}
-.card h2{font:600 1.35rem/1 var(--f-display);letter-spacing:.04em;text-transform:uppercase;margin:0 0 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-.card h2 small{font:400 .8rem var(--f-mono);color:var(--muted);text-transform:none;letter-spacing:0}
-.fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-@media (max-width:560px){.fields{grid-template-columns:1fr}}
-.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+section.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:0 20px 18px;box-shadow:var(--shadow)}
+.card h2{font:600 .95rem/1.3 var(--f-display);margin:0 -20px 16px;padding:13px 20px;border-bottom:1px solid var(--line);background:var(--head);border-radius:8px 8px 0 0;
+  display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.card h2 small{font:400 .78rem var(--f-mono);color:var(--muted)}
+.fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:560px){.fields{grid-template-columns:1fr}.fields .field{grid-column:auto!important}}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
 .field.full{grid-column:1/-1}
-label{font:500 .72rem var(--f-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
-input,textarea,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;min-width:0}
+label{font:500 .78rem var(--f-body);color:var(--muted)}
+input,textarea,select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:6px;padding:8px 10px;width:100%;min-width:0}
+input:disabled,textarea:disabled{background:var(--head)}
 textarea{min-height:84px;resize:vertical}
 input.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
-.row-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap;align-items:center}
+.row-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap;align-items:center}
 .saved{font-size:.85rem;color:var(--ok)}
 
-.progress{height:6px;background:var(--bg);border-radius:99px;overflow:hidden;margin-bottom:12px}
+.progress{height:6px;background:var(--line);border-radius:99px;overflow:hidden;margin-bottom:8px}
 .progress>i{display:block;height:100%;background:var(--ok);transition:width .25s}
-.checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
-.checks li{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
-.checks li:first-child{border-top:0}
-.checks input[type=checkbox]{width:20px;height:20px;accent-color:var(--ok);flex:none}
+.checks{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:24px}
+@media (max-width:640px){.checks{grid-template-columns:1fr}}
+.checks li{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}
+.checks input[type=checkbox]{width:18px;height:18px;accent-color:var(--ok);flex:none}
 .checks .txt{flex:1;min-width:0}
 .checks li.ok .txt{color:var(--muted)}
-.checks .okmark{font:600 .75rem var(--f-mono);color:var(--ok);letter-spacing:.06em}
-.addcheck{display:flex;gap:8px;margin-top:10px}
-.keep{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:.85rem;color:var(--muted);cursor:pointer}
+.checks .okmark{font:600 .7rem var(--f-mono);color:var(--ok);letter-spacing:.06em}
+.status-sq{display:flex;align-items:center;gap:12px;padding:10px 12px;margin-bottom:12px;border:1px solid var(--line);border-radius:6px;background:var(--head);cursor:pointer}
+.status-sq input{width:22px;height:22px;accent-color:var(--ok);flex:none;margin:0}
+.status-sq span{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column}
+.status-sq b{font-size:.92rem;color:var(--ink);font-weight:600}
+.status-sq input:checked+span b{color:var(--ok)}
+.addcheck{display:flex;gap:8px;margin-top:14px}
+.keep{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:.82rem;color:var(--muted);cursor:pointer}
 .keep input{width:16px;height:16px;accent-color:var(--accent)}
 
-.nf{background:var(--paper);border:1px solid var(--line);border-radius:4px;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
-.nf-head{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:12px 14px;border-bottom:1px dashed var(--line)}
-.nf-head b{font:700 1.2rem var(--f-display);letter-spacing:.06em}
+/* nota fiscal */
+.nf{background:var(--paper);border:1px solid var(--line-strong);border-radius:6px;font-variant-numeric:tabular-nums;overflow:hidden}
+.nf-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding:12px 16px;background:var(--head);border-bottom:1px solid var(--line-strong)}
+.nf-head b{font:600 .95rem var(--f-mono)}
+.nf-head span{font:500 .75rem var(--f-mono);color:var(--muted)}
 .nf-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
 @media (max-width:560px){.nf-grid{grid-template-columns:1fr}}
-.nf-cell{padding:10px 14px;border-bottom:1px dashed var(--line);display:flex;flex-direction:column;gap:2px;min-width:0}
-.nf-cell span{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
-.nf-total{display:flex;justify-content:space-between;align-items:baseline;padding:14px;gap:10px;flex-wrap:wrap}
-.nf-total strong{font:700 1.8rem var(--f-display);letter-spacing:.02em}
-.nf-edit{margin-top:14px}
+.nf-grid .nf-cell+.nf-cell{border-left:1px solid var(--line)}
+@media (max-width:560px){.nf-grid .nf-cell+.nf-cell{border-left:0}}
+.nf-cell{padding:10px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:3px;min-width:0}
+.nf-cell span{font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.nf-total{display:flex;justify-content:space-between;align-items:baseline;padding:14px 16px;gap:10px;flex-wrap:wrap;background:var(--head)}
+.nf-total span{font-size:.75rem;font-weight:600;letter-spacing:.06em;color:var(--muted)}
+.nf-total strong{font:600 1.4rem var(--f-mono)}
+.nf-edit{margin-top:16px}
+.nf-serv{list-style:none;margin:6px 0 0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 20px;font-size:.84rem}
+@media (max-width:560px){.nf-serv{grid-template-columns:1fr}}
+.nf-serv li{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding:4px 0}
+.nf-serv li b{font:500 .72rem var(--f-mono);color:var(--ok)}
+.nf-serv li i{font:400 .72rem var(--f-mono);font-style:normal;color:var(--muted)}
+.notas{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,460px),1fr));gap:18px;align-items:start}
+.notas article{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px;box-shadow:var(--shadow)}
+.nota-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
 
-.tabs{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;margin-bottom:14px;background:var(--surface)}
-.tabs button{font:600 .9rem var(--f-body);border:0;background:transparent;color:var(--muted);padding:8px 16px;cursor:pointer}
-.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
-.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.sheet-tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
-.sheet-tools input,.sheet-tools select{width:auto;flex:1 1 200px;max-width:320px;background:var(--surface)}
-.sheet-tools .count{color:var(--muted);font-size:.85rem;margin-left:auto}
-.sheet-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
-table.sheet{border-collapse:collapse;width:100%;min-width:1100px;font-size:.88rem;font-variant-numeric:tabular-nums}
+/* planilha */
+.sheet-tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.sheet-tools input,.sheet-tools select{width:auto;flex:1 1 200px;max-width:320px}
+.sheet-tools .count{color:var(--muted);font-size:.82rem;margin-left:auto}
+.sheet-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);box-shadow:var(--shadow)}
+table.sheet{border-collapse:collapse;width:100%;min-width:1560px;font-size:.86rem;font-variant-numeric:tabular-nums}
 .sheet th,.sheet td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:0;vertical-align:middle}
-.sheet thead th{position:sticky;top:0;background:var(--bg);font:500 .7rem var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:4px 8px;z-index:1}
-.sheet thead tr.letters th{text-align:center;font-size:.68rem;color:var(--muted);padding:2px}
-.sheet th.rn,.sheet td.rn{width:38px;text-align:center;background:var(--bg);color:var(--muted);font:500 .72rem var(--f-mono)}
-.sheet td>input,.sheet td>textarea{border:0;border-radius:0;background:transparent;padding:7px 8px;width:100%;font-size:.88rem}
-.sheet td>textarea{min-height:34px;height:34px;resize:vertical;display:block}
+.sheet thead th{position:sticky;top:0;background:var(--head);font:600 .75rem var(--f-body);color:var(--muted);text-align:left;padding:8px;z-index:1}
+.sheet thead tr.letters th{text-align:center;font:500 .66rem var(--f-mono);padding:3px;background:var(--bg)}
+.sheet th.rn,.sheet td.rn{width:38px;text-align:center;background:var(--bg);color:var(--muted);font:500 .7rem var(--f-mono)}
+.sheet tbody tr:hover td:not(.rn){background:var(--head)}
+.sheet td>input,.sheet td>textarea{border:0;border-radius:0;background:transparent;padding:8px;width:100%;font-size:.86rem}
+.sheet td>textarea{min-height:36px;height:36px;resize:vertical;display:block}
 .sheet td>input:focus,.sheet td>textarea:focus{outline:2px solid var(--accent);outline-offset:-2px;background:var(--surface)}
-.sheet td.ro{padding:7px 8px;white-space:nowrap}
+.sheet td.ro{padding:8px;white-space:nowrap}
 .sheet td.num input{text-align:right;font-family:var(--f-mono)}
-.sheet tr.total td{background:var(--bg);font-weight:600;padding:8px}
+.sheet tr.total td{background:var(--head);font-weight:600;padding:9px 8px}
 .sheet tr.total td.num{text-align:right;font-family:var(--f-mono)}
-.sheet .open{font:500 .78rem var(--f-body);background:none;border:0;color:var(--accent);cursor:pointer;padding:7px 8px;text-decoration:underline}
+.sheet td.sq{text-align:center;padding:0 8px}
+.sheet td.sq label{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font:500 .78rem var(--f-body);color:var(--muted)}
+.sheet td.sq input{width:20px;height:20px;accent-color:var(--ok);cursor:pointer;margin:0}
+.sheet td.sq input:checked+span{color:var(--ok)}
+.open{font:500 .8rem var(--f-body);background:none;border:0;color:var(--accent);cursor:pointer;padding:6px 8px;border-radius:4px}
+.open:hover{background:var(--accent-soft)}
+.open:disabled{opacity:.5;cursor:not-allowed}
 
-dialog{border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);padding:20px;width:min(560px,calc(100% - 32px))}
-dialog::backdrop{background:rgb(0 0 0 / .45)}
-dialog h2{font:600 1.4rem var(--f-display);text-transform:uppercase;letter-spacing:.04em;margin:0 0 14px}
+/* formulários em janela */
+.pick{border:1px solid var(--line-strong);border-radius:6px;padding:10px 12px}
+.pick-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.pick-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 16px}
+@media (max-width:560px){.pick-list{grid-template-columns:1fr}}
+.pick-list label{display:flex;align-items:center;gap:8px;font:400 .88rem var(--f-body);color:var(--ink);cursor:pointer;padding:4px 0}
+.pick-list input{width:16px;height:16px;accent-color:var(--accent);flex:none}
+.linkbtn{font:500 .8rem var(--f-body);background:none;border:0;color:var(--accent);cursor:pointer;padding:0}
+.linkbtn:hover{text-decoration:underline}
+dialog{border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);padding:0 22px 20px;width:min(720px,calc(100% - 32px));max-height:calc(100% - 32px);box-shadow:0 20px 50px rgb(0 0 0 / .25)}
+dialog::backdrop{background:rgb(10 20 32 / .5)}
+dialog h2{font:600 1.1rem var(--f-display);margin:0 -22px 16px;padding:16px 22px;border-bottom:1px solid var(--line)}
+dialog h2+.sub{margin:-6px 0 14px!important}
 .confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.85rem}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
-<div class="wrap">
-  <header class="top">
-    <div>
-      <h1>Controle de Serviços Aéreos</h1>
-      <div class="sub">Ordens de serviço por aeroporto, com discriminação, checklist e nota fiscal.</div>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg></span>
+      <span><b>Controle de Serviços Aéreos</b><small>Gestão de ordens de serviço</small></span>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn" id="btnExcel" type="button">Gerar Excel</button>
-      <button class="btn primary" id="btnNova" type="button">+ Nova solicitação</button>
+    <nav aria-label="Seções">
+      <div class="nav-label">Operação</div>
+      <div class="tabs" role="tablist" aria-orientation="vertical">
+        <button type="button" role="tab" id="tabFichas" aria-selected="true"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>OS</button>
+        <button type="button" role="tab" id="tabNotas" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>Nota Fiscal</button>
+        <button type="button" role="tab" id="tabPlanilha" aria-selected="false"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16"/></svg>Planilha</button>
+      </div>
+    </nav>
+    <div class="side-foot">Ordens de serviço, checklist e notas fiscais em um só lugar.</div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <div class="crumb">Controle de Serviços Aéreos / <span id="viewCrumb">OS</span></div>
+        <h1 id="viewTitle">Ordens de serviço</h1>
+      </div>
+      <div class="actions">
+        <button class="btn" id="btnExcel" type="button">Gerar Excel</button>
+        <button class="btn primary" id="btnNova" type="button">+ Nova solicitação</button>
+      </div>
+    </header>
+
+    <div class="content">
+      <div class="notice" id="notice" hidden></div>
+      <div class="kpis" id="kpis"></div>
+
+      <section id="notasView" hidden>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="resumo" id="notasResumo"></div>
+          <div class="sheet-tools">
+            <input id="nfBusca" placeholder="Buscar por nota, OS, local, prestador ou serviço">
+            <select id="nfFiltro"><option value="">Todas</option><option value="emitida">Emitidas</option><option value="sem">Sem nota</option><option value="avulsa">Notas criadas na aba</option></select>
+            <button class="btn primary" id="btnNovaNf" type="button" style="margin-left:auto">+ Nova nota fiscal</button>
+          </div>
+          <div class="notas" id="notasList"></div>
+        </div>
+      </section>
+
+      <section id="sheetView">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="sheet-tools">
+            <input id="fBusca" placeholder="Buscar por OS, local, prestador ou discriminação">
+            <select id="fStatus"><option value="">Todos os status</option><option value="pend">Pendentes</option><option value="done">Concluídas</option></select>
+            <span class="count" id="sheetCount"></span>
+          </div>
+          <div class="sheet-scroll"><table class="sheet" id="sheet"></table></div>
+        </div>
+      </section>
+
+      <div class="grid" id="fichasView" hidden>
+        <nav class="list" id="list" aria-label="Solicitações"></nav>
+        <main class="detail" id="detail"></main>
+      </div>
     </div>
-  </header>
-  <div class="notice" id="notice" hidden></div>
-
-  <div class="tabs" role="tablist">
-    <button type="button" role="tab" id="tabPlanilha" aria-selected="true">Planilha</button>
-    <button type="button" role="tab" id="tabFichas" aria-selected="false">Fichas</button>
-  </div>
-
-  <section id="sheetView">
-    <div class="sheet-tools">
-      <input id="fBusca" placeholder="Buscar por OS, aeroporto ou discriminação">
-      <select id="fStatus"><option value="">Todos os status</option><option value="pend">Pendentes</option><option value="done">Concluídas</option></select>
-      <span class="count" id="sheetCount"></span>
-    </div>
-    <div class="sheet-scroll"><table class="sheet" id="sheet"></table></div>
-  </section>
-
-  <div class="grid" id="fichasView" hidden>
-    <nav class="list" id="list" aria-label="Solicitações"></nav>
-    <main class="detail" id="detail"></main>
   </div>
 </div>
 
@@ -163,13 +283,51 @@ dialog h2{font:600 1.4rem var(--f-display);text-transform:uppercase;letter-spaci
   <form id="formNova" method="dialog">
     <h2>Nova solicitação</h2>
     <div class="fields">
-      <div class="field"><label for="nData">Data</label><input id="nData" type="date" required></div>
-      <div class="field" style="grid-column:span 2"><label for="nAero">Aeroporto</label><input id="nAero" placeholder="SBGR · Guarulhos" required></div>
+      <div class="field"><label for="nData">Data da OS</label><input id="nData" type="date" required></div>
+      <div class="field" style="grid-column:span 2"><label for="nAero">Local</label><input id="nAero" placeholder="SBGR · Guarulhos" required></div>
+      <div class="field" style="grid-column:span 2"><label for="nPrest">Prestador de serviço</label><input id="nPrest" placeholder="Nome da empresa ou profissional"></div>
+      <div class="field"><label for="nValorOs">Valor da OS (R$)</label><input id="nValorOs" class="mono" type="number" min="0" step="0.01"></div>
       <div class="field full"><label for="nObs">Discriminação</label><textarea id="nObs" placeholder="Descrição dos serviços a realizar"></textarea></div>
+      <div class="field full">
+        <label>Serviços solicitados (checklist)</label>
+        <div class="pick">
+          <div class="pick-head"><span class="sub" id="pickCount" style="margin:0"></span><button type="button" class="linkbtn" id="pickAll">Marcar todos</button></div>
+          <div class="pick-list" id="pickList"></div>
+        </div>
+      </div>
     </div>
     <div class="row-actions">
       <button class="btn" type="button" id="btnCancelar">Cancelar</button>
+      <button class="btn" type="button" id="nIrNf">Criar e emitir nota fiscal</button>
       <button class="btn primary" type="submit">Criar solicitação</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgNf">
+  <form id="formNf" method="dialog">
+    <h2 id="dlgNfTitulo">Nova nota fiscal</h2>
+    <p class="sub" style="margin:-8px 0 14px">Vincule a uma OS já criada para trazer os dados dela, ou deixe como nota avulsa.</p>
+    <div class="fields">
+      <div class="field full"><label for="aOs">Ordem de serviço</label><select id="aOs"></select></div>
+      <div class="field"><label for="aNum">Nº da nota</label><input id="aNum" class="mono" required></div>
+      <div class="field"><label for="aData">Data da NF</label><input id="aData" type="date" required></div>
+      <div class="field"><label for="aDataServ">Data da OS / serviço</label><input id="aDataServ" type="date"></div>
+      <div class="field" style="grid-column:span 2"><label for="aAero">Local</label><input id="aAero" placeholder="SBGR · Guarulhos"></div>
+      <div class="field"><label for="aValor">Valor da NF (R$)</label><input id="aValor" class="mono" type="number" min="0" step="0.01" required></div>
+      <div class="field full"><label for="aPrest">Prestador de serviço</label><input id="aPrest" placeholder="Nome da empresa ou profissional"></div>
+      <div class="field full"><label for="aObs">Discriminação</label><textarea id="aObs" placeholder="Descrição dos serviços cobrados"></textarea></div>
+      <div class="field full">
+        <label>Serviços da nota</label>
+        <div class="pick">
+          <div class="pick-head"><span class="sub" id="aPickCount" style="margin:0"></span><button type="button" class="linkbtn" id="aPickAll">Marcar todos</button></div>
+          <div class="pick-list" id="aPickList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="row-actions">
+      <button class="btn" type="button" id="aCancelar">Cancelar</button>
+      <button class="btn primary" type="submit" id="aSalvar">Criar nota fiscal</button>
     </div>
   </form>
 </dialog>
@@ -191,15 +349,17 @@ const CHECK_PADRAO = [
   "Banco de dados"
 ];
 const EXEMPLOS = [
-  {id:"ex1", exemplo:true, numero:"OS-0001", data:"2026-10-27", aeroporto:"SBGR · Guarulhos", hangar:"Hangar 3",
+  {id:"ex1", exemplo:true, numero:"OS-0001", data:"2026-10-27", aeroporto:"SBGR · Guarulhos", prestador:"Sky Handling Serviços Aeroportuários", valorOs:4850,
    obs:"Pernoite e limpeza completa. Cliente chega às 07h.", criado:1,
    checklist:CHECK_PADRAO.map(t=>({t,ok:true})), nf:{numero:"000.184", data:"2026-10-28", valor:4850}},
-  {id:"ex2", exemplo:true, numero:"OS-0002", data:"2026-10-30", aeroporto:"SBSP · Congonhas", hangar:"Hangar 7B",
+  {id:"ex2", exemplo:true, numero:"OS-0002", data:"2026-10-30", aeroporto:"SBSP · Congonhas", prestador:"AeroTec Manutenção Ltda.", valorOs:3200,
    obs:"Troca de pneu do trem principal esquerdo e reabastecimento.", criado:2,
    checklist:CHECK_PADRAO.map((t,i)=>({t,ok:i<4})), nf:{numero:"", data:"", valor:0}}
 ];
 
 let db=null, canWrite=false, items=[], selId=null, live=false;
+let notas=[{id:"nx1", exemplo:true, numero:"000.201", data:"2026-11-04", dataServ:"2026-11-04", aeroporto:"SBGR · Guarulhos", prestador:"Sky Handling Serviços Aeroportuários",
+  obs:"Locação de sala VIP para tripulação e serviço de internet.", servicos:["Locação","Internet"], valor:980, criado:1}];
 let checkPadrao=[...CHECK_PADRAO], keepPadrao=true;
 const $=s=>document.querySelector(s);
 const brl=v=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(v)||0);
@@ -212,7 +372,7 @@ function notice(msg){ const n=$("#notice"); n.textContent=msg||""; n.hidden=!msg
 function renderList(){
   const el=$("#list");
   if(!items.length){
-    el.innerHTML=`<div class="empty">Nenhuma solicitação ainda. Toque em <b>+ Nova solicitação</b> para registrar a primeira, com data, aeroporto e discriminação.</div>`;
+    el.innerHTML=`<div class="empty">Nenhuma solicitação ainda. Toque em <b>+ Nova solicitação</b> para registrar a primeira, com data, local e discriminação.</div>`;
     return;
   }
   el.innerHTML=items.map(it=>{
@@ -220,34 +380,61 @@ function renderList(){
     return `<button type="button" class="item" data-id="${esc(it.id)}" aria-current="${it.id===selId}">
       <span class="code">${esc(it.numero)}</span>
       <span class="pill ${done(it)?"done":"pend"}">${done(it)?"Concluída":`${n}/${it.checklist.length} ok`}</span>
-      <span class="meta">${dataBR(it.data)} — ${esc(it.aeroporto)}${it.exemplo?" · exemplo":""}</span>
+      <span class="meta">${dataBR(it.data)} — ${esc(it.aeroporto)}${it.prestador?" · "+esc(it.prestador):""}${it.exemplo?" · exemplo":""}</span>
     </button>`;
   }).join("");
 }
 
+function nfDoc(n){
+  return `<div class="nf">
+      <div class="nf-head"><b>NFS-e Nº ${esc(n.numero||"—")}</b><span>${esc(n.ref)}</span></div>
+      <div class="nf-grid">
+        <div class="nf-cell"><span>Data de emissão</span>${dataBR(n.data)}</div>
+        <div class="nf-cell"><span>Local</span>${esc(n.aeroporto||"—")}</div>
+        <div class="nf-cell"><span>Data da OS / serviço</span>${dataBR(n.dataServ)}</div>
+      </div>
+      <div class="nf-cell"><span>Prestador de serviço</span>${esc(n.prestador||"—")}</div>
+      <div class="nf-cell"><span>Discriminação dos serviços</span><div style="white-space:pre-wrap">${esc(n.obs||"—")}</div></div>
+      <div class="nf-cell"><span>Serviços (${n.servicos.length})</span>
+        ${n.servicos.length?`<ul class="nf-serv">${n.servicos.map(c=>`<li>${esc(c.t)}${c.ok===undefined?"":c.ok?"<b>OK</b>":"<i>pendente</i>"}</li>`).join("")}</ul>`:"—"}
+      </div>
+      <div class="nf-total"><span>VALOR TOTAL DO SERVIÇO</span><strong>${brl(n.valor)}</strong></div>
+    </div>`;
+}
+function nfHtml(it){
+  const nf=it.nf||{};
+  return nfDoc({numero:nf.numero, ref:"Ref. "+it.numero, data:nf.data, aeroporto:it.aeroporto, prestador:it.prestador, dataServ:it.data, obs:it.obs, servicos:it.checklist, valor:nf.valor});
+}
+const osDe=a=>a.osId?items.find(i=>i.id===a.osId):null;
+const avulsaDoc=a=>nfDoc({numero:a.numero, ref:osDe(a)?"Ref. "+osDe(a).numero:"Avulsa", data:a.data, aeroporto:a.aeroporto, prestador:a.prestador, dataServ:a.dataServ, obs:a.obs, servicos:(a.servicos||[]).map(t=>({t})), valor:a.valor});
+
 function renderDetail(){
   const el=$("#detail"); const it=items.find(i=>i.id===selId);
-  if(!it){ el.innerHTML=`<section class="card"><h2>Selecione uma solicitação</h2><p class="sub">Os detalhes, o checklist e a nota fiscal aparecem aqui.</p></section>`; return; }
+  if(!it){ el.innerHTML=`<section class="card"><h2>Selecione uma solicitação</h2><p class="sub">Os dados da OS e o checklist aparecem aqui.</p></section>`; return; }
   const dis=canWrite?"":"disabled";
   const n=it.checklist.filter(c=>c.ok).length, pct=it.checklist.length?Math.round(n/it.checklist.length*100):0;
-  const nf=it.nf||{};
+  const nf=it.nf||{}, vinc=notas.filter(a=>a.osId===it.id);
   el.innerHTML=`
   <section class="card">
     <h2>Solicitação de serviço <small>${esc(it.numero)}${it.exemplo?" · exemplo":""}</small></h2>
     <div class="fields">
-      <div class="field"><label for="dData">Data</label><input id="dData" type="date" value="${esc(it.data)}" ${dis}></div>
-      <div class="field" style="grid-column:span 2"><label for="dAero">Aeroporto</label><input id="dAero" value="${esc(it.aeroporto)}" ${dis}></div>
+      <div class="field"><label for="dData">Data da OS</label><input id="dData" type="date" value="${esc(it.data)}" ${dis}></div>
+      <div class="field" style="grid-column:span 2"><label for="dAero">Local</label><input id="dAero" value="${esc(it.aeroporto)}" ${dis}></div>
+      <div class="field" style="grid-column:span 2"><label for="dPrest">Prestador de serviço</label><input id="dPrest" value="${esc(it.prestador||"")}" ${dis}></div>
+      <div class="field"><label for="dValorOs">Valor da OS (R$)</label><input id="dValorOs" class="mono" type="number" min="0" step="0.01" value="${it.valorOs||""}" ${dis}></div>
       <div class="field full"><label for="dObs">Discriminação</label><textarea id="dObs" ${dis}>${esc(it.obs)}</textarea></div>
     </div>
     <div class="row-actions">
       <span class="confirm" id="delWrap"><button class="btn" type="button" id="btnExcluir" ${dis}>Excluir</button></span>
       <span class="saved" id="savedSol"></span>
+      <button class="btn" type="button" id="btnEmitirNf" ${dis}>Emitir nota fiscal</button>
       <button class="btn primary" type="button" id="btnSalvarSol" ${dis}>Salvar solicitação</button>
     </div>
   </section>
 
   <section class="card">
     <h2>Checklist <small>${n} de ${it.checklist.length} ok · ${pct}%</small></h2>
+    <label class="status-sq" for="dConc"><input type="checkbox" id="dConc" ${done(it)?"checked":""} ${dis}><span><b>${done(it)?"OS concluída":"OS pendente"}</b> Marque para dar OK em todos os itens de uma vez</span></label>
     <div class="progress"><i style="width:${pct}%"></i></div>
     <ul class="checks">
       ${it.checklist.map((c,i)=>`<li class="${c.ok?"ok":""}">
@@ -261,86 +448,168 @@ function renderDetail(){
       <button class="btn" type="button" id="btnAddItem" ${dis}>Adicionar</button>
     </div>
     <label class="keep" for="salvarPadrao"><input type="checkbox" id="salvarPadrao" ${keepPadrao?"checked":""} ${dis}> Salvar este item para as próximas solicitações</label>
-  </section>
-
-  <section class="card">
-    <h2>Nota fiscal de serviço</h2>
-    <div class="nf">
-      <div class="nf-head"><b>NFS-e Nº ${esc(nf.numero||"—")}</b><span>Ref. ${esc(it.numero)}</span></div>
-      <div class="nf-grid">
-        <div class="nf-cell"><span>Data de emissão</span>${dataBR(nf.data)}</div>
-        <div class="nf-cell"><span>Aeroporto</span>${esc(it.aeroporto)}</div>
-        <div class="nf-cell"><span>Data do serviço</span>${dataBR(it.data)}</div>
-      </div>
-      <div class="nf-cell" style="border-bottom:1px dashed var(--line)"><span>Discriminação dos serviços</span><div style="white-space:pre-wrap">${esc(it.obs||"—")}</div>
-      </div>
-      <div class="nf-total"><span>VALOR TOTAL DO SERVIÇO</span><strong>${brl(nf.valor)}</strong></div>
-    </div>
-    <div class="fields nf-edit">
-      <div class="field"><label for="fNum">Nº da nota</label><input id="fNum" class="mono" value="${esc(nf.numero||"")}" ${dis}></div>
-      <div class="field"><label for="fData">Data de emissão</label><input id="fData" type="date" value="${esc(nf.data||"")}" ${dis}></div>
-      <div class="field"><label for="fValor">Valor (R$)</label><input id="fValor" class="mono" type="number" min="0" step="0.01" value="${nf.valor||""}" ${dis}></div>
-    </div>
-    <div class="row-actions"><span class="saved" id="savedNf"></span><button class="btn primary" type="button" id="btnSalvarNf" ${dis}>Salvar nota fiscal</button></div>
   </section>`;
 }
 
 // --- planilha ---
-let view="planilha";
+let view="fichas";
 const COLS=[
   {h:"OS",k:"numero",ro:true,w:80},
-  {h:"Data",k:"data",type:"date",w:140},
-  {h:"Aeroporto",k:"aeroporto",w:170},
-  {h:"Discriminação",k:"obs",area:true,w:340},
+  {h:"Data da OS",k:"data",type:"date",w:140},
+  {h:"Local",k:"aeroporto",w:160},
+  {h:"Prestador de serviço",k:"prestador",w:190},
+  {h:"Discriminação",k:"obs",area:true,w:280},
+  {h:"Valor da OS (R$)",k:"valorOs",type:"number",num:true,w:130,sum:true},
   {h:"Checklist",ro:true,w:80,v:it=>`${it.checklist.filter(c=>c.ok).length}/${it.checklist.length}`},
-  {h:"Status",ro:true,w:100,v:it=>`<span class="pill ${done(it)?"done":"pend"}">${done(it)?"Concluída":"Pendente"}</span>`,html:true},
+  {h:"Status",sq:true,w:130},
   {h:"NF nº",k:"nf.numero",w:100},
-  {h:"Data NF",k:"nf.data",type:"date",w:140},
-  {h:"Valor (R$)",k:"nf.valor",type:"number",num:true,w:120},
-  {h:"",ro:true,w:60,v:it=>`<button type="button" class="open" data-open="${esc(it.id)}">Abrir</button>`,html:true}
+  {h:"Data da NF",k:"nf.data",type:"date",w:140},
+  {h:"Valor da NF (R$)",k:"nf.valor",type:"number",num:true,w:130,sum:true},
+  {h:"",ro:true,w:84,v:it=>`<button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button>`,html:true}
 ];
 const getF=(it,k)=>k.startsWith("nf.")?(it.nf||{})[k.slice(3)]:it[k];
 function filtered(){
   const q=$("#fBusca").value.trim().toLowerCase(), st=$("#fStatus").value;
   return items.filter(it=>(!st||(st==="done")===done(it)) &&
-    (!q||[it.numero,it.aeroporto,it.obs].join(" ").toLowerCase().includes(q)));
+    (!q||[it.numero,it.aeroporto,it.prestador,it.obs].join(" ").toLowerCase().includes(q)));
 }
 function renderSheet(){
   const rows=filtered(), dis=canWrite?"":"disabled";
-  const total=rows.reduce((s,it)=>s+(Number(it.nf?.valor)||0),0);
   $("#sheetCount").textContent=`${rows.length} de ${items.length} serviços`;
   const letters=COLS.map((c,i)=>`<th style="width:${c.w}px">${String.fromCharCode(65+i)}</th>`).join("");
   $("#sheet").innerHTML=`<thead><tr class="letters"><th class="rn"></th>${letters}</tr>
     <tr><th class="rn">1</th>${COLS.map(c=>`<th>${c.h}</th>`).join("")}</tr></thead>
     <tbody>${rows.map((it,r)=>`<tr><td class="rn">${r+2}</td>${COLS.map(c=>{
+      if(c.sq) return `<td class="sq"><label><input type="checkbox" data-status="${esc(it.id)}" ${done(it)?"checked":""} ${dis} aria-label="Concluída ${esc(it.numero)}"><span>${done(it)?"Concluída":"Pendente"}</span></label></td>`;
       if(c.ro) return `<td class="ro">${c.v?(c.html?c.v(it):esc(c.v(it))):esc(getF(it,c.k))}</td>`;
       const val=getF(it,c.k)??""; const a=`data-id="${esc(it.id)}" data-k="${c.k}" aria-label="${c.h} ${esc(it.numero)}" ${dis}`;
       return `<td class="${c.num?"num":""}">${c.area?`<textarea ${a}>${esc(val)}</textarea>`:`<input ${a} type="${c.type||"text"}" ${c.num?'step="0.01" min="0"':""} value="${esc(c.num&&!val?"":val)}">`}</td>`;
     }).join("")}</tr>`).join("")}
     ${rows.length?"":`<tr><td class="rn">2</td><td class="ro" colspan="${COLS.length}">Nenhum serviço encontrado.</td></tr>`}
-    <tr class="total"><td class="rn">${rows.length+2+(rows.length?0:1)}</td><td colspan="8">TOTAL</td><td class="num">${brl(total)}</td><td></td></tr></tbody>`;
+    <tr class="total"><td class="rn">${rows.length+2+(rows.length?0:1)}</td>${COLS.map((c,i)=>c.sum?`<td class="num">${brl(rows.reduce((s,it)=>s+(Number(getF(it,c.k))||0),0))}</td>`:`<td>${i===0?"TOTAL":""}</td>`).join("")}</tr></tbody>`;
 }
 const sheetFocused=()=>$("#sheet").contains(document.activeElement);
 $("#sheet").addEventListener("change",e=>{
-  const t=e.target, it=items.find(i=>i.id===t.dataset.id); if(!it||!t.dataset.k) return;
+  const t=e.target;
+  if(t.dataset.status){ const it=items.find(i=>i.id===t.dataset.status); if(it){ save(it,{checklist:it.checklist.map(c=>({...c,ok:t.checked}))}); renderSheet(); } return; }
+  const it=items.find(i=>i.id===t.dataset.id); if(!it||!t.dataset.k) return;
   const k=t.dataset.k;
   if(k.startsWith("nf.")){ const f=k.slice(3); save(it,{nf:{...it.nf,[f]:f==="valor"?(parseFloat(t.value)||0):t.value.trim()}}); }
-  else save(it,{[k]:t.type==="date"?t.value:t.value.trim()});
+  else save(it,{[k]:t.type==="number"?(parseFloat(t.value)||0):t.type==="date"?t.value:t.value.trim()});
 });
 $("#sheet").addEventListener("focusout",e=>{ if(!$("#sheet").contains(e.relatedTarget)) setTimeout(()=>{ if(!sheetFocused()) renderSheet(); },0); });
 $("#sheet").addEventListener("click",e=>{ const b=e.target.closest("[data-open]"); if(b){ selId=b.dataset.open; setView("fichas"); }});
 $("#fBusca").addEventListener("input",renderSheet);
 $("#fStatus").addEventListener("change",renderSheet);
+// --- notas fiscais ---
+const emitida=it=>!!(it.nf&&it.nf.numero)||notas.some(a=>a.osId===it.id);
+function renderNotas(){
+  const q=$("#nfBusca").value.trim().toLowerCase(), f=$("#nfFiltro").value;
+  const dis=canWrite?"":"disabled";
+  const has=arr=>!q||arr.join(" ").toLowerCase().includes(q);
+  const rowsOs=f==="avulsa"?[]:items.filter(it=>!(!it.nf?.numero && notas.some(a=>a.osId===it.id)) && (!f||(f==="emitida")===emitida(it)) && has([it.nf?.numero,it.numero,it.aeroporto,it.prestador,it.obs,...it.checklist.map(c=>c.t)]));
+  const rowsAv=f==="sem"?[]:notas.filter(a=>has([a.numero,a.aeroporto,a.prestador,a.obs,...(a.servicos||[])]));
+  const total=rowsOs.reduce((s,it)=>s+(Number(it.nf?.valor)||0),0)+rowsAv.reduce((s,a)=>s+(Number(a.valor)||0),0);
+  $("#notasResumo").innerHTML=`<div><span>OS com nota</span><strong>${items.filter(emitida).length}</strong></div>
+    <div><span>Notas criadas na aba</span><strong>${notas.length}</strong></div>
+    <div><span>OS sem nota</span><strong>${items.filter(it=>!emitida(it)).length}</strong></div>
+    <div><span>Total ${q||f?"filtrado":"geral"}</span><strong>${brl(total)}</strong></div>`;
+  const cards=[
+    ...rowsAv.map(a=>({ord:a.data||"",html:`<article>${avulsaDoc(a)}
+      <div class="nota-foot"><span class="pill done">${osDe(a)?"Vinculada à "+esc(osDe(a).numero):"Avulsa"}${a.exemplo?" · exemplo":""}</span>
+      <span class="confirm" data-delwrap="${esc(a.id)}"><button type="button" class="open" data-edit-nf="${esc(a.id)}" ${dis}>Editar</button><button type="button" class="open" data-del-nf="${esc(a.id)}" ${dis}>Excluir</button></span></div></article>`})),
+    ...rowsOs.map(it=>({ord:it.nf?.data||it.data||"",html:`<article>${nfHtml(it)}
+      <div class="nota-foot"><span class="pill ${emitida(it)?"done":"pend"}">${emitida(it)?"Emitida":"Sem nota"}</span>
+      <button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button></div></article>`}))
+  ].sort((a,b)=>b.ord.localeCompare(a.ord));
+  $("#notasList").innerHTML=cards.length?cards.map(c=>c.html).join(""):`<div class="empty">Nenhuma nota encontrada. Use <b>+ Nova nota fiscal</b> para emitir uma nota avulsa.</div>`;
+}
+$("#notasList").addEventListener("click",e=>{
+  const b=e.target.closest("[data-open]"); if(b){ selId=b.dataset.open; setView("fichas"); return; }
+  const ed=e.target.closest("[data-edit-nf]"); if(ed){ abrirNf(notas.find(a=>a.id===ed.dataset.editNf)); return; }
+  const dl=e.target.closest("[data-del-nf]");
+  if(dl){ const a=notas.find(x=>x.id===dl.dataset.delNf);
+    dl.parentElement.innerHTML=`Excluir nota ${esc(a.numero)}? <button class="btn" type="button" data-nao>Não</button><button class="btn primary" type="button" data-sim-nf="${esc(a.id)}">Sim, excluir</button>`; return; }
+  if(e.target.closest("[data-nao]")){ renderNotas(); return; }
+  const sim=e.target.closest("[data-sim-nf]");
+  if(sim){ const id=sim.dataset.simNf; notas=notas.filter(a=>a.id!==id); renderNotas();
+    if(live) db.collection("notas").doc(id).delete().catch(()=>notice("Não foi possível excluir a nota agora.")); }
+});
+
+// --- nota fiscal avulsa ---
+const dlgNf=$("#dlgNf"); let editNfId=null;
+function aPickUpdate(){
+  const all=[...$("#aPickList").querySelectorAll("input")], n=all.filter(x=>x.checked).length;
+  $("#aPickCount").textContent=`${n} de ${all.length} serviços marcados`;
+  $("#aPickAll").textContent=n===all.length?"Desmarcar todos":"Marcar todos";
+}
+function abrirNf(a,osId){
+  if(!canWrite && live){ notice("Você não tem permissão para criar notas."); return; }
+  editNfId=a?a.id:null; $("#formNf").reset();
+  $("#dlgNfTitulo").textContent=a?"Editar nota fiscal":"Nova nota fiscal"; $("#aSalvar").textContent=a?"Salvar nota fiscal":"Criar nota fiscal";
+  const hoje=new Date().toISOString().slice(0,10);
+  $("#aNum").value=a?.numero||""; $("#aData").value=a?.data||hoje; $("#aDataServ").value=a?.dataServ||"";
+  $("#aAero").value=a?.aeroporto||""; $("#aPrest").value=a?.prestador||""; $("#aValor").value=a?.valor||""; $("#aObs").value=a?.obs||"";
+  const sel=a?.servicos||[], lista=[...checkPadrao,...sel.filter(t=>!checkPadrao.includes(t))];
+  $("#aPickList").innerHTML=lista.map((t,i)=>`<label for="apk${i}"><input type="checkbox" id="apk${i}" value="${esc(t)}" ${sel.includes(t)?"checked":""}> ${esc(t)}</label>`).join("");
+  $("#aOs").innerHTML=`<option value="">Nenhuma (nota avulsa)</option>`+items.map(it=>`<option value="${esc(it.id)}">${esc(it.numero)} · ${dataBR(it.data)} · ${esc(it.aeroporto||"")}${it.prestador?" · "+esc(it.prestador):""}</option>`).join("");
+  $("#aOs").value=a?.osId&&items.some(i=>i.id===a.osId)?a.osId:"";
+  aPickUpdate(); dlgNf.showModal();
+  if(osId){ $("#aOs").value=osId; $("#aOs").dispatchEvent(new Event("change")); $("#aNum").focus(); }
+}
+$("#aOs").addEventListener("change",()=>{
+  const it=items.find(i=>i.id===$("#aOs").value); if(!it) return;
+  $("#aDataServ").value=it.data||""; $("#aAero").value=it.aeroporto||""; $("#aPrest").value=it.prestador||"";
+  $("#aObs").value=it.obs||""; if(it.valorOs) $("#aValor").value=it.valorOs;
+  const sel=it.checklist.map(c=>c.t);
+  [...$("#aPickList").querySelectorAll("input")].forEach(x=>x.checked=sel.includes(x.value));
+  const extra=sel.filter(t=>![...$("#aPickList").querySelectorAll("input")].some(x=>x.value===t));
+  const n0=$("#aPickList").querySelectorAll("input").length;
+  $("#aPickList").insertAdjacentHTML("beforeend",extra.map((t,i)=>`<label for="apk${n0+i}"><input type="checkbox" id="apk${n0+i}" value="${esc(t)}" checked> ${esc(t)}</label>`).join(""));
+  aPickUpdate();
+});
+$("#btnNovaNf").addEventListener("click",()=>abrirNf(null));
+$("#aCancelar").addEventListener("click",()=>dlgNf.close());
+$("#aPickList").addEventListener("change",aPickUpdate);
+$("#aPickAll").addEventListener("click",()=>{ const all=[...$("#aPickList").querySelectorAll("input")], on=!all.every(x=>x.checked); all.forEach(x=>x.checked=on); aPickUpdate(); });
+$("#formNf").addEventListener("submit",e=>{
+  e.preventDefault();
+  const id=editNfId||"n"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const antiga=notas.find(a=>a.id===id);
+  const a={numero:$("#aNum").value.trim(), data:$("#aData").value, dataServ:$("#aDataServ").value, aeroporto:$("#aAero").value.trim(), prestador:$("#aPrest").value.trim(),
+    valor:parseFloat($("#aValor").value)||0, obs:$("#aObs").value,
+    servicos:[...$("#aPickList").querySelectorAll("input:checked")].map(x=>x.value), osId:$("#aOs").value, criado:antiga?.criado||Date.now()};
+  if(antiga?.exemplo) a.exemplo=true;
+  notas=antiga?notas.map(x=>x.id===id?{id,...a}:x):[{id,...a},...notas];
+  dlgNf.close(); render();
+  if(live) db.collection("notas").doc(id).set(a).catch(()=>notice("Não foi possível salvar a nota agora. Tente de novo em instantes."));
+});
+$("#nfBusca").addEventListener("input",renderNotas);
+$("#nfFiltro").addEventListener("change",renderNotas);
+
 function setView(v){
-  view=v; $("#sheetView").hidden=v!=="planilha"; $("#fichasView").hidden=v!=="fichas";
-  $("#tabPlanilha").setAttribute("aria-selected",v==="planilha"); $("#tabFichas").setAttribute("aria-selected",v==="fichas");
+  view=v; $("#sheetView").hidden=v!=="planilha"; $("#fichasView").hidden=v!=="fichas"; $("#notasView").hidden=v!=="notas";
+  $("#tabPlanilha").setAttribute("aria-selected",v==="planilha"); $("#tabFichas").setAttribute("aria-selected",v==="fichas"); $("#tabNotas").setAttribute("aria-selected",v==="notas");
+  const T={planilha:["Planilha","Planilha de serviços"],fichas:["OS","Ordens de serviço"],notas:["Nota Fiscal","Notas fiscais"]}[v];
+  $("#viewCrumb").textContent=T[0]; $("#viewTitle").textContent=T[1];
   try{ localStorage.setItem("hangar-view",v); }catch(_){}
   render();
 }
 $("#tabPlanilha").addEventListener("click",()=>setView("planilha"));
 $("#tabFichas").addEventListener("click",()=>setView("fichas"));
+$("#tabNotas").addEventListener("click",()=>setView("notas"));
 
-function render(){ renderList(); renderDetail(); if(!sheetFocused()) renderSheet(); }
+function renderKpis(){
+  const conc=items.filter(done).length, pend=items.length-conc;
+  const fat=items.reduce((s,it)=>s+(it.nf?.numero?Number(it.nf.valor)||0:0),0)+notas.reduce((s,a)=>s+(Number(a.valor)||0),0);
+  const semNota=items.filter(it=>!emitida(it)).length;
+  $("#kpis").innerHTML=`<div><span>Ordens de serviço</span><strong>${items.length}</strong><em>registradas</em></div>
+    <div><span>Em andamento</span><strong>${pend}</strong><em>com itens pendentes no checklist</em></div>
+    <div><span>Concluídas</span><strong>${conc}</strong><em>checklist completo</em></div>
+    <div><span>Faturado</span><strong>${brl(fat)}</strong><em>${semNota} OS ainda sem nota</em></div>`;
+  $("#kpis").hidden=view==="notas";
+}
+function render(){ renderList(); renderDetail(); if(!sheetFocused()) renderSheet(); renderNotas(); renderKpis(); }
 
 // --- gravação ---
 let writing=Promise.resolve();
@@ -361,6 +630,9 @@ function flash(id,txt){ const s=$(id); if(s){ s.textContent=txt; setTimeout(()=>
 $("#list").addEventListener("click",e=>{ const b=e.target.closest(".item"); if(b){ selId=b.dataset.id; render(); if(innerWidth<820) $("#detail").scrollIntoView({behavior:"smooth"}); }});
 
 $("#detail").addEventListener("change",e=>{
+  if(e.target.id==="dConc"){
+    const it=items.find(i=>i.id===selId); save(it,{checklist:it.checklist.map(c=>({...c,ok:e.target.checked}))}); return;
+  }
   if(e.target.matches(".checks input[type=checkbox]")){
     const it=items.find(i=>i.id===selId); const i=+e.target.dataset.i;
     const checklist=it.checklist.map((c,k)=>k===i?{...c,ok:e.target.checked}:c);
@@ -368,10 +640,12 @@ $("#detail").addEventListener("change",e=>{
   }
 });
 $("#detail").addEventListener("click",async e=>{
+  const ed=e.target.closest("[data-edit-nf]"); if(ed){ abrirNf(notas.find(a=>a.id===ed.dataset.editNf)); return; }
+  if(e.target.id==="btnEmitirNf"){ setView("notas"); abrirNf(null,selId); return; }
   const it=items.find(i=>i.id===selId); if(!it) return;
   const id=e.target.id;
   if(id==="btnSalvarSol"){
-    const ok=await save(it,{data:$("#dData").value, aeroporto:$("#dAero").value.trim(), obs:$("#dObs").value});
+    const ok=await save(it,{data:$("#dData").value, aeroporto:$("#dAero").value.trim(), prestador:$("#dPrest").value.trim(), valorOs:parseFloat($("#dValorOs").value)||0, obs:$("#dObs").value});
     if(ok) flash("#savedSol","Solicitação salva");
   } else if(id==="btnSalvarNf"){
     const ok=await save(it,{nf:{numero:$("#fNum").value.trim(), data:$("#fData").value, valor:parseFloat($("#fValor").value)||0}});
@@ -397,17 +671,33 @@ $("#detail").addEventListener("click",async e=>{
 const dlg=$("#dlgNova");
 $("#btnNova").addEventListener("click",()=>{
   if(!canWrite && live){ notice("Você não tem permissão para criar solicitações."); return; }
-  $("#formNova").reset(); $("#nData").value=new Date().toISOString().slice(0,10); dlg.showModal();
+  $("#formNova").reset(); $("#nData").value=new Date().toISOString().slice(0,10);
+  $("#pickList").innerHTML=checkPadrao.map((t,i)=>`<label for="pk${i}"><input type="checkbox" id="pk${i}" value="${esc(t)}" checked> ${esc(t)}</label>`).join("");
+  pickUpdate(); dlg.showModal();
+});
+function pickUpdate(){
+  const all=[...$("#pickList").querySelectorAll("input")], n=all.filter(x=>x.checked).length;
+  $("#pickCount").textContent=`${n} de ${all.length} serviços marcados`;
+  $("#pickAll").textContent=n===all.length?"Desmarcar todos":"Marcar todos";
+}
+$("#pickList").addEventListener("change",pickUpdate);
+$("#pickAll").addEventListener("click",()=>{
+  const all=[...$("#pickList").querySelectorAll("input")], on=!all.every(x=>x.checked);
+  all.forEach(x=>x.checked=on); pickUpdate();
 });
 $("#btnCancelar").addEventListener("click",()=>dlg.close());
+let irNf=false;
+$("#nIrNf").addEventListener("click",()=>{ irNf=true; $("#formNova").requestSubmit(); if(dlg.open) irNf=false; });
 $("#formNova").addEventListener("submit",e=>{
   e.preventDefault();
   const max=items.reduce((m,i)=>Math.max(m,parseInt(String(i.numero).replace(/\D/g,""))||0),0);
   const id="s"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const it={id, numero:"OS-"+String(max+1).padStart(4,"0"), data:$("#nData").value, aeroporto:$("#nAero").value.trim(),
-    obs:$("#nObs").value, criado:Date.now(),
-    checklist:checkPadrao.map(t=>({t,ok:false})), nf:{numero:"",data:"",valor:0}};
+    prestador:$("#nPrest").value.trim(), valorOs:parseFloat($("#nValorOs").value)||0, obs:$("#nObs").value, criado:Date.now(),
+    checklist:[...$("#pickList").querySelectorAll("input:checked")].map(x=>({t:x.value,ok:false})),
+    nf:{numero:"",data:"",valor:0}};
   items=[it,...items]; selId=id; dlg.close(); save(it,{});
+  if(irNf){ irNf=false; setView("notas"); abrirNf(null,id); return; }
   if(view==="planilha") setTimeout(()=>{ const f=$(`#sheet [data-id="${id}"][data-k="obs"]`); if(f) f.focus(); },0);
 });
 
@@ -417,26 +707,35 @@ function gerarPlanilha(){
   const linhas=items.map(it=>{
     const n=it.checklist.filter(c=>c.ok).length;
     return {
-      "OS":it.numero, "Data":dataBR(it.data), "Aeroporto":it.aeroporto,
-      "Discriminação":it.obs||"",
+      "OS":it.numero, "Data da OS":dataBR(it.data), "Local":it.aeroporto, "Prestador de serviço":it.prestador||"",
+      "Discriminação":it.obs||"", "Valor da OS (R$)":Number(it.valorOs)||0,
       "Checklist":`${n}/${it.checklist.length}`, "Status":done(it)?"Concluída":"Pendente",
       "Itens pendentes":it.checklist.filter(c=>!c.ok).map(c=>c.t).join("; "),
-      "NF nº":it.nf?.numero||"", "Data NF":it.nf?.data?dataBR(it.nf.data):"", "Valor (R$)":Number(it.nf?.valor)||0
+      "NF nº":it.nf?.numero||"", "Data da NF":it.nf?.data?dataBR(it.nf.data):"", "Valor da NF (R$)":Number(it.nf?.valor)||0
     };
   });
-  const total=linhas.reduce((s,l)=>s+l["Valor (R$)"],0);
-  linhas.push({"OS":"TOTAL","Valor (R$)":total});
+  linhas.push({"OS":"TOTAL","Valor da OS (R$)":linhas.reduce((s,l)=>s+l["Valor da OS (R$)"],0),"Valor da NF (R$)":linhas.reduce((s,l)=>s+l["Valor da NF (R$)"],0)});
   const ws=XLSX.utils.json_to_sheet(linhas);
-  ws["!cols"]=[10,12,22,50,10,11,44,12,12,14].map(w=>({wch:w}));
+  ws["!cols"]=[10,12,22,30,50,16,10,11,44,12,12,16].map(w=>({wch:w}));
   const range=XLSX.utils.decode_range(ws["!ref"]);
-  for(let r=1;r<=range.e.r;r++){ const c=ws[XLSX.utils.encode_cell({r,c:9})]; if(c) c.z='"R$" #,##0.00'; }
+  for(let r=1;r<=range.e.r;r++){ for(const col of [5,11]){ const c=ws[XLSX.utils.encode_cell({r,c:col})]; if(c) c.z='"R$" #,##0.00'; } }
   const det=[];
-  items.forEach(it=>it.checklist.forEach(c=>det.push({"OS":it.numero,"Aeroporto":it.aeroporto,"Item":c.t,"OK":c.ok?"Sim":"Não"})));
-  const ws2=XLSX.utils.json_to_sheet(det.length?det:[{"OS":"","Aeroporto":"","Item":"","OK":""}]);
+  items.forEach(it=>it.checklist.forEach(c=>det.push({"OS":it.numero,"Local":it.aeroporto,"Item":c.t,"OK":c.ok?"Sim":"Não"})));
+  const ws2=XLSX.utils.json_to_sheet(det.length?det:[{"OS":"","Local":"","Item":"","OK":""}]);
   ws2["!cols"]=[10,22,40,6].map(w=>({wch:w}));
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,"Serviços");
   XLSX.utils.book_append_sheet(wb,ws2,"Checklist");
+  const nfs=[
+    ...items.filter(it=>it.nf?.numero).map(it=>({"NF nº":it.nf.numero,"Tipo":"OS "+it.numero,"Data da NF":dataBR(it.nf.data),"Local":it.aeroporto,"Prestador de serviço":it.prestador||"","Discriminação":it.obs||"","Serviços":it.checklist.map(c=>c.t).join("; "),"Valor (R$)":Number(it.nf.valor)||0})),
+    ...notas.map(a=>({"NF nº":a.numero,"Tipo":osDe(a)?"OS "+osDe(a).numero:"Avulsa","Data da NF":dataBR(a.data),"Local":a.aeroporto||"","Prestador de serviço":a.prestador||"","Discriminação":a.obs||"","Serviços":(a.servicos||[]).join("; "),"Valor (R$)":Number(a.valor)||0}))
+  ];
+  nfs.push({"NF nº":"TOTAL","Valor (R$)":nfs.reduce((s,l)=>s+l["Valor (R$)"],0)});
+  const ws3=XLSX.utils.json_to_sheet(nfs);
+  ws3["!cols"]=[12,12,12,22,30,44,44,14].map(w=>({wch:w}));
+  const r3=XLSX.utils.decode_range(ws3["!ref"]);
+  for(let r=1;r<=r3.e.r;r++){ const c=ws3[XLSX.utils.encode_cell({r,c:7})]; if(c) c.z='"R$" #,##0.00'; }
+  XLSX.utils.book_append_sheet(wb,ws3,"Notas fiscais");
   return XLSX.write(wb,{bookType:"xlsx",type:"array"});
 }
 $("#btnExcel").addEventListener("click",async()=>{
@@ -458,17 +757,22 @@ $("#btnExcel").addEventListener("click",async()=>{
 
 // --- início ---
 items=EXEMPLOS.map(x=>structuredClone(x)); selId=items[0].id;
-try{ if(localStorage.getItem("hangar-view")==="fichas") view="fichas"; }catch(_){}
+try{ const v=localStorage.getItem("hangar-view"); if(v==="planilha"||v==="notas") view=v; }catch(_){}
 setView(view);
 
 (async()=>{
   const [d,user]=await Promise.all([window.claude?.use("db"), window.claude?.use("user")].map(p=>Promise.resolve(p).catch(()=>null)));
-  if(!d){ canWrite=true; notice("Modo de demonstração: as solicitações abaixo são exemplos e as alterações não são salvas."); return; }
+  if(!d){ canWrite=true; notice("Modo de demonstração: as solicitações abaixo são exemplos e as alterações não são salvas."); render(); return; }
   db=d; live=true;
   const perm=user ? await Promise.resolve(user.can("data.write")).catch(()=>null) : null;
   canWrite = perm!==false;
   if(!canWrite) notice("Você pode ver as solicitações, mas não tem permissão para alterá-las.");
-  items=[]; selId=null; render();
+  items=[]; notas=[]; selId=null; render();
+  db.collection("notas").orderBy("criado","desc").onSnapshot(snap=>{
+    notas=snap.docs.map(s=>({id:s.id,...structuredClone(s.data())}));
+    renderNotas(); renderKpis();
+    if(!$("#detail").contains(document.activeElement)) renderDetail();
+  },()=>{});
   db.doc("config/checklist").onSnapshot(s=>{
     const l=s.exists?s.data().itens:null;
     if(Array.isArray(l)&&l.length) checkPadrao=[...l];
