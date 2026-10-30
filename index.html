@@ -179,7 +179,7 @@ input.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .sheet-tools input,.sheet-tools select{width:auto;flex:1 1 200px;max-width:320px}
 .sheet-tools .count{color:var(--muted);font-size:.82rem;margin-left:auto}
 .sheet-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);box-shadow:var(--shadow)}
-table.sheet{border-collapse:collapse;width:100%;min-width:1700px;font-size:.86rem;font-variant-numeric:tabular-nums}
+table.sheet{border-collapse:collapse;width:100%;min-width:1900px;font-size:.86rem;font-variant-numeric:tabular-nums}
 .sheet th,.sheet td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:0;vertical-align:middle}
 .sheet thead th{position:sticky;top:0;background:var(--head);font:600 .75rem var(--f-body);color:var(--muted);text-align:left;padding:8px;z-index:1}
 .sheet thead tr.letters th{text-align:center;font:500 .66rem var(--f-mono);padding:3px;background:var(--bg)}
@@ -199,6 +199,20 @@ table.sheet{border-collapse:collapse;width:100%;min-width:1700px;font-size:.86re
 .sheet td.qtdcell input{border:0;background:transparent;padding:8px;width:100%;text-align:right;font-family:var(--f-mono);font-size:.86rem;min-width:0}
 .sheet td.qtdcell select{border:0;background:transparent;padding:8px 4px;width:auto;font-size:.82rem;color:var(--muted);flex:none}
 .sheet td.qtdcell input:focus,.sheet td.qtdcell select:focus{outline:2px solid var(--accent);outline-offset:-2px;background:var(--surface)}
+.ck2{display:flex;align-items:center;gap:8px;cursor:pointer;min-width:0}
+.ck2 input{width:20px;height:20px;accent-color:var(--ok);flex:none;margin:0;cursor:pointer}
+.ck2 input:disabled{cursor:not-allowed;opacity:.45}
+.ck2 span{display:flex;flex-direction:column;line-height:1.2;min-width:0}
+.ck2 b{font-size:.78rem;font-weight:600;color:var(--ok);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ck2 i{font-style:normal;font-size:.7rem;color:var(--muted)}
+.sheet td.ck2cell{padding:6px 8px}
+.duplo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}
+@media (max-width:640px){.duplo{grid-template-columns:1fr}}
+.duplo .status-sq{margin-bottom:0;align-items:flex-start}
+.duplo .status-sq .ck2{flex:none}
+.duplo .status-sq>span{display:block}
+.duplo .status-sq>span>b{display:block;margin-bottom:2px}
+.duplo .status-sq strong{color:var(--ink);font-weight:600}
 .sheet td.sq{text-align:center;padding:0 8px}
 .sheet td.sq label{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font:500 .78rem var(--f-body);color:var(--muted)}
 .sheet td.sq input{width:20px;height:20px;accent-color:var(--ok);cursor:pointer;margin:0}
@@ -473,7 +487,35 @@ const $=s=>document.querySelector(s);
 const brl=v=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(v)||0);
 const dataBR=d=>{ if(!d) return "—"; const [y,m,dd]=d.split("-"); return `${dd}/${m}/${y}`; };
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const done=it=>it.checklist.length>0 && it.checklist.every(c=>c.ok);
+const done=it=>!!(it.exec && it.conf);
+const curto=iso=>{ if(!iso) return ""; const d=new Date(iso); return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"}); };
+const euMesmo=()=>usuarioAtual?.email||"demo";
+// Regras dos dois checks: retorna {ok:boolean, motivo:string} para cada ação
+function podeCheck(it,qual,marcar){
+  if(!canWrite) return {ok:false,motivo:"Sem permissão para alterar."};
+  if(qual==="exec"){
+    if(!marcar && live && it.exec?.email!==euMesmo() && !ehAdmin()) return {ok:false,motivo:"Só quem marcou o Confirmado ou um administrador pode retirar este check."};
+    return {ok:true};
+  }
+  if(marcar){
+    return {ok:true};
+  }
+  if(live && it.conf?.email!==euMesmo() && !ehAdmin()) return {ok:false,motivo:"Só quem marcou o Pago ou um administrador pode retirar este check."};
+  return {ok:true};
+}
+function aplicarCheck(it,qual,marcar){
+  const r=podeCheck(it,qual,marcar);
+  if(!r.ok){ notice(r.motivo); render(); renderSheet(); return; }
+  notice("");
+  const assin={por:quem(),email:euMesmo(),em:new Date().toISOString()};
+  if(qual==="exec") save(it,{exec:marcar?assin:null},marcar?"Marcou ① Confirmado":"Retirou o ① Confirmado");
+  else save(it,{conf:marcar?assin:null},marcar?"Marcou ② Pago":"Retirou o ② Pago");
+  renderSheet();
+}
+function checkCell(it,qual,soCaixa){
+  const a=it[qual], dis=canWrite?"":"disabled", bloq=false;
+  return `<label class="ck2${a?" on":""}"><input type="checkbox" data-check="${qual}" data-id="${esc(it.id)}" ${a?"checked":""} ${dis} ${bloq?"disabled":""} aria-label="${qual==="exec"?"Confirmado":"Pago"} ${esc(it.numero)}">${soCaixa?"":a?`<span><b>${esc(a.por)}</b><i>${curto(a.em)}</i></span>`:bloq?`<span><i>aguarda ①</i></span>`:""}</label>`;
+}
 
 function notice(msg){ const n=$("#notice"); n.textContent=msg||""; n.hidden=!msg; }
 
@@ -487,7 +529,7 @@ function renderList(){
     const n=it.checklist.filter(c=>c.ok).length;
     return `<button type="button" class="item" data-id="${esc(it.id)}" aria-current="${it.id===selId}">
       <span class="code">${esc(it.numero)}</span>
-      <span class="pill ${done(it)?"done":"pend"}">${done(it)?"Concluída":`${n}/${it.checklist.length} ok`}</span>
+      <span class="pill ${done(it)?"done":"pend"}">${done(it)?"Concluída":it.exec?"Aguardando pagamento":it.conf?"Paga · falta confirmar":`${n}/${it.checklist.length} ok`}</span>
       <span class="meta">${dataBR(it.data)} — ${esc(it.aeroporto)}${it.prestador?" · "+esc(it.prestador):""}${it.exemplo?" · exemplo":""}</span>
     </button>`;
   }).join("");
@@ -545,7 +587,10 @@ function renderDetail(){
 
   <section class="card">
     <h2>Checklist <small>${n} de ${it.checklist.length} ok · ${pct}%</small></h2>
-    <label class="status-sq" for="dConc"><input type="checkbox" id="dConc" ${done(it)?"checked":""} ${dis}><span><b>${done(it)?"OS concluída":"OS pendente"}</b> Marque para dar OK em todos os itens de uma vez</span></label>
+    <div class="duplo">
+      <div class="status-sq">${checkCell(it,"exec",true)}<span><b>① Confirmado</b> ${it.exec?`Marcado por <strong>${esc(it.exec.por)}</strong> em ${quando(it.exec.em)}`:"Quem recebe a OS confirma o serviço."}</span></div>
+      <div class="status-sq">${checkCell(it,"conf",true)}<span><b>② Pago</b> ${it.conf?`Marcado por <strong>${esc(it.conf.por)}</strong> em ${quando(it.conf.em)}`:"Marque quando o pagamento for feito. A OS fica concluída com os dois marcados."}</span></div>
+    </div>
     <div class="progress"><i style="width:${pct}%"></i></div>
     <ul class="checks">
       ${it.checklist.map((c,i)=>`<li class="${c.ok?"ok":""}">
@@ -577,7 +622,8 @@ const COLS=[
   {h:"Discriminação",k:"obs",area:true,w:280},
   {h:"Qtd.",qtd:true,w:170},
   {h:"Valor da OS (R$)",k:"valorOs",type:"number",num:true,w:130,sum:true},
-  {h:"Status",sq:true,w:70},
+  {h:"① Confirmado",chk:"exec",w:150},
+  {h:"② Pago",chk:"conf",w:150},
   {h:"NF nº",k:"nf.numero",w:100},
   {h:"Data da NF",k:"nf.data",type:"date",w:140},
   {h:"Vencimento NF",k:"nf.vencimento",type:"date",w:140},
@@ -598,6 +644,7 @@ function renderSheet(){
     <tr><th class="rn">1</th>${COLS.map(c=>`<th>${c.h}</th>`).join("")}</tr></thead>
     <tbody>${rows.map((it,r)=>`<tr><td class="rn">${r+2}</td>${COLS.map(c=>{
       if(c.qtd) return `<td class="qtdcell"><div><input data-id="${esc(it.id)}" data-k="qtd" type="number" min="0" step="any" value="${it.qtd??""}" aria-label="Quantidade ${esc(it.numero)}" ${dis}><select data-id="${esc(it.id)}" data-k="unidade" aria-label="Unidade ${esc(it.numero)}" ${dis}>${unidOpts(it.unidade).replace(/ \(objeto\)| \(líquido\)/g,"").replace("Unidade","un").replace("Litros","L").replace("Quilos","kg")}</select></div></td>`;
+      if(c.chk) return `<td class="ck2cell">${checkCell(it,c.chk)}</td>`;
       if(c.sq) return `<td class="sq"><label><input type="checkbox" data-status="${esc(it.id)}" ${done(it)?"checked":""} ${dis} aria-label="Concluída ${esc(it.numero)}" title="${done(it)?"Concluída":"Pendente"}"></label></td>`;
       if(c.ro) return `<td class="ro">${c.v?(c.html?c.v(it):esc(c.v(it))):esc(getF(it,c.k))}</td>`;
       const val=getF(it,c.k)??""; const a=`data-id="${esc(it.id)}" data-k="${c.k}" aria-label="${c.h} ${esc(it.numero)}" ${dis}`;
@@ -609,6 +656,7 @@ function renderSheet(){
 const sheetFocused=()=>$("#sheet").contains(document.activeElement);
 $("#sheet").addEventListener("change",e=>{
   const t=e.target;
+  if(t.dataset.check){ const it=items.find(i=>i.id===t.dataset.id); if(it) aplicarCheck(it,t.dataset.check,t.checked); return; }
   if(t.dataset.status){ const it=items.find(i=>i.id===t.dataset.status); if(it){ save(it,{checklist:it.checklist.map(c=>({...c,ok:t.checked}))},t.checked?"Marcou a OS como concluída (OK em todos os itens)":"Marcou a OS como pendente"); renderSheet(); } return; }
   const it=items.find(i=>i.id===t.dataset.id); if(!it||!t.dataset.k) return;
   const k=t.dataset.k;
@@ -778,8 +826,8 @@ function renderKpis(){
   const fat=items.reduce((s,it)=>s+(it.nf?.numero?Number(it.nf.valor)||0:0),0)+notas.reduce((s,a)=>s+(Number(a.valor)||0),0);
   const semNota=items.filter(it=>!emitida(it)).length;
   $("#kpis").innerHTML=`<div><span>Ordens de serviço</span><strong>${items.length}</strong><em>registradas</em></div>
-    <div><span>Em andamento</span><strong>${pend}</strong><em>com itens pendentes no checklist</em></div>
-    <div><span>Concluídas</span><strong>${conc}</strong><em>checklist completo</em></div>
+    <div><span>Em andamento</span><strong>${pend}</strong><em>aguardando confirmação ou pagamento</em></div>
+    <div><span>Concluídas</span><strong>${conc}</strong><em>confirmadas e pagas</em></div>
     <div><span>Faturado</span><strong>${brl(fat)}</strong><em>${semNota} OS ainda sem nota</em></div>`;
   $("#kpis").hidden=view==="notas"||view==="monitor"||view==="equipe";
 }
@@ -817,6 +865,7 @@ function flash(id,txt){ const s=$(id); if(s){ s.textContent=txt; setTimeout(()=>
 $("#list").addEventListener("click",e=>{ const b=e.target.closest(".item"); if(b){ selId=b.dataset.id; render(); if(innerWidth<820) $("#detail").scrollIntoView({behavior:"smooth"}); }});
 
 $("#detail").addEventListener("change",e=>{
+  if(e.target.dataset.check){ const it=items.find(i=>i.id===selId); if(it) aplicarCheck(it,e.target.dataset.check,e.target.checked); return; }
   if(e.target.id==="dConc"){
     const it=items.find(i=>i.id===selId); save(it,{checklist:it.checklist.map(c=>({...c,ok:e.target.checked}))},e.target.checked?"Marcou a OS como concluída (OK em todos os itens)":"Marcou a OS como pendente"); return;
   }
@@ -897,7 +946,7 @@ function gerarPlanilha(){
       "OS":it.numero, "Data da OS":dataBR(it.data), "Local":it.aeroporto,
       "Prestador de serviço":it.prestador||"",
       "Discriminação":it.obs||"", "Qtd.":it.qtd==null?"":Number(it.qtd), "Unidade":it.qtd==null?"":(UNIDADES[it.unidade]||"un"), "Valor da OS (R$)":Number(it.valorOs)||0,
-      "Checklist OK":`${n}/${it.checklist.length}`, "Status":done(it)?"Concluída":"Pendente",
+      "Checklist OK":`${n}/${it.checklist.length}`, "Status":done(it)?"Concluída":it.exec?"Aguardando pagamento":it.conf?"Paga, falta confirmar":"Pendente", "Confirmado por":it.exec?`${it.exec.por} (${dataBR(it.exec.em.slice(0,10))})`:"", "Pago por":it.conf?`${it.conf.por} (${dataBR(it.conf.em.slice(0,10))})`:"",
       "Itens pendentes":it.checklist.filter(c=>!c.ok).map(c=>c.t).join("; "),
       "NF nº":it.nf?.numero||"", "Data da NF":it.nf?.data?dataBR(it.nf.data):"", "Vencimento NF":it.nf?.vencimento?dataBR(it.nf.vencimento):"", "Valor da NF (R$)":Number(it.nf?.valor)||0
     };
