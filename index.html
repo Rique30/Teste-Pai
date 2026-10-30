@@ -243,6 +243,11 @@ dialog h2+.sub{margin:-6px 0 14px!important}
 details.hist-nf{margin-top:8px;font-size:.85rem}
 details.hist-nf summary{cursor:pointer;color:var(--accent);font-weight:500;font-size:.8rem}
 details.hist-nf .hist{margin-top:6px}
+/* equipe */
+body.papel-operador .so-admin{display:none!important}
+.equipe-acoes{display:flex;gap:2px;flex-wrap:wrap;justify-content:flex-end}
+.mini td .eu{font-size:.72rem;color:var(--muted);margin-left:6px}
+.cred{font-family:var(--f-mono);user-select:all}
 /* login */
 .login{min-height:100vh;display:grid;place-items:center;background:var(--side);
   padding-block:32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -299,6 +304,7 @@ details.hist-nf .hist{margin-top:6px}
         <button type="button" role="tab" id="tabFichas" aria-selected="false"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>OS</button>
         <button type="button" role="tab" id="tabNotas" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>Nota Fiscal</button>
         <button type="button" role="tab" id="tabMonitor" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Monitor</button>
+        <button type="button" role="tab" id="tabEquipe" aria-selected="false" class="so-admin"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.2c3 .2 5.5 2.6 5.5 5.8"/></svg>Equipe</button>
       </div>
     </nav>
     <div class="side-foot"><div class="who" id="who" hidden><span>Conectado como</span><b id="whoEmail"></b><button type="button" id="btnSair">Sair</button></div>Ordens de serviço, checklist e notas fiscais em um só lugar.</div>
@@ -319,6 +325,16 @@ details.hist-nf .hist{margin-top:6px}
     <div class="content">
       <div class="notice" id="notice" hidden></div>
       <div class="kpis" id="kpis"></div>
+
+      <section id="equipeView" hidden>
+        <section class="card">
+          <h2>Membros da equipe <small id="equipeCount"></small></h2>
+          <p class="sub" style="margin:0 0 14px">Crie a conta de cada pessoa com uma senha provisória. No primeiro acesso ela troca por uma senha própria. <b>Administrador</b> faz tudo, inclusive gerenciar a equipe e excluir. <b>Operador</b> cria e edita OS, dá OK no checklist e emite notas, mas não exclui nem gerencia a equipe.</p>
+          <div class="notice" id="equipeAviso" hidden></div>
+          <div class="sheet-scroll" style="box-shadow:none"><table class="mini" id="equipeTabela"></table></div>
+          <div class="row-actions"><button class="btn primary" type="button" id="btnNovoMembro">+ Novo membro</button></div>
+        </section>
+      </section>
 
       <section id="monitorView" hidden>
         <div class="mon" id="monitor"></div>
@@ -376,6 +392,23 @@ details.hist-nf .hist{margin-top:6px}
       <button class="btn" type="button" id="btnCancelar">Cancelar</button>
       <button class="btn" type="button" id="nIrNf">Criar e emitir nota fiscal</button>
       <button class="btn primary" type="submit">Criar solicitação</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgMembro">
+  <form id="formMembro" method="dialog">
+    <h2>Novo membro da equipe</h2>
+    <div class="fields">
+      <div class="field" style="grid-column:span 2"><label for="mNome">Nome</label><input id="mNome" required placeholder="Nome e sobrenome"></div>
+      <div class="field"><label for="mPapel">Perfil</label><select id="mPapel"><option value="operador">Operador</option><option value="admin">Administrador</option></select></div>
+      <div class="field" style="grid-column:span 2"><label for="mEmail">E-mail</label><input id="mEmail" type="email" required placeholder="pessoa@empresa.com.br"></div>
+      <div class="field"><label for="mSenha">Senha provisória</label><input id="mSenha" class="mono" required minlength="4"></div>
+    </div>
+    <div class="login-err" id="mErro" hidden style="margin-top:12px"></div>
+    <div class="row-actions">
+      <button class="btn" type="button" id="mCancelar">Cancelar</button>
+      <button class="btn primary" type="submit" id="mSalvar">Criar conta</button>
     </div>
   </form>
 </dialog>
@@ -495,7 +528,7 @@ function renderDetail(){
       <div class="field full"><label for="dObs">Discriminação</label><textarea id="dObs" ${dis}>${esc(it.obs)}</textarea></div>
     </div>
     <div class="row-actions">
-      <span class="confirm" id="delWrap"><button class="btn" type="button" id="btnExcluir" ${dis}>Excluir</button></span>
+      <span class="confirm" id="delWrap"><button class="btn so-admin" type="button" id="btnExcluir" ${dis}>Excluir</button></span>
       <span class="saved" id="savedSol"></span>
       <button class="btn" type="button" id="btnEmitirNf" ${dis}>Emitir nota fiscal</button>
       <button class="btn primary" type="button" id="btnSalvarSol" ${dis}>Salvar solicitação</button>
@@ -603,7 +636,7 @@ function renderNotas(){
   const cards=[
     ...rowsAv.map(a=>({ord:a.data||"",html:`<article>${avulsaDoc(a)}
       <div class="nota-foot"><span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill done">${osDe(a)?"Vinculada à "+esc(osDe(a).numero):"Avulsa"}${a.exemplo?" · exemplo":""}</span>${vencPill(a.vencimento)}</span>
-      <span class="confirm" data-delwrap="${esc(a.id)}"><button type="button" class="open" data-edit-nf="${esc(a.id)}" ${dis}>Editar</button><button type="button" class="open" data-del-nf="${esc(a.id)}" ${dis}>Excluir</button></span></div>
+      <span class="confirm" data-delwrap="${esc(a.id)}"><button type="button" class="open" data-edit-nf="${esc(a.id)}" ${dis}>Editar</button><button type="button" class="open so-admin" data-del-nf="${esc(a.id)}" ${dis}>Excluir</button></span></div>
       <details class="hist-nf"><summary>Histórico (${(a.historico||[]).length})</summary>${histHtml(a.historico,"Sem registros ainda.")}</details></article>`})),
     ...rowsOs.map(it=>({ord:it.nf?.data||it.data||"",html:`<article>${nfHtml(it)}
       <div class="nota-foot"><span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill ${emitida(it)?"done":"pend"}">${emitida(it)?"Emitida":"Sem nota"}</span>${vencPill(it.nf?.vencimento)}</span>
@@ -679,10 +712,10 @@ $("#nfBusca").addEventListener("input",renderNotas);
 $("#nfFiltro").addEventListener("change",renderNotas);
 
 function setView(v){
-  view=v; $("#sheetView").hidden=v!=="planilha"; $("#fichasView").hidden=v!=="fichas"; $("#notasView").hidden=v!=="notas"; $("#monitorView").hidden=v!=="monitor";
+  view=v; $("#sheetView").hidden=v!=="planilha"; $("#fichasView").hidden=v!=="fichas"; $("#notasView").hidden=v!=="notas"; $("#monitorView").hidden=v!=="monitor"; $("#equipeView").hidden=v!=="equipe"; $("#tabEquipe").setAttribute("aria-selected",v==="equipe");
   $("#tabMonitor").setAttribute("aria-selected",v==="monitor");
   $("#tabPlanilha").setAttribute("aria-selected",v==="planilha"); $("#tabFichas").setAttribute("aria-selected",v==="fichas"); $("#tabNotas").setAttribute("aria-selected",v==="notas");
-  const T={planilha:["Planilha","Planilha de serviços"],fichas:["OS","Ordens de serviço"],notas:["Nota Fiscal","Notas fiscais"],monitor:["Monitor","Monitor do sistema"]}[v];
+  const T={planilha:["Planilha","Planilha de serviços"],fichas:["OS","Ordens de serviço"],notas:["Nota Fiscal","Notas fiscais"],monitor:["Monitor","Monitor do sistema"],equipe:["Equipe","Equipe e acessos"]}[v];
   $("#viewCrumb").textContent=T[0]; $("#viewTitle").textContent=T[1];
   try{ localStorage.setItem("hangar-view",v); }catch(_){}
   render();
@@ -691,6 +724,7 @@ $("#tabPlanilha").addEventListener("click",()=>setView("planilha"));
 $("#tabFichas").addEventListener("click",()=>setView("fichas"));
 $("#tabNotas").addEventListener("click",()=>setView("notas"));
 $("#tabMonitor").addEventListener("click",()=>setView("monitor"));
+$("#tabEquipe").addEventListener("click",()=>setView("equipe"));
 
 // --- monitor ---
 function barras(mapa,fmt){
@@ -737,13 +771,13 @@ function renderKpis(){
     <div><span>Em andamento</span><strong>${pend}</strong><em>com itens pendentes no checklist</em></div>
     <div><span>Concluídas</span><strong>${conc}</strong><em>checklist completo</em></div>
     <div><span>Faturado</span><strong>${brl(fat)}</strong><em>${semNota} OS ainda sem nota</em></div>`;
-  $("#kpis").hidden=view==="notas"||view==="monitor";
+  $("#kpis").hidden=view==="notas"||view==="monitor"||view==="equipe";
 }
-function render(){ renderList(); renderDetail(); if(!sheetFocused()) renderSheet(); renderNotas(); renderKpis(); renderMonitor(); }
+function render(){ renderList(); renderDetail(); if(!sheetFocused()) renderSheet(); renderNotas(); renderKpis(); renderMonitor(); renderEquipe(); }
 
 // --- gravação ---
 let writing=Promise.resolve();
-const quem=()=>usuarioAtual?.email||"demonstração";
+const quem=()=>usuarioAtual?(usuarioAtual.nome||usuarioAtual.email):"demonstração";
 const evento=acao=>({em:new Date().toISOString(),por:quem(),acao});
 const comHist=(lista,acao)=>[...(lista||[]),evento(acao)].slice(-150);
 const quando=iso=>{ if(!iso) return ""; const d=new Date(iso); return d.toLocaleDateString("pt-BR")+" às "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); };
@@ -911,7 +945,8 @@ const limparSessao=()=>{ try{ localStorage.removeItem(SESSAO); }catch(_){} };
 let usuarioAtual=null, aoEntrar=null;
 function mostrarApp(email){
   $("#loginView").hidden=true; $("#appView").hidden=false;
-  if(email){ $("#who").hidden=false; $("#whoEmail").textContent=email; }
+  if(email){ $("#who").hidden=false; $("#whoEmail").textContent=(usuarioAtual?.nome?usuarioAtual.nome+" · ":"")+email; }
+  aplicarPapel();
   if(aoEntrar){ const f=aoEntrar; aoEntrar=null; f(); }
 }
 function mostrarLogin(){
@@ -950,18 +985,87 @@ async function trocarSenha(){
 }
 $("#btnSair").addEventListener("click",()=>{ limparSessao(); usuarioAtual=null; mostrarLogin(); });
 
+// --- equipe ---
+let equipe=[], unsubEquipe=null;
+const ehAdmin=()=>!live || usuarioAtual?.papel==="admin";
+function aplicarPapel(){
+  document.body.classList.toggle("papel-operador",!ehAdmin());
+  if(!ehAdmin() && view==="equipe") setView("planilha");
+  if(ehAdmin() && live && !unsubEquipe){
+    unsubEquipe=db.collection("usuarios").onSnapshot(snap=>{ equipe=snap.docs.map(d=>({email:d.id,...d.data()})); renderEquipe(); },()=>{});
+  }
+}
+const PAPEL={admin:"Administrador",operador:"Operador"};
+function renderEquipe(){
+  if(view!=="equipe") return;
+  const lista=[...equipe].sort((a,b)=>(a.nome||a.email).localeCompare(b.nome||b.email,"pt-BR"));
+  const admins=lista.filter(u=>u.papel==="admin").length, eu=usuarioAtual?.email;
+  $("#equipeCount").textContent=`${lista.length} ${lista.length===1?"pessoa":"pessoas"}`;
+  $("#equipeTabela").innerHTML=`<thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Situação</th><th></th></tr></thead><tbody>${lista.map(u=>{
+    const souEu=u.email===eu, ultimoAdmin=u.papel==="admin"&&admins<=1;
+    return `<tr><td>${esc(u.nome||"—")}${souEu?`<span class="eu">(você)</span>`:""}</td><td>${esc(u.email)}</td><td>${PAPEL[u.papel]||"Operador"}</td>
+      <td>${u.trocarSenha?`<span class="pill pend">Aguardando 1º acesso</span>`:`<span class="pill done">Ativo</span>`}</td>
+      <td><div class="equipe-acoes" data-u="${esc(u.email)}">
+        <button type="button" class="open" data-acao="senha">Nova senha provisória</button>
+        ${souEu||ultimoAdmin?"":`<button type="button" class="open" data-acao="papel">${u.papel==="admin"?"Tornar operador":"Tornar administrador"}</button><button type="button" class="open" data-acao="remover">Remover</button>`}
+      </div></td></tr>`;}).join("")||`<tr><td colspan="5" class="sub">Ninguém cadastrado ainda.</td></tr>`}</tbody>`;
+}
+const senhaAleatoria=()=>String(Math.floor(100000+Math.random()*900000));
+function avisoEquipe(html){ const a=$("#equipeAviso"); a.innerHTML=html; a.hidden=!html; }
+async function gravarMembro(email,dados){
+  if(live) await db.collection("usuarios").doc(email).set(dados);
+  else { equipe=[...equipe.filter(u=>u.email!==email),{email,...dados}]; renderEquipe(); }
+}
+const dlgM=$("#dlgMembro");
+$("#btnNovoMembro").addEventListener("click",()=>{ $("#formMembro").reset(); $("#mSenha").value=senhaAleatoria(); erroLogin("#mErro",""); dlgM.showModal(); $("#mNome").focus(); });
+$("#mCancelar").addEventListener("click",()=>dlgM.close());
+$("#formMembro").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const email=$("#mEmail").value.trim().toLowerCase(), nome=$("#mNome").value.trim(), papel=$("#mPapel").value, senha=$("#mSenha").value;
+  if(equipe.some(u=>u.email===email)) return erroLogin("#mErro","Já existe uma conta com este e-mail.");
+  $("#mSalvar").disabled=true;
+  try{
+    const salt=b64(crypto.getRandomValues(new Uint8Array(16))), iter=120000;
+    await gravarMembro(email,{email,nome,papel,salt,iter,hash:await hashSenha(senha,salt,iter),trocarSenha:true,criadoEm:new Date().toISOString(),criadoPor:quem()});
+    dlgM.close();
+    avisoEquipe(`Conta criada para <b>${esc(nome)}</b>. Passe para a pessoa: e-mail <span class="cred">${esc(email)}</span> e senha provisória <span class="cred">${esc(senha)}</span>. No primeiro acesso ela cria a própria senha.`);
+  }catch(_){ erroLogin("#mErro","Não foi possível criar a conta agora. Tente de novo."); }
+  finally{ $("#mSalvar").disabled=false; }
+});
+$("#equipeTabela").addEventListener("click",async e=>{
+  const b=e.target.closest("[data-acao]"); if(!b) return;
+  const box=b.closest("[data-u]"), email=box.dataset.u, u=equipe.find(x=>x.email===email); if(!u) return;
+  const ac=b.dataset.acao;
+  if(ac==="remover"){ box.innerHTML=`<span class="confirm">Remover ${esc(u.nome||u.email)}? <button class="btn" type="button" data-acao="nao">Não</button><button class="btn primary" type="button" data-acao="sim">Sim, remover</button></span>`; return; }
+  if(ac==="nao"){ renderEquipe(); return; }
+  try{
+    if(ac==="sim"){
+      if(live) await db.collection("usuarios").doc(email).delete(); else { equipe=equipe.filter(x=>x.email!==email); renderEquipe(); }
+      avisoEquipe(`Conta de <b>${esc(u.nome||u.email)}</b> removida.`);
+    } else if(ac==="papel"){
+      const papel=u.papel==="admin"?"operador":"admin";
+      await gravarMembro(email,{...u,papel});
+      avisoEquipe(`${esc(u.nome||email)} agora é <b>${PAPEL[papel]}</b>.`);
+    } else if(ac==="senha"){
+      const senha=senhaAleatoria(), salt=b64(crypto.getRandomValues(new Uint8Array(16))), iter=120000;
+      await gravarMembro(email,{...u,salt,iter,hash:await hashSenha(senha,salt,iter),trocarSenha:true});
+      avisoEquipe(`Nova senha provisória de <b>${esc(u.nome||email)}</b>: <span class="cred">${esc(senha)}</span>. No próximo acesso a pessoa cria uma senha própria.`);
+    }
+  }catch(_){ avisoEquipe("Não foi possível concluir agora. Tente de novo."); }
+});
+
 // --- início ---
 items=EXEMPLOS.map(x=>structuredClone(x)); selId=items[0]?.id||null;
-try{ const v=localStorage.getItem("hangar-view"); if(["fichas","notas","monitor"].includes(v)) view=v; }catch(_){}
+try{ const v=localStorage.getItem("hangar-view"); if(["fichas","notas","monitor","equipe"].includes(v)) view=v; }catch(_){}
 setView(view);
 
 (async()=>{
   const [d,user]=await Promise.all([window.claude?.use("db"), window.claude?.use("user")].map(p=>Promise.resolve(p).catch(()=>null)));
-  if(!d){ canWrite=true; notice("Modo de demonstração: aqui as alterações não ficam salvas ao recarregar a página."); mostrarApp(null); render(); return; }
+  if(!d){ canWrite=true; notice("Modo de demonstração: aqui as alterações não ficam salvas ao recarregar a página."); equipe=[{email:"demo@exemplo.com",nome:"Administrador (demonstração)",papel:"admin",trocarSenha:false}]; mostrarApp(null); render(); return; }
   db=d; live=true;
   const sess=lerSessao();
   let ok=false;
-  if(sess){ try{ const s=await db.collection("usuarios").doc(sess.email).get(); ok=s.exists && !s.data().trocarSenha; }catch(_){} }
+  if(sess){ try{ const s=await db.collection("usuarios").doc(sess.email).get(); ok=s.exists && !s.data().trocarSenha; if(ok) usuarioAtual={email:sess.email,...s.data()}; }catch(_){} }
   if(ok) mostrarApp(sess.email); else { limparSessao(); mostrarLogin(); }
   const perm=user ? await Promise.resolve(user.can("data.write")).catch(()=>null) : null;
   canWrite = perm!==false;
