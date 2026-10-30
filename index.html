@@ -195,6 +195,10 @@ table.sheet{border-collapse:collapse;width:100%;min-width:1700px;font-size:.86re
 .sheet td.ro .qtd{display:flex;gap:8px;align-items:center;max-width:230px}
 .sheet td.ro .qtd b{font:600 .8rem var(--f-mono);background:var(--accent-soft);color:var(--accent);border-radius:4px;padding:1px 7px;flex:none}
 .sheet td.ro .qtd span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:.82rem}
+.sheet td.qtdcell>div{display:flex;align-items:center}
+.sheet td.qtdcell input{border:0;background:transparent;padding:8px;width:100%;text-align:right;font-family:var(--f-mono);font-size:.86rem;min-width:0}
+.sheet td.qtdcell select{border:0;background:transparent;padding:8px 4px;width:auto;font-size:.82rem;color:var(--muted);flex:none}
+.sheet td.qtdcell input:focus,.sheet td.qtdcell select:focus{outline:2px solid var(--accent);outline-offset:-2px;background:var(--surface)}
 .sheet td.sq{text-align:center;padding:0 8px}
 .sheet td.sq label{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font:500 .78rem var(--f-body);color:var(--muted)}
 .sheet td.sq input{width:20px;height:20px;accent-color:var(--ok);cursor:pointer;margin:0}
@@ -377,8 +381,10 @@ body.papel-operador .so-admin{display:none!important}
     <div class="fields">
       <div class="field"><label for="nData">Data da OS</label><input id="nData" type="date" required></div>
       <div class="field" style="grid-column:span 2"><label for="nAero">Local</label><input id="nAero" placeholder="SBGR · Guarulhos" required></div>
-      <div class="field" style="grid-column:span 2"><label for="nPrest">Prestador de serviço</label><input id="nPrest" placeholder="Nome da empresa ou profissional"></div>
+      <div class="field"><label for="nQtd">Quantidade</label><input id="nQtd" class="mono" type="number" min="0" step="any"></div>
+      <div class="field"><label for="nUnid">Unidade</label><select id="nUnid"><option value="un">Unidade (objeto)</option><option value="L">Litros (líquido)</option><option value="kg">Quilos</option></select></div>
       <div class="field"><label for="nValorOs">Valor da OS (R$)</label><input id="nValorOs" class="mono" type="number" min="0" step="0.01"></div>
+      <div class="field full"><label for="nPrest">Prestador de serviço</label><input id="nPrest" placeholder="Nome da empresa ou profissional"></div>
       <div class="field full"><label for="nObs">Discriminação</label><textarea id="nObs" placeholder="Descrição dos serviços a realizar"></textarea></div>
       <div class="field full">
         <label>Serviços solicitados (checklist)</label>
@@ -523,8 +529,10 @@ function renderDetail(){
     <div class="fields">
       <div class="field"><label for="dData">Data da OS</label><input id="dData" type="date" value="${esc(it.data)}" ${dis}></div>
       <div class="field" style="grid-column:span 2"><label for="dAero">Local</label><input id="dAero" value="${esc(it.aeroporto)}" ${dis}></div>
-      <div class="field" style="grid-column:span 2"><label for="dPrest">Prestador de serviço</label><input id="dPrest" value="${esc(it.prestador||"")}" ${dis}></div>
+      <div class="field"><label for="dQtd">Quantidade</label><input id="dQtd" class="mono" type="number" min="0" step="any" value="${it.qtd??""}" ${dis}></div>
+      <div class="field"><label for="dUnid">Unidade</label><select id="dUnid" ${dis}>${unidOpts(it.unidade)}</select></div>
       <div class="field"><label for="dValorOs">Valor da OS (R$)</label><input id="dValorOs" class="mono" type="number" min="0" step="0.01" value="${it.valorOs||""}" ${dis}></div>
+      <div class="field full"><label for="dPrest">Prestador de serviço</label><input id="dPrest" value="${esc(it.prestador||"")}" ${dis}></div>
       <div class="field full"><label for="dObs">Discriminação</label><textarea id="dObs" ${dis}>${esc(it.obs)}</textarea></div>
     </div>
     <div class="row-actions">
@@ -565,7 +573,7 @@ const COLS=[
   {h:"OS",k:"numero",ro:true,w:80},
   {h:"Data da OS",k:"data",type:"date",w:140},
   {h:"Local",k:"aeroporto",w:160},
-  {h:"Qtd. / Tipos de serviço",ro:true,html:true,w:230,v:it=>`<span class="qtd"><b>${it.checklist.length}</b><span title="${esc(it.checklist.map(c=>c.t).join(", "))}">${esc(it.checklist.map(c=>c.t).join(", ")||"—")}</span></span>`},
+  {h:"Qtd.",qtd:true,w:170},
   {h:"Prestador de serviço",k:"prestador",w:190},
   {h:"Discriminação",k:"obs",area:true,w:280},
   {h:"Valor da OS (R$)",k:"valorOs",type:"number",num:true,w:130,sum:true},
@@ -589,6 +597,7 @@ function renderSheet(){
   $("#sheet").innerHTML=`<thead><tr class="letters"><th class="rn"></th>${letters}</tr>
     <tr><th class="rn">1</th>${COLS.map(c=>`<th>${c.h}</th>`).join("")}</tr></thead>
     <tbody>${rows.map((it,r)=>`<tr><td class="rn">${r+2}</td>${COLS.map(c=>{
+      if(c.qtd) return `<td class="qtdcell"><div><input data-id="${esc(it.id)}" data-k="qtd" type="number" min="0" step="any" value="${it.qtd??""}" aria-label="Quantidade ${esc(it.numero)}" ${dis}><select data-id="${esc(it.id)}" data-k="unidade" aria-label="Unidade ${esc(it.numero)}" ${dis}>${unidOpts(it.unidade).replace(/ \(objeto\)| \(líquido\)/g,"").replace("Unidade","un").replace("Litros","L").replace("Quilos","kg")}</select></div></td>`;
       if(c.sq) return `<td class="sq"><label><input type="checkbox" data-status="${esc(it.id)}" ${done(it)?"checked":""} ${dis} aria-label="Concluída ${esc(it.numero)}" title="${done(it)?"Concluída":"Pendente"}"></label></td>`;
       if(c.ro) return `<td class="ro">${c.v?(c.html?c.v(it):esc(c.v(it))):esc(getF(it,c.k))}</td>`;
       const val=getF(it,c.k)??""; const a=`data-id="${esc(it.id)}" data-k="${c.k}" aria-label="${c.h} ${esc(it.numero)}" ${dis}`;
@@ -605,6 +614,7 @@ $("#sheet").addEventListener("change",e=>{
   const k=t.dataset.k;
   const ac="Alterou "+(CAMPOS[k]||k)+" pela planilha";
   if(k.startsWith("nf.")){ const f=k.slice(3); save(it,{nf:{...it.nf,[f]:f==="valor"?(parseFloat(t.value)||0):t.value.trim()}},ac); }
+  else if(k==="qtd") save(it,{qtd:t.value===""?null:parseFloat(t.value)},ac);
   else save(it,{[k]:t.type==="number"?(parseFloat(t.value)||0):t.type==="date"?t.value:t.value.trim()},ac);
 });
 $("#sheet").addEventListener("focusout",e=>{ if(!$("#sheet").contains(e.relatedTarget)) setTimeout(()=>{ if(!sheetFocused()) renderSheet(); },0); });
@@ -785,7 +795,10 @@ function histHtml(lista,vazio){
   const l=[...(lista||[])].reverse();
   return l.length?`<ul class="hist">${l.map(h=>`<li><div><div class="acao">${esc(h.acao)}</div><div class="meta">${quando(h.em)} · ${esc(h.por)}</div></div></li>`).join("")}</ul>`:`<div class="sub">${vazio}</div>`;
 }
-const CAMPOS={data:"Data da OS",aeroporto:"Local",prestador:"Prestador de serviço",obs:"Discriminação",valorOs:"Valor da OS","nf.numero":"Nº da NF","nf.data":"Data da NF","nf.vencimento":"Vencimento da NF","nf.valor":"Valor da NF"};
+const UNIDADES={un:"un",L:"L",kg:"kg"};
+const unidOpts=v=>`<option value="un">Unidade (objeto)</option><option value="L">Litros (líquido)</option><option value="kg">Quilos</option>`.replace(`value="${v||"un"}"`,`value="${v||"un"}" selected`);
+const qtdTxt=it=>it.qtd==null||it.qtd===""?"":`${String(it.qtd).replace(".",",")} ${UNIDADES[it.unidade]||"un"}`;
+const CAMPOS={qtd:"Quantidade",unidade:"Unidade",data:"Data da OS",aeroporto:"Local",prestador:"Prestador de serviço",obs:"Discriminação",valorOs:"Valor da OS","nf.numero":"Nº da NF","nf.data":"Data da NF","nf.vencimento":"Vencimento da NF","nf.valor":"Valor da NF"};
 function save(it, patch, acao){
   if(acao) patch={...patch,historico:comHist(it.historico,acao)};
   Object.assign(it, patch); render();
@@ -819,7 +832,7 @@ $("#detail").addEventListener("click",async e=>{
   const it=items.find(i=>i.id===selId); if(!it) return;
   const id=e.target.id;
   if(id==="btnSalvarSol"){
-    const ok=await save(it,{data:$("#dData").value, aeroporto:$("#dAero").value.trim(), prestador:$("#dPrest").value.trim(), valorOs:parseFloat($("#dValorOs").value)||0, obs:$("#dObs").value},"Editou os dados da OS");
+    const ok=await save(it,{data:$("#dData").value, aeroporto:$("#dAero").value.trim(), prestador:$("#dPrest").value.trim(), valorOs:parseFloat($("#dValorOs").value)||0, qtd:$("#dQtd").value===""?null:parseFloat($("#dQtd").value), unidade:$("#dUnid").value, obs:$("#dObs").value},"Editou os dados da OS");
     if(ok) flash("#savedSol","Solicitação salva");
   } else if(id==="btnSalvarNf"){
     const ok=await save(it,{nf:{numero:$("#fNum").value.trim(), data:$("#fData").value, valor:parseFloat($("#fValor").value)||0}});
@@ -867,7 +880,7 @@ $("#formNova").addEventListener("submit",e=>{
   const max=items.reduce((m,i)=>Math.max(m,parseInt(String(i.numero).replace(/\D/g,""))||0),0);
   const id="s"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const it={id, numero:"OS-"+String(max+1).padStart(4,"0"), data:$("#nData").value, aeroporto:$("#nAero").value.trim(),
-    prestador:$("#nPrest").value.trim(), valorOs:parseFloat($("#nValorOs").value)||0, obs:$("#nObs").value, criado:Date.now(),
+    prestador:$("#nPrest").value.trim(), valorOs:parseFloat($("#nValorOs").value)||0, qtd:$("#nQtd").value===""?null:parseFloat($("#nQtd").value), unidade:$("#nUnid").value, obs:$("#nObs").value, criado:Date.now(),
     checklist:[...$("#pickList").querySelectorAll("input:checked")].map(x=>({t:x.value,ok:false})),
     nf:{numero:"",data:"",valor:0}};
   items=[it,...items]; selId=id; dlg.close(); save(it,{},"Criou a OS");
@@ -882,7 +895,7 @@ function gerarPlanilha(){
     const n=it.checklist.filter(c=>c.ok).length;
     return {
       "OS":it.numero, "Data da OS":dataBR(it.data), "Local":it.aeroporto,
-      "Qtd. de serviços":it.checklist.length, "Tipos de serviço":it.checklist.map(c=>c.t).join("; "), "Prestador de serviço":it.prestador||"",
+      "Qtd.":it.qtd==null?"":Number(it.qtd), "Unidade":it.qtd==null?"":(UNIDADES[it.unidade]||"un"), "Prestador de serviço":it.prestador||"",
       "Discriminação":it.obs||"", "Valor da OS (R$)":Number(it.valorOs)||0,
       "Checklist OK":`${n}/${it.checklist.length}`, "Status":done(it)?"Concluída":"Pendente",
       "Itens pendentes":it.checklist.filter(c=>!c.ok).map(c=>c.t).join("; "),
@@ -891,7 +904,7 @@ function gerarPlanilha(){
   });
   linhas.push({"OS":"TOTAL","Valor da OS (R$)":linhas.reduce((s,l)=>s+l["Valor da OS (R$)"],0),"Valor da NF (R$)":linhas.reduce((s,l)=>s+l["Valor da NF (R$)"],0)});
   const ws=XLSX.utils.json_to_sheet(linhas);
-  ws["!cols"]=[10,12,22,10,40,30,50,16,12,11,44,12,12,14,16].map(w=>({wch:w}));
+  ws["!cols"]=[10,12,22,10,8,30,50,16,12,11,44,12,12,14,16].map(w=>({wch:w}));
   const range=XLSX.utils.decode_range(ws["!ref"]);
   for(let r=1;r<=range.e.r;r++){ for(const col of [7,14]){ const c=ws[XLSX.utils.encode_cell({r,c:col})]; if(c) c.z='"R$" #,##0.00'; } }
   const det=[];
