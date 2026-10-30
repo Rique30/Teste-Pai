@@ -214,10 +214,50 @@ dialog::backdrop{background:rgb(10 20 32 / .5)}
 dialog h2{font:600 1.1rem var(--f-display);margin:0 -22px 16px;padding:16px 22px;border-bottom:1px solid var(--line)}
 dialog h2+.sub{margin:-6px 0 14px!important}
 .confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.85rem}
+/* login */
+.login{min-height:100vh;display:grid;place-items:center;background:var(--side);
+  padding-block:32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.login-card{background:var(--surface);color:var(--ink);border-radius:12px;width:min(400px,100%);padding:28px 28px 24px;box-shadow:0 24px 60px rgb(0 0 0 / .35);display:flex;flex-direction:column;gap:16px}
+.login-card .brand{color:var(--ink)}
+.login-card .brand small{color:var(--muted)}
+.login-card h2{font:600 1.15rem var(--f-display);margin:4px 0 0}
+.login-card .field{gap:6px}
+.login-card .btn{justify-content:center;padding-block:10px}
+.login-err{font-size:.85rem;color:var(--red);background:var(--red-bg);border-radius:6px;padding:8px 10px}
+.login-foot{font-size:.75rem;color:var(--muted);text-align:center}
+.who{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.who b{color:var(--side-strong);font-weight:500;font-size:.8rem;word-break:break-all}
+.who button{align-self:flex-start;font:500 .78rem var(--f-body);background:transparent;border:1px solid var(--side-line);color:var(--side-ink);border-radius:5px;padding:4px 10px;cursor:pointer}
+.who button:hover{color:var(--side-strong);border-color:var(--side-ink)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
-<div class="app">
+<div class="login" id="loginView">
+  <form class="login-card" id="formLogin" autocomplete="on">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg></span>
+      <span><b>Controle de Serviços Aéreos</b><small>Gestão de ordens de serviço</small></span>
+    </div>
+    <div id="loginEntrar" style="display:flex;flex-direction:column;gap:14px">
+      <h2>Entrar</h2>
+      <div class="field"><label for="lEmail">E-mail</label><input id="lEmail" type="email" autocomplete="username" required></div>
+      <div class="field"><label for="lSenha">Senha</label><input id="lSenha" type="password" autocomplete="current-password" required></div>
+      <div class="login-err" id="lErro" hidden></div>
+      <button class="btn primary" type="submit" id="lBtn">Entrar</button>
+    </div>
+    <div id="loginTrocar" style="display:flex;flex-direction:column;gap:14px" hidden>
+      <h2>Crie a sua senha</h2>
+      <p class="sub" style="margin:0">Este é o seu primeiro acesso. Troque a senha provisória por uma senha só sua, com pelo menos 8 caracteres.</p>
+      <div class="field"><label for="tNova">Nova senha</label><input id="tNova" type="password" autocomplete="new-password" minlength="8"></div>
+      <div class="field"><label for="tConf">Confirme a nova senha</label><input id="tConf" type="password" autocomplete="new-password" minlength="8"></div>
+      <div class="login-err" id="tErro" hidden></div>
+      <button class="btn primary" type="submit" id="tBtn">Salvar senha e entrar</button>
+    </div>
+    <div class="login-foot" id="loginFoot">Acesso restrito à equipe.</div>
+  </form>
+</div>
+
+<div class="app" id="appView" hidden>
   <aside class="side">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg></span>
@@ -231,7 +271,7 @@ dialog h2+.sub{margin:-6px 0 14px!important}
         <button type="button" role="tab" id="tabPlanilha" aria-selected="false"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16"/></svg>Planilha</button>
       </div>
     </nav>
-    <div class="side-foot">Ordens de serviço, checklist e notas fiscais em um só lugar.</div>
+    <div class="side-foot"><div class="who" id="who" hidden><span>Conectado como</span><b id="whoEmail"></b><button type="button" id="btnSair">Sair</button></div>Ordens de serviço, checklist e notas fiscais em um só lugar.</div>
   </aside>
 
   <div class="main">
@@ -761,6 +801,60 @@ $("#btnExcel").addEventListener("click",async()=>{
   }
 });
 
+// --- login ---
+const SESSAO="cs-sessao", SESSAO_HORAS=12;
+const b64=u=>btoa(String.fromCharCode(...new Uint8Array(u)));
+const unb64=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
+async function hashSenha(senha,saltB64,iter){
+  const k=await crypto.subtle.importKey("raw",new TextEncoder().encode(senha),"PBKDF2",false,["deriveBits"]);
+  const bits=await crypto.subtle.deriveBits({name:"PBKDF2",hash:"SHA-256",salt:unb64(saltB64),iterations:iter},k,256);
+  return b64(bits);
+}
+const lerSessao=()=>{ try{ const x=JSON.parse(localStorage.getItem(SESSAO)||"null"); return x&&x.ate>Date.now()?x:null; }catch(_){ return null; } };
+const gravarSessao=email=>{ try{ localStorage.setItem(SESSAO,JSON.stringify({email,ate:Date.now()+SESSAO_HORAS*36e5})); }catch(_){} };
+const limparSessao=()=>{ try{ localStorage.removeItem(SESSAO); }catch(_){} };
+let usuarioAtual=null, aoEntrar=null;
+function mostrarApp(email){
+  $("#loginView").hidden=true; $("#appView").hidden=false;
+  if(email){ $("#who").hidden=false; $("#whoEmail").textContent=email; }
+  if(aoEntrar){ const f=aoEntrar; aoEntrar=null; f(); }
+}
+function mostrarLogin(){
+  $("#appView").hidden=true; $("#loginView").hidden=false;
+  $("#loginEntrar").hidden=false; $("#loginTrocar").hidden=true; $("#lErro").hidden=true;
+  $("#lSenha").value=""; setTimeout(()=>$("#lEmail").focus(),0);
+}
+const erroLogin=(id,msg)=>{ const e=$(id); e.textContent=msg; e.hidden=!msg; };
+$("#formLogin").addEventListener("submit",async e=>{
+  e.preventDefault();
+  if(!$("#loginTrocar").hidden) return trocarSenha();
+  const email=$("#lEmail").value.trim().toLowerCase(), senha=$("#lSenha").value;
+  erroLogin("#lErro",""); $("#lBtn").disabled=true; $("#lBtn").textContent="Entrando…";
+  try{
+    const snap=await db.collection("usuarios").doc(email).get();
+    const u=snap.exists?snap.data():null;
+    if(!u || !u.hash || (await hashSenha(senha,u.salt,u.iter))!==u.hash){ erroLogin("#lErro","E-mail ou senha incorretos."); return; }
+    usuarioAtual={email,...u};
+    if(u.trocarSenha){ $("#loginEntrar").hidden=true; $("#loginTrocar").hidden=false; $("#tNova").focus(); return; }
+    gravarSessao(email); mostrarApp(email);
+  }catch(_){ erroLogin("#lErro","Não foi possível entrar agora. Verifique a conexão e tente de novo."); }
+  finally{ $("#lBtn").disabled=false; $("#lBtn").textContent="Entrar"; }
+});
+async function trocarSenha(){
+  const n=$("#tNova").value, c=$("#tConf").value;
+  if(n.length<8) return erroLogin("#tErro","A nova senha precisa ter pelo menos 8 caracteres.");
+  if(n!==c) return erroLogin("#tErro","As duas senhas não são iguais.");
+  if(n===$("#lSenha").value) return erroLogin("#tErro","Escolha uma senha diferente da provisória.");
+  erroLogin("#tErro",""); $("#tBtn").disabled=true; $("#tBtn").textContent="Salvando…";
+  try{
+    const salt=b64(crypto.getRandomValues(new Uint8Array(16))), iter=120000;
+    await db.collection("usuarios").doc(usuarioAtual.email).update({salt,iter,hash:await hashSenha(n,salt,iter),trocarSenha:false,senhaTrocadaEm:new Date().toISOString()});
+    gravarSessao(usuarioAtual.email); mostrarApp(usuarioAtual.email);
+  }catch(_){ erroLogin("#tErro","Não foi possível salvar a nova senha. Tente de novo."); }
+  finally{ $("#tBtn").disabled=false; $("#tBtn").textContent="Salvar senha e entrar"; }
+}
+$("#btnSair").addEventListener("click",()=>{ limparSessao(); usuarioAtual=null; mostrarLogin(); });
+
 // --- início ---
 items=EXEMPLOS.map(x=>structuredClone(x)); selId=items[0]?.id||null;
 try{ const v=localStorage.getItem("hangar-view"); if(v==="planilha"||v==="notas") view=v; }catch(_){}
@@ -768,8 +862,12 @@ setView(view);
 
 (async()=>{
   const [d,user]=await Promise.all([window.claude?.use("db"), window.claude?.use("user")].map(p=>Promise.resolve(p).catch(()=>null)));
-  if(!d){ canWrite=true; notice("Modo de demonstração: aqui as alterações não ficam salvas ao recarregar a página."); render(); return; }
+  if(!d){ canWrite=true; notice("Modo de demonstração: aqui as alterações não ficam salvas ao recarregar a página."); mostrarApp(null); render(); return; }
   db=d; live=true;
+  const sess=lerSessao();
+  let ok=false;
+  if(sess){ try{ const s=await db.collection("usuarios").doc(sess.email).get(); ok=s.exists && !s.data().trocarSenha; }catch(_){} }
+  if(ok) mostrarApp(sess.email); else { limparSessao(); mostrarLogin(); }
   const perm=user ? await Promise.resolve(user.can("data.write")).catch(()=>null) : null;
   canWrite = perm!==false;
   if(!canWrite) notice("Você pode ver as solicitações, mas não tem permissão para alterá-las.");
