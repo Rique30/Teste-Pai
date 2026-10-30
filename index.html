@@ -253,7 +253,7 @@ dialog h2+.sub{margin:-6px 0 14px!important}
           <div class="resumo" id="notasResumo"></div>
           <div class="sheet-tools">
             <input id="nfBusca" placeholder="Buscar por nota, OS, local, prestador ou serviço">
-            <select id="nfFiltro"><option value="">Todas</option><option value="emitida">Emitidas</option><option value="sem">Sem nota</option><option value="avulsa">Avulsas (sem OS)</option></select>
+            <select id="nfFiltro"><option value="">Todas</option><option value="emitida">Emitidas</option><option value="sem">Sem nota</option><option value="avulsa">Notas criadas na aba</option></select>
             <button class="btn primary" id="btnNovaNf" type="button" style="margin-left:auto">+ Nova nota fiscal</button>
           </div>
           <div class="notas" id="notasList"></div>
@@ -309,14 +309,15 @@ dialog h2+.sub{margin:-6px 0 14px!important}
 <dialog id="dlgNf">
   <form id="formNf" method="dialog">
     <h2 id="dlgNfTitulo">Nova nota fiscal</h2>
-    <p class="sub" style="margin:-8px 0 14px">Nota avulsa, sem vínculo com uma solicitação de serviço.</p>
+    <p class="sub" style="margin:-8px 0 14px">Vincule a uma OS já criada para trazer os dados dela, ou deixe como nota avulsa.</p>
     <div class="fields">
+      <div class="field full"><label for="aOs">Ordem de serviço</label><select id="aOs"></select></div>
       <div class="field"><label for="aNum">Nº da nota</label><input id="aNum" class="mono" required></div>
-      <div class="field"><label for="aData">Data de emissão</label><input id="aData" type="date" required></div>
-      <div class="field"><label for="aDataServ">Data do serviço</label><input id="aDataServ" type="date"></div>
+      <div class="field"><label for="aData">Data da NF</label><input id="aData" type="date" required></div>
+      <div class="field"><label for="aDataServ">Data da OS / serviço</label><input id="aDataServ" type="date"></div>
       <div class="field" style="grid-column:span 2"><label for="aAero">Local</label><input id="aAero" placeholder="SBGR · Guarulhos"></div>
+      <div class="field"><label for="aValor">Valor da NF (R$)</label><input id="aValor" class="mono" type="number" min="0" step="0.01" required></div>
       <div class="field full"><label for="aPrest">Prestador de serviço</label><input id="aPrest" placeholder="Nome da empresa ou profissional"></div>
-      <div class="field"><label for="aValor">Valor (R$)</label><input id="aValor" class="mono" type="number" min="0" step="0.01" required></div>
       <div class="field full"><label for="aObs">Discriminação</label><textarea id="aObs" placeholder="Descrição dos serviços cobrados"></textarea></div>
       <div class="field full">
         <label>Serviços da nota</label>
@@ -406,7 +407,8 @@ function nfHtml(it){
   const nf=it.nf||{};
   return nfDoc({numero:nf.numero, ref:"Ref. "+it.numero, data:nf.data, aeroporto:it.aeroporto, prestador:it.prestador, dataServ:it.data, obs:it.obs, servicos:it.checklist, valor:nf.valor});
 }
-const avulsaDoc=a=>nfDoc({numero:a.numero, ref:"Avulsa", data:a.data, aeroporto:a.aeroporto, prestador:a.prestador, dataServ:a.dataServ, obs:a.obs, servicos:(a.servicos||[]).map(t=>({t})), valor:a.valor});
+const osDe=a=>a.osId?items.find(i=>i.id===a.osId):null;
+const avulsaDoc=a=>nfDoc({numero:a.numero, ref:osDe(a)?"Ref. "+osDe(a).numero:"Avulsa", data:a.data, aeroporto:a.aeroporto, prestador:a.prestador, dataServ:a.dataServ, obs:a.obs, servicos:(a.servicos||[]).map(t=>({t})), valor:a.valor});
 
 function renderDetail(){
   const el=$("#detail"); const it=items.find(i=>i.id===selId);
@@ -512,20 +514,21 @@ $("#sheet").addEventListener("click",e=>{ const b=e.target.closest("[data-open]"
 $("#fBusca").addEventListener("input",renderSheet);
 $("#fStatus").addEventListener("change",renderSheet);
 // --- notas fiscais ---
+const emitida=it=>!!(it.nf&&it.nf.numero)||notas.some(a=>a.osId===it.id);
 function renderNotas(){
   const q=$("#nfBusca").value.trim().toLowerCase(), f=$("#nfFiltro").value;
-  const emitida=it=>!!(it.nf&&it.nf.numero), dis=canWrite?"":"disabled";
+  const dis=canWrite?"":"disabled";
   const has=arr=>!q||arr.join(" ").toLowerCase().includes(q);
-  const rowsOs=f==="avulsa"?[]:items.filter(it=>(!f||(f==="emitida")===emitida(it)) && has([it.nf?.numero,it.numero,it.aeroporto,it.prestador,it.obs,...it.checklist.map(c=>c.t)]));
+  const rowsOs=f==="avulsa"?[]:items.filter(it=>!(!it.nf?.numero && notas.some(a=>a.osId===it.id)) && (!f||(f==="emitida")===emitida(it)) && has([it.nf?.numero,it.numero,it.aeroporto,it.prestador,it.obs,...it.checklist.map(c=>c.t)]));
   const rowsAv=f==="sem"?[]:notas.filter(a=>has([a.numero,a.aeroporto,a.prestador,a.obs,...(a.servicos||[])]));
   const total=rowsOs.reduce((s,it)=>s+(Number(it.nf?.valor)||0),0)+rowsAv.reduce((s,a)=>s+(Number(a.valor)||0),0);
-  $("#notasResumo").innerHTML=`<div><span>Notas de OS</span><strong>${items.filter(emitida).length}</strong></div>
-    <div><span>Notas avulsas</span><strong>${notas.length}</strong></div>
+  $("#notasResumo").innerHTML=`<div><span>OS com nota</span><strong>${items.filter(emitida).length}</strong></div>
+    <div><span>Notas criadas na aba</span><strong>${notas.length}</strong></div>
     <div><span>OS sem nota</span><strong>${items.filter(it=>!emitida(it)).length}</strong></div>
     <div><span>Total ${q||f?"filtrado":"geral"}</span><strong>${brl(total)}</strong></div>`;
   const cards=[
     ...rowsAv.map(a=>({ord:a.data||"",html:`<article>${avulsaDoc(a)}
-      <div class="nota-foot"><span class="pill done">Avulsa${a.exemplo?" · exemplo":""}</span>
+      <div class="nota-foot"><span class="pill done">${osDe(a)?"Vinculada à "+esc(osDe(a).numero):"Avulsa"}${a.exemplo?" · exemplo":""}</span>
       <span class="confirm" data-delwrap="${esc(a.id)}"><button type="button" class="open" data-edit-nf="${esc(a.id)}" ${dis}>Editar</button><button type="button" class="open" data-del-nf="${esc(a.id)}" ${dis}>Excluir</button></span></div></article>`})),
     ...rowsOs.map(it=>({ord:it.nf?.data||it.data||"",html:`<article>${nfHtml(it)}
       <div class="nota-foot"><span class="pill ${emitida(it)?"done":"pend"}">${emitida(it)?"Emitida":"Sem nota"}</span>
@@ -561,8 +564,21 @@ function abrirNf(a){
   $("#aAero").value=a?.aeroporto||""; $("#aPrest").value=a?.prestador||""; $("#aValor").value=a?.valor||""; $("#aObs").value=a?.obs||"";
   const sel=a?.servicos||[], lista=[...checkPadrao,...sel.filter(t=>!checkPadrao.includes(t))];
   $("#aPickList").innerHTML=lista.map((t,i)=>`<label for="apk${i}"><input type="checkbox" id="apk${i}" value="${esc(t)}" ${sel.includes(t)?"checked":""}> ${esc(t)}</label>`).join("");
+  $("#aOs").innerHTML=`<option value="">Nenhuma (nota avulsa)</option>`+items.map(it=>`<option value="${esc(it.id)}">${esc(it.numero)} · ${dataBR(it.data)} · ${esc(it.aeroporto||"")}${it.prestador?" · "+esc(it.prestador):""}</option>`).join("");
+  $("#aOs").value=a?.osId&&items.some(i=>i.id===a.osId)?a.osId:"";
   aPickUpdate(); dlgNf.showModal();
 }
+$("#aOs").addEventListener("change",()=>{
+  const it=items.find(i=>i.id===$("#aOs").value); if(!it) return;
+  $("#aDataServ").value=it.data||""; $("#aAero").value=it.aeroporto||""; $("#aPrest").value=it.prestador||"";
+  $("#aObs").value=it.obs||""; if(it.valorOs) $("#aValor").value=it.valorOs;
+  const sel=it.checklist.map(c=>c.t);
+  [...$("#aPickList").querySelectorAll("input")].forEach(x=>x.checked=sel.includes(x.value));
+  const extra=sel.filter(t=>![...$("#aPickList").querySelectorAll("input")].some(x=>x.value===t));
+  const n0=$("#aPickList").querySelectorAll("input").length;
+  $("#aPickList").insertAdjacentHTML("beforeend",extra.map((t,i)=>`<label for="apk${n0+i}"><input type="checkbox" id="apk${n0+i}" value="${esc(t)}" checked> ${esc(t)}</label>`).join(""));
+  aPickUpdate();
+});
 $("#btnNovaNf").addEventListener("click",()=>abrirNf(null));
 $("#aCancelar").addEventListener("click",()=>dlgNf.close());
 $("#aPickList").addEventListener("change",aPickUpdate);
@@ -573,10 +589,10 @@ $("#formNf").addEventListener("submit",e=>{
   const antiga=notas.find(a=>a.id===id);
   const a={numero:$("#aNum").value.trim(), data:$("#aData").value, dataServ:$("#aDataServ").value, aeroporto:$("#aAero").value.trim(), prestador:$("#aPrest").value.trim(),
     valor:parseFloat($("#aValor").value)||0, obs:$("#aObs").value,
-    servicos:[...$("#aPickList").querySelectorAll("input:checked")].map(x=>x.value), criado:antiga?.criado||Date.now()};
+    servicos:[...$("#aPickList").querySelectorAll("input:checked")].map(x=>x.value), osId:$("#aOs").value, criado:antiga?.criado||Date.now()};
   if(antiga?.exemplo) a.exemplo=true;
   notas=antiga?notas.map(x=>x.id===id?{id,...a}:x):[{id,...a},...notas];
-  dlgNf.close(); renderNotas();
+  dlgNf.close(); render();
   if(live) db.collection("notas").doc(id).set(a).catch(()=>notice("Não foi possível salvar a nota agora. Tente de novo em instantes."));
 });
 $("#nfBusca").addEventListener("input",renderNotas);
@@ -597,7 +613,7 @@ $("#tabNotas").addEventListener("click",()=>setView("notas"));
 function renderKpis(){
   const conc=items.filter(done).length, pend=items.length-conc;
   const fat=items.reduce((s,it)=>s+(it.nf?.numero?Number(it.nf.valor)||0:0),0)+notas.reduce((s,a)=>s+(Number(a.valor)||0),0);
-  const semNota=items.filter(it=>!it.nf?.numero).length;
+  const semNota=items.filter(it=>!emitida(it)).length;
   $("#kpis").innerHTML=`<div><span>Ordens de serviço</span><strong>${items.length}</strong><em>registradas</em></div>
     <div><span>Em andamento</span><strong>${pend}</strong><em>com itens pendentes no checklist</em></div>
     <div><span>Concluídas</span><strong>${conc}</strong><em>checklist completo</em></div>
@@ -718,7 +734,7 @@ function gerarPlanilha(){
   XLSX.utils.book_append_sheet(wb,ws2,"Checklist");
   const nfs=[
     ...items.filter(it=>it.nf?.numero).map(it=>({"NF nº":it.nf.numero,"Tipo":"OS "+it.numero,"Data da NF":dataBR(it.nf.data),"Local":it.aeroporto,"Prestador de serviço":it.prestador||"","Discriminação":it.obs||"","Serviços":it.checklist.map(c=>c.t).join("; "),"Valor (R$)":Number(it.nf.valor)||0})),
-    ...notas.map(a=>({"NF nº":a.numero,"Tipo":"Avulsa","Data da NF":dataBR(a.data),"Local":a.aeroporto||"","Prestador de serviço":a.prestador||"","Discriminação":a.obs||"","Serviços":(a.servicos||[]).join("; "),"Valor (R$)":Number(a.valor)||0}))
+    ...notas.map(a=>({"NF nº":a.numero,"Tipo":osDe(a)?"OS "+osDe(a).numero:"Avulsa","Data da NF":dataBR(a.data),"Local":a.aeroporto||"","Prestador de serviço":a.prestador||"","Discriminação":a.obs||"","Serviços":(a.servicos||[]).join("; "),"Valor (R$)":Number(a.valor)||0}))
   ];
   nfs.push({"NF nº":"TOTAL","Valor (R$)":nfs.reduce((s,l)=>s+l["Valor (R$)"],0)});
   const ws3=XLSX.utils.json_to_sheet(nfs);
