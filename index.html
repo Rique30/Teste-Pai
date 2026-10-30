@@ -224,9 +224,9 @@ dialog h2+.sub{margin:-6px 0 14px!important}
     <nav aria-label="Seções">
       <div class="nav-label">Operação</div>
       <div class="tabs" role="tablist" aria-orientation="vertical">
-        <button type="button" role="tab" id="tabPlanilha" aria-selected="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16"/></svg>Planilha</button>
-        <button type="button" role="tab" id="tabFichas" aria-selected="false"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>Fichas</button>
+        <button type="button" role="tab" id="tabFichas" aria-selected="true"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>OS</button>
         <button type="button" role="tab" id="tabNotas" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>Nota Fiscal</button>
+        <button type="button" role="tab" id="tabPlanilha" aria-selected="false"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16"/></svg>Planilha</button>
       </div>
     </nav>
     <div class="side-foot">Ordens de serviço, checklist e notas fiscais em um só lugar.</div>
@@ -235,8 +235,8 @@ dialog h2+.sub{margin:-6px 0 14px!important}
   <div class="main">
     <header class="topbar">
       <div>
-        <div class="crumb">Controle de Serviços Aéreos / <span id="viewCrumb">Planilha</span></div>
-        <h1 id="viewTitle">Planilha de serviços</h1>
+        <div class="crumb">Controle de Serviços Aéreos / <span id="viewCrumb">OS</span></div>
+        <h1 id="viewTitle">Ordens de serviço</h1>
       </div>
       <div class="actions">
         <button class="btn" id="btnExcel" type="button">Gerar Excel</button>
@@ -412,7 +412,7 @@ const avulsaDoc=a=>nfDoc({numero:a.numero, ref:osDe(a)?"Ref. "+osDe(a).numero:"A
 
 function renderDetail(){
   const el=$("#detail"); const it=items.find(i=>i.id===selId);
-  if(!it){ el.innerHTML=`<section class="card"><h2>Selecione uma solicitação</h2><p class="sub">Os detalhes, o checklist e a nota fiscal aparecem aqui.</p></section>`; return; }
+  if(!it){ el.innerHTML=`<section class="card"><h2>Selecione uma solicitação</h2><p class="sub">Os dados da OS e o checklist aparecem aqui.</p></section>`; return; }
   const dis=canWrite?"":"disabled";
   const n=it.checklist.filter(c=>c.ok).length, pct=it.checklist.length?Math.round(n/it.checklist.length*100):0;
   const nf=it.nf||{}, vinc=notas.filter(a=>a.osId===it.id);
@@ -449,31 +449,11 @@ function renderDetail(){
       <button class="btn" type="button" id="btnAddItem" ${dis}>Adicionar</button>
     </div>
     <label class="keep" for="salvarPadrao"><input type="checkbox" id="salvarPadrao" ${keepPadrao?"checked":""} ${dis}> Salvar este item para as próximas solicitações</label>
-  </section>
-
-  <section class="card">
-    <h2>Nota fiscal de serviço</h2>
-    ${nfHtml(it)}
-    <div class="fields nf-edit">
-      <div class="field"><label for="fNum">Nº da nota</label><input id="fNum" class="mono" value="${esc(nf.numero||"")}" ${dis}></div>
-      <div class="field"><label for="fData">Data da NF</label><input id="fData" type="date" value="${esc(nf.data||"")}" ${dis}></div>
-      <div class="field"><label for="fValor">Valor da NF (R$)</label><input id="fValor" class="mono" type="number" min="0" step="0.01" value="${nf.valor||""}" ${dis}></div>
-    </div>
-    <div class="row-actions"><span class="saved" id="savedNf"></span><button class="btn primary" type="button" id="btnSalvarNf" ${dis}>Salvar nota fiscal</button></div>
-  </section>
-
-  <section class="card">
-    <h2>Notas vinculadas a esta OS <small>${vinc.length} ${vinc.length===1?"nota":"notas"} · ${brl(vinc.reduce((s,a)=>s+(Number(a.valor)||0),0))}</small></h2>
-    ${vinc.length?`<div class="notas">${vinc.map(a=>`<article>${avulsaDoc(a)}
-      <div class="nota-foot"><span class="pill done">NF ${esc(a.numero||"—")} · ${dataBR(a.data)}</span>
-      <span class="confirm"><button type="button" class="open" data-edit-nf="${esc(a.id)}" ${dis}>Editar</button></span></div></article>`).join("")}</div>`
-      :`<div class="empty">Nenhuma nota vinculada ainda. As notas criadas na aba Nota Fiscal com esta OS aparecem aqui.</div>`}
-    <div class="row-actions"><button class="btn" type="button" id="btnNfDaOs" data-os="${esc(it.id)}" ${dis}>+ Nova nota para esta OS</button></div>
   </section>`;
 }
 
 // --- planilha ---
-let view="planilha";
+let view="fichas";
 const COLS=[
   {h:"OS",k:"numero",ro:true,w:80},
   {h:"Data da OS",k:"data",type:"date",w:140},
@@ -486,7 +466,7 @@ const COLS=[
   {h:"NF nº",k:"nf.numero",w:100},
   {h:"Data da NF",k:"nf.data",type:"date",w:140},
   {h:"Valor da NF (R$)",k:"nf.valor",type:"number",num:true,w:130,sum:true},
-  {h:"",ro:true,w:60,v:it=>`<button type="button" class="open" data-open="${esc(it.id)}">Abrir</button>`,html:true}
+  {h:"",ro:true,w:84,v:it=>`<button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button>`,html:true}
 ];
 const getF=(it,k)=>k.startsWith("nf.")?(it.nf||{})[k.slice(3)]:it[k];
 function filtered(){
@@ -541,7 +521,7 @@ function renderNotas(){
       <span class="confirm" data-delwrap="${esc(a.id)}"><button type="button" class="open" data-edit-nf="${esc(a.id)}" ${dis}>Editar</button><button type="button" class="open" data-del-nf="${esc(a.id)}" ${dis}>Excluir</button></span></div></article>`})),
     ...rowsOs.map(it=>({ord:it.nf?.data||it.data||"",html:`<article>${nfHtml(it)}
       <div class="nota-foot"><span class="pill ${emitida(it)?"done":"pend"}">${emitida(it)?"Emitida":"Sem nota"}</span>
-      <button type="button" class="open" data-open="${esc(it.id)}">Abrir ficha</button></div></article>`}))
+      <button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button></div></article>`}))
   ].sort((a,b)=>b.ord.localeCompare(a.ord));
   $("#notasList").innerHTML=cards.length?cards.map(c=>c.html).join(""):`<div class="empty">Nenhuma nota encontrada. Use <b>+ Nova nota fiscal</b> para emitir uma nota avulsa.</div>`;
 }
@@ -611,7 +591,7 @@ $("#nfFiltro").addEventListener("change",renderNotas);
 function setView(v){
   view=v; $("#sheetView").hidden=v!=="planilha"; $("#fichasView").hidden=v!=="fichas"; $("#notasView").hidden=v!=="notas";
   $("#tabPlanilha").setAttribute("aria-selected",v==="planilha"); $("#tabFichas").setAttribute("aria-selected",v==="fichas"); $("#tabNotas").setAttribute("aria-selected",v==="notas");
-  const T={planilha:["Planilha","Planilha de serviços"],fichas:["Fichas","Fichas de ordem de serviço"],notas:["Nota Fiscal","Notas fiscais"]}[v];
+  const T={planilha:["Planilha","Planilha de serviços"],fichas:["OS","Ordens de serviço"],notas:["Nota Fiscal","Notas fiscais"]}[v];
   $("#viewCrumb").textContent=T[0]; $("#viewTitle").textContent=T[1];
   try{ localStorage.setItem("hangar-view",v); }catch(_){}
   render();
@@ -775,7 +755,7 @@ $("#btnExcel").addEventListener("click",async()=>{
 
 // --- início ---
 items=EXEMPLOS.map(x=>structuredClone(x)); selId=items[0].id;
-try{ const v=localStorage.getItem("hangar-view"); if(v==="fichas"||v==="notas") view=v; }catch(_){}
+try{ const v=localStorage.getItem("hangar-view"); if(v==="planilha"||v==="notas") view=v; }catch(_){}
 setView(view);
 
 (async()=>{
