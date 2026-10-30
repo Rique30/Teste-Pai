@@ -79,6 +79,34 @@ h1{font:600 1.35rem/1.25 var(--f-display);margin:2px 0 0;text-wrap:balance}
   .topbar,.content{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 }
 
+/* esconder abas */
+.menu-btn{display:grid;place-items:center;width:36px;height:36px;border:1px solid var(--line-strong);border-radius:6px;background:var(--surface);color:var(--muted);cursor:pointer;flex:none}
+.menu-btn:hover{color:var(--ink);border-color:var(--muted)}
+.menu-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.menu-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+body.menu-recolhido .app{grid-template-columns:68px minmax(0,1fr)}
+body.menu-recolhido .side{padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:12px;align-items:center}
+body.menu-recolhido .brand-txt,body.menu-recolhido .nav-label,body.menu-recolhido .tabs .lbl,body.menu-recolhido .side-foot>:not(.who),body.menu-recolhido .who>:not(button){display:none}
+body.menu-recolhido .side-foot{font-size:0;border-top:0}
+body.menu-recolhido .tabs button{justify-content:center;padding:10px}
+body.menu-recolhido .who button{font-size:.7rem;padding:4px 6px}
+@media (max-width:860px){
+  body.menu-recolhido .app{display:block}
+  body.menu-recolhido .side nav{display:none}
+  body.menu-recolhido .brand-txt{display:inline}
+}
+
+/* planilha maximizada */
+body.view-planilha .content{max-width:none}
+body.planilha-max .app{grid-template-columns:minmax(0,1fr)}
+body.planilha-max .side,body.planilha-max #kpis,body.planilha-max #notice,body.planilha-max .crumb,body.planilha-max .menu-btn{display:none!important}
+body.planilha-max .topbar{padding-block:8px}
+body.planilha-max h1{font-size:1.05rem}
+body.planilha-max .content{padding-block:10px 12px;gap:10px}
+body.planilha-max .sheet-scroll{max-height:calc(100vh - 150px);overflow:auto}
+body.planilha-max #btnMax{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+@media (max-width:860px){ body.planilha-max .app{display:block} }
+
 /* indicadores */
 .kpis,.resumo{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 @media (max-width:900px){.kpis,.resumo{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -313,16 +341,16 @@ body.papel-operador .so-admin{display:none!important}
   <aside class="side">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg></span>
-      <span><b>Controle de Serviços Aéreos</b><small>Gestão de ordens de serviço</small></span>
+      <span class="brand-txt"><b>Controle de Serviços Aéreos</b><small>Gestão de ordens de serviço</small></span>
     </div>
     <nav aria-label="Seções">
       <div class="nav-label">Operação</div>
       <div class="tabs" role="tablist" aria-orientation="vertical">
-        <button type="button" role="tab" id="tabPlanilha" aria-selected="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16"/></svg>Planilha</button>
-        <button type="button" role="tab" id="tabFichas" aria-selected="false"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>OS</button>
-        <button type="button" role="tab" id="tabNotas" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>Nota Fiscal</button>
-        <button type="button" role="tab" id="tabMonitor" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Monitor</button>
-        <button type="button" role="tab" id="tabEquipe" aria-selected="false" class="so-admin"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.2c3 .2 5.5 2.6 5.5 5.8"/></svg>Equipe</button>
+        <button type="button" role="tab" title="Planilha" id="tabPlanilha" aria-selected="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16"/></svg><span class="lbl">Planilha</span></button>
+        <button type="button" role="tab" title="OS" id="tabFichas" aria-selected="false"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><span class="lbl">OS</span></button>
+        <button type="button" role="tab" title="Nota Fiscal" id="tabNotas" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span class="lbl">Nota Fiscal</span></button>
+        <button type="button" role="tab" title="Monitor" id="tabMonitor" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span class="lbl">Monitor</span></button>
+        <button type="button" role="tab" title="Equipe" id="tabEquipe" aria-selected="false" class="so-admin"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.2c3 .2 5.5 2.6 5.5 5.8"/></svg><span class="lbl">Equipe</span></button>
       </div>
     </nav>
     <div class="side-foot"><div class="who" id="who" hidden><span>Conectado como</span><b id="whoEmail"></b><button type="button" id="btnSair">Sair</button></div>Ordens de serviço, checklist e notas fiscais em um só lugar.</div>
@@ -330,9 +358,12 @@ body.papel-operador .so-admin{display:none!important}
 
   <div class="main">
     <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px;min-width:0">
+      <button type="button" class="menu-btn" id="btnMenu" aria-label="Esconder as abas" title="Esconder as abas" aria-expanded="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path id="menuSeta" d="M15 10l-2 2 2 2"/></svg></button>
       <div>
         <div class="crumb">Controle de Serviços Aéreos / <span id="viewCrumb">Planilha</span></div>
         <h1 id="viewTitle">Planilha de serviços</h1>
+      </div>
       </div>
       <div class="actions">
         <button class="btn" id="btnExcel" type="button">Gerar Excel</button>
@@ -376,6 +407,7 @@ body.papel-operador .so-admin{display:none!important}
             <input id="fBusca" placeholder="Buscar por OS, local, prestador ou discriminação">
             <select id="fStatus"><option value="">Todos os status</option><option value="pend">Pendentes</option><option value="done">Concluídas</option></select>
             <span class="count" id="sheetCount"></span>
+            <button class="btn" type="button" id="btnMax" title="Usar a tela inteira para a planilha"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" id="maxIcon"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span id="maxTxt">Maximizar planilha</span></button>
           </div>
           <div class="sheet-scroll"><table class="sheet" id="sheet"></table></div>
         </div>
@@ -770,6 +802,8 @@ $("#nfBusca").addEventListener("input",renderNotas);
 $("#nfFiltro").addEventListener("change",renderNotas);
 
 function setView(v){
+  document.body.classList.toggle("view-planilha",v==="planilha");
+  if(v!=="planilha") maximizar(false);
   view=v; $("#sheetView").hidden=v!=="planilha"; $("#fichasView").hidden=v!=="fichas"; $("#notasView").hidden=v!=="notas"; $("#monitorView").hidden=v!=="monitor"; $("#equipeView").hidden=v!=="equipe"; $("#tabEquipe").setAttribute("aria-selected",v==="equipe");
   $("#tabMonitor").setAttribute("aria-selected",v==="monitor");
   $("#tabPlanilha").setAttribute("aria-selected",v==="planilha"); $("#tabFichas").setAttribute("aria-selected",v==="fichas"); $("#tabNotas").setAttribute("aria-selected",v==="notas");
@@ -1115,6 +1149,26 @@ $("#equipeTabela").addEventListener("click",async e=>{
     }
   }catch(_){ avisoEquipe("Não foi possível concluir agora. Tente de novo."); }
 });
+
+// --- maximizar planilha ---
+function maximizar(on){
+  document.body.classList.toggle("planilha-max",on);
+  $("#maxTxt").textContent=on?"Sair da tela cheia":"Maximizar planilha";
+  $("#maxIcon").innerHTML=on?'<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>':'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>';
+}
+$("#btnMax").addEventListener("click",()=>maximizar(!document.body.classList.contains("planilha-max")));
+document.addEventListener("keydown",e=>{ if(e.key==="Escape" && document.body.classList.contains("planilha-max") && !document.querySelector("dialog[open]")) maximizar(false); });
+
+// --- esconder abas ---
+function aplicarMenu(recolhido){
+  document.body.classList.toggle("menu-recolhido",recolhido);
+  const t=recolhido?"Mostrar as abas":"Esconder as abas";
+  $("#btnMenu").setAttribute("aria-label",t); $("#btnMenu").title=t; $("#btnMenu").setAttribute("aria-expanded",String(!recolhido));
+  $("#menuSeta").setAttribute("d",recolhido?"M13 10l2 2-2 2":"M15 10l-2 2 2 2");
+  try{ localStorage.setItem("cs-menu",recolhido?"1":"0"); }catch(_){}
+}
+$("#btnMenu").addEventListener("click",()=>aplicarMenu(!document.body.classList.contains("menu-recolhido")));
+try{ if(localStorage.getItem("cs-menu")==="1") aplicarMenu(true); }catch(_){}
 
 // --- início ---
 items=EXEMPLOS.map(x=>structuredClone(x)); selId=items[0]?.id||null;
