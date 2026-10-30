@@ -494,13 +494,10 @@ const euMesmo=()=>usuarioAtual?.email||"demo";
 function podeCheck(it,qual,marcar){
   if(!canWrite) return {ok:false,motivo:"Sem permissão para alterar."};
   if(qual==="exec"){
-    if(!marcar && it.conf) return {ok:false,motivo:"Retire primeiro o check de Pago."};
     if(!marcar && live && it.exec?.email!==euMesmo() && !ehAdmin()) return {ok:false,motivo:"Só quem marcou o Confirmado ou um administrador pode retirar este check."};
     return {ok:true};
   }
   if(marcar){
-    if(!it.exec) return {ok:false,motivo:"A OS precisa estar marcada como Confirmado antes do Pago."};
-    if(live && it.exec.email===euMesmo()) return {ok:false,motivo:"O Pago precisa ser marcado por outra pessoa, não por quem deu o Confirmado."};
     return {ok:true};
   }
   if(live && it.conf?.email!==euMesmo() && !ehAdmin()) return {ok:false,motivo:"Só quem marcou o Pago ou um administrador pode retirar este check."};
@@ -516,7 +513,7 @@ function aplicarCheck(it,qual,marcar){
   renderSheet();
 }
 function checkCell(it,qual,soCaixa){
-  const a=it[qual], dis=canWrite?"":"disabled", bloq=qual==="conf"&&!it.exec;
+  const a=it[qual], dis=canWrite?"":"disabled", bloq=false;
   return `<label class="ck2${a?" on":""}"><input type="checkbox" data-check="${qual}" data-id="${esc(it.id)}" ${a?"checked":""} ${dis} ${bloq?"disabled":""} aria-label="${qual==="exec"?"Confirmado":"Pago"} ${esc(it.numero)}">${soCaixa?"":a?`<span><b>${esc(a.por)}</b><i>${curto(a.em)}</i></span>`:bloq?`<span><i>aguarda ①</i></span>`:""}</label>`;
 }
 
@@ -532,7 +529,7 @@ function renderList(){
     const n=it.checklist.filter(c=>c.ok).length;
     return `<button type="button" class="item" data-id="${esc(it.id)}" aria-current="${it.id===selId}">
       <span class="code">${esc(it.numero)}</span>
-      <span class="pill ${done(it)?"done":"pend"}">${done(it)?"Concluída":it.exec?"Aguardando pagamento":`${n}/${it.checklist.length} ok`}</span>
+      <span class="pill ${done(it)?"done":"pend"}">${done(it)?"Concluída":it.exec?"Aguardando pagamento":it.conf?"Paga · falta confirmar":`${n}/${it.checklist.length} ok`}</span>
       <span class="meta">${dataBR(it.data)} — ${esc(it.aeroporto)}${it.prestador?" · "+esc(it.prestador):""}${it.exemplo?" · exemplo":""}</span>
     </button>`;
   }).join("");
@@ -592,7 +589,7 @@ function renderDetail(){
     <h2>Checklist <small>${n} de ${it.checklist.length} ok · ${pct}%</small></h2>
     <div class="duplo">
       <div class="status-sq">${checkCell(it,"exec",true)}<span><b>① Confirmado</b> ${it.exec?`Marcado por <strong>${esc(it.exec.por)}</strong> em ${quando(it.exec.em)}`:"Quem recebe a OS confirma o serviço."}</span></div>
-      <div class="status-sq">${checkCell(it,"conf",true)}<span><b>② Pago</b> ${it.conf?`Marcado por <strong>${esc(it.conf.por)}</strong> em ${quando(it.conf.em)}`:it.exec?"Outra pessoa confirma o pagamento. A OS só fica concluída com os dois.":"Disponível depois do ① Confirmado."}</span></div>
+      <div class="status-sq">${checkCell(it,"conf",true)}<span><b>② Pago</b> ${it.conf?`Marcado por <strong>${esc(it.conf.por)}</strong> em ${quando(it.conf.em)}`:"Marque quando o pagamento for feito. A OS fica concluída com os dois marcados."}</span></div>
     </div>
     <div class="progress"><i style="width:${pct}%"></i></div>
     <ul class="checks">
@@ -949,7 +946,7 @@ function gerarPlanilha(){
       "OS":it.numero, "Data da OS":dataBR(it.data), "Local":it.aeroporto,
       "Prestador de serviço":it.prestador||"",
       "Discriminação":it.obs||"", "Qtd.":it.qtd==null?"":Number(it.qtd), "Unidade":it.qtd==null?"":(UNIDADES[it.unidade]||"un"), "Valor da OS (R$)":Number(it.valorOs)||0,
-      "Checklist OK":`${n}/${it.checklist.length}`, "Status":done(it)?"Concluída":it.exec?"Aguardando pagamento":"Pendente", "Confirmado por":it.exec?`${it.exec.por} (${dataBR(it.exec.em.slice(0,10))})`:"", "Pago por":it.conf?`${it.conf.por} (${dataBR(it.conf.em.slice(0,10))})`:"",
+      "Checklist OK":`${n}/${it.checklist.length}`, "Status":done(it)?"Concluída":it.exec?"Aguardando pagamento":it.conf?"Paga, falta confirmar":"Pendente", "Confirmado por":it.exec?`${it.exec.por} (${dataBR(it.exec.em.slice(0,10))})`:"", "Pago por":it.conf?`${it.conf.por} (${dataBR(it.conf.em.slice(0,10))})`:"",
       "Itens pendentes":it.checklist.filter(c=>!c.ok).map(c=>c.t).join("; "),
       "NF nº":it.nf?.numero||"", "Data da NF":it.nf?.data?dataBR(it.nf.data):"", "Vencimento NF":it.nf?.vencimento?dataBR(it.nf.vencimento):"", "Valor da NF (R$)":Number(it.nf?.valor)||0
     };
