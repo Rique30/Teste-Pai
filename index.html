@@ -415,7 +415,7 @@ function renderDetail(){
   if(!it){ el.innerHTML=`<section class="card"><h2>Selecione uma solicitação</h2><p class="sub">Os detalhes, o checklist e a nota fiscal aparecem aqui.</p></section>`; return; }
   const dis=canWrite?"":"disabled";
   const n=it.checklist.filter(c=>c.ok).length, pct=it.checklist.length?Math.round(n/it.checklist.length*100):0;
-  const nf=it.nf||{};
+  const nf=it.nf||{}, vinc=notas.filter(a=>a.osId===it.id);
   el.innerHTML=`
   <section class="card">
     <h2>Solicitação de serviço <small>${esc(it.numero)}${it.exemplo?" · exemplo":""}</small></h2>
@@ -460,6 +460,15 @@ function renderDetail(){
       <div class="field"><label for="fValor">Valor da NF (R$)</label><input id="fValor" class="mono" type="number" min="0" step="0.01" value="${nf.valor||""}" ${dis}></div>
     </div>
     <div class="row-actions"><span class="saved" id="savedNf"></span><button class="btn primary" type="button" id="btnSalvarNf" ${dis}>Salvar nota fiscal</button></div>
+  </section>
+
+  <section class="card">
+    <h2>Notas vinculadas a esta OS <small>${vinc.length} ${vinc.length===1?"nota":"notas"} · ${brl(vinc.reduce((s,a)=>s+(Number(a.valor)||0),0))}</small></h2>
+    ${vinc.length?`<div class="notas">${vinc.map(a=>`<article>${avulsaDoc(a)}
+      <div class="nota-foot"><span class="pill done">NF ${esc(a.numero||"—")} · ${dataBR(a.data)}</span>
+      <span class="confirm"><button type="button" class="open" data-edit-nf="${esc(a.id)}" ${dis}>Editar</button></span></div></article>`).join("")}</div>`
+      :`<div class="empty">Nenhuma nota vinculada ainda. As notas criadas na aba Nota Fiscal com esta OS aparecem aqui.</div>`}
+    <div class="row-actions"><button class="btn" type="button" id="btnNfDaOs" data-os="${esc(it.id)}" ${dis}>+ Nova nota para esta OS</button></div>
   </section>`;
 }
 
@@ -555,7 +564,7 @@ function aPickUpdate(){
   $("#aPickCount").textContent=`${n} de ${all.length} serviços marcados`;
   $("#aPickAll").textContent=n===all.length?"Desmarcar todos":"Marcar todos";
 }
-function abrirNf(a){
+function abrirNf(a,osId){
   if(!canWrite && live){ notice("Você não tem permissão para criar notas."); return; }
   editNfId=a?a.id:null; $("#formNf").reset();
   $("#dlgNfTitulo").textContent=a?"Editar nota fiscal":"Nova nota fiscal"; $("#aSalvar").textContent=a?"Salvar nota fiscal":"Criar nota fiscal";
@@ -567,6 +576,7 @@ function abrirNf(a){
   $("#aOs").innerHTML=`<option value="">Nenhuma (nota avulsa)</option>`+items.map(it=>`<option value="${esc(it.id)}">${esc(it.numero)} · ${dataBR(it.data)} · ${esc(it.aeroporto||"")}${it.prestador?" · "+esc(it.prestador):""}</option>`).join("");
   $("#aOs").value=a?.osId&&items.some(i=>i.id===a.osId)?a.osId:"";
   aPickUpdate(); dlgNf.showModal();
+  if(osId){ $("#aOs").value=osId; $("#aOs").dispatchEvent(new Event("change")); $("#aNum").focus(); }
 }
 $("#aOs").addEventListener("change",()=>{
   const it=items.find(i=>i.id===$("#aOs").value); if(!it) return;
@@ -651,6 +661,8 @@ $("#detail").addEventListener("change",e=>{
   }
 });
 $("#detail").addEventListener("click",async e=>{
+  const ed=e.target.closest("[data-edit-nf]"); if(ed){ abrirNf(notas.find(a=>a.id===ed.dataset.editNf)); return; }
+  if(e.target.id==="btnNfDaOs"){ abrirNf(null,e.target.dataset.os); return; }
   const it=items.find(i=>i.id===selId); if(!it) return;
   const id=e.target.id;
   if(id==="btnSalvarSol"){
@@ -776,7 +788,8 @@ setView(view);
   items=[]; notas=[]; selId=null; render();
   db.collection("notas").orderBy("criado","desc").onSnapshot(snap=>{
     notas=snap.docs.map(s=>({id:s.id,...structuredClone(s.data())}));
-    renderNotas();
+    renderNotas(); renderKpis();
+    if(!$("#detail").contains(document.activeElement)) renderDetail();
   },()=>{});
   db.doc("config/checklist").onSnapshot(s=>{
     const l=s.exists?s.data().itens:null;
