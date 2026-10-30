@@ -465,7 +465,7 @@ const COLS=[
   {h:"Discriminação",k:"obs",area:true,w:280},
   {h:"Valor da OS (R$)",k:"valorOs",type:"number",num:true,w:130,sum:true},
   {h:"Checklist",ro:true,w:80,v:it=>`${it.checklist.filter(c=>c.ok).length}/${it.checklist.length}`},
-  {h:"Status",sq:true,w:130},
+  {h:"Status",sq:true,w:70},
   {h:"NF nº",k:"nf.numero",w:100},
   {h:"Data da NF",k:"nf.data",type:"date",w:140},
   {h:"Vencimento NF",k:"nf.vencimento",type:"date",w:140},
@@ -485,7 +485,7 @@ function renderSheet(){
   $("#sheet").innerHTML=`<thead><tr class="letters"><th class="rn"></th>${letters}</tr>
     <tr><th class="rn">1</th>${COLS.map(c=>`<th>${c.h}</th>`).join("")}</tr></thead>
     <tbody>${rows.map((it,r)=>`<tr><td class="rn">${r+2}</td>${COLS.map(c=>{
-      if(c.sq) return `<td class="sq"><label><input type="checkbox" data-status="${esc(it.id)}" ${done(it)?"checked":""} ${dis} aria-label="Concluída ${esc(it.numero)}"><span>${done(it)?"Concluída":"Pendente"}</span></label></td>`;
+      if(c.sq) return `<td class="sq"><label><input type="checkbox" data-status="${esc(it.id)}" ${done(it)?"checked":""} ${dis} aria-label="Concluída ${esc(it.numero)}" title="${done(it)?"Concluída":"Pendente"}"></label></td>`;
       if(c.ro) return `<td class="ro">${c.v?(c.html?c.v(it):esc(c.v(it))):esc(getF(it,c.k))}</td>`;
       const val=getF(it,c.k)??""; const a=`data-id="${esc(it.id)}" data-k="${c.k}" aria-label="${c.h} ${esc(it.numero)}" ${dis}`;
       return `<td class="${c.num?"num":""}">${c.area?`<textarea ${a}>${esc(val)}</textarea>`:`<input ${a} type="${c.type||"text"}" ${c.num?'step="0.01" min="0"':""} value="${esc(c.num&&!val?"":val)}">`}</td>`;
