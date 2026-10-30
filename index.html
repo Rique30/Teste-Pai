@@ -139,6 +139,11 @@ input.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .checks .txt{flex:1;min-width:0}
 .checks li.ok .txt{color:var(--muted)}
 .checks .okmark{font:600 .7rem var(--f-mono);color:var(--ok);letter-spacing:.06em}
+.status-sq{display:flex;align-items:center;gap:12px;padding:10px 12px;margin-bottom:12px;border:1px solid var(--line);border-radius:6px;background:var(--head);cursor:pointer}
+.status-sq input{width:22px;height:22px;accent-color:var(--ok);flex:none;margin:0}
+.status-sq span{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column}
+.status-sq b{font-size:.92rem;color:var(--ink);font-weight:600}
+.status-sq input:checked+span b{color:var(--ok)}
 .addcheck{display:flex;gap:8px;margin-top:14px}
 .keep{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:.82rem;color:var(--muted);cursor:pointer}
 .keep input{width:16px;height:16px;accent-color:var(--accent)}
@@ -172,7 +177,7 @@ input.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .sheet-tools input,.sheet-tools select{width:auto;flex:1 1 200px;max-width:320px}
 .sheet-tools .count{color:var(--muted);font-size:.82rem;margin-left:auto}
 .sheet-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);box-shadow:var(--shadow)}
-table.sheet{border-collapse:collapse;width:100%;min-width:1100px;font-size:.86rem;font-variant-numeric:tabular-nums}
+table.sheet{border-collapse:collapse;width:100%;min-width:1560px;font-size:.86rem;font-variant-numeric:tabular-nums}
 .sheet th,.sheet td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:0;vertical-align:middle}
 .sheet thead th{position:sticky;top:0;background:var(--head);font:600 .75rem var(--f-body);color:var(--muted);text-align:left;padding:8px;z-index:1}
 .sheet thead tr.letters th{text-align:center;font:500 .66rem var(--f-mono);padding:3px;background:var(--bg)}
@@ -185,6 +190,10 @@ table.sheet{border-collapse:collapse;width:100%;min-width:1100px;font-size:.86re
 .sheet td.num input{text-align:right;font-family:var(--f-mono)}
 .sheet tr.total td{background:var(--head);font-weight:600;padding:9px 8px}
 .sheet tr.total td.num{text-align:right;font-family:var(--f-mono)}
+.sheet td.sq{text-align:center;padding:0 8px}
+.sheet td.sq label{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font:500 .78rem var(--f-body);color:var(--muted)}
+.sheet td.sq input{width:20px;height:20px;accent-color:var(--ok);cursor:pointer;margin:0}
+.sheet td.sq input:checked+span{color:var(--ok)}
 .open{font:500 .8rem var(--f-body);background:none;border:0;color:var(--accent);cursor:pointer;padding:6px 8px;border-radius:4px}
 .open:hover{background:var(--accent-soft)}
 .open:disabled{opacity:.5;cursor:not-allowed}
@@ -243,7 +252,7 @@ dialog h2+.sub{margin:-6px 0 14px!important}
         <div style="display:flex;flex-direction:column;gap:16px">
           <div class="resumo" id="notasResumo"></div>
           <div class="sheet-tools">
-            <input id="nfBusca" placeholder="Buscar por nota, OS, aeroporto ou serviço">
+            <input id="nfBusca" placeholder="Buscar por nota, OS, local, prestador ou serviço">
             <select id="nfFiltro"><option value="">Todas</option><option value="emitida">Emitidas</option><option value="sem">Sem nota</option><option value="avulsa">Avulsas (sem OS)</option></select>
             <button class="btn primary" id="btnNovaNf" type="button" style="margin-left:auto">+ Nova nota fiscal</button>
           </div>
@@ -254,7 +263,7 @@ dialog h2+.sub{margin:-6px 0 14px!important}
       <section id="sheetView">
         <div style="display:flex;flex-direction:column;gap:12px">
           <div class="sheet-tools">
-            <input id="fBusca" placeholder="Buscar por OS, aeroporto ou discriminação">
+            <input id="fBusca" placeholder="Buscar por OS, local, prestador ou discriminação">
             <select id="fStatus"><option value="">Todos os status</option><option value="pend">Pendentes</option><option value="done">Concluídas</option></select>
             <span class="count" id="sheetCount"></span>
           </div>
@@ -274,8 +283,10 @@ dialog h2+.sub{margin:-6px 0 14px!important}
   <form id="formNova" method="dialog">
     <h2>Nova solicitação</h2>
     <div class="fields">
-      <div class="field"><label for="nData">Data</label><input id="nData" type="date" required></div>
-      <div class="field" style="grid-column:span 2"><label for="nAero">Aeroporto</label><input id="nAero" placeholder="SBGR · Guarulhos" required></div>
+      <div class="field"><label for="nData">Data da OS</label><input id="nData" type="date" required></div>
+      <div class="field" style="grid-column:span 2"><label for="nAero">Local</label><input id="nAero" placeholder="SBGR · Guarulhos" required></div>
+      <div class="field" style="grid-column:span 2"><label for="nPrest">Prestador de serviço</label><input id="nPrest" placeholder="Nome da empresa ou profissional"></div>
+      <div class="field"><label for="nValorOs">Valor da OS (R$)</label><input id="nValorOs" class="mono" type="number" min="0" step="0.01"></div>
       <div class="field full"><label for="nObs">Discriminação</label><textarea id="nObs" placeholder="Descrição dos serviços a realizar"></textarea></div>
       <div class="field full">
         <label>Serviços solicitados (checklist)</label>
@@ -285,8 +296,8 @@ dialog h2+.sub{margin:-6px 0 14px!important}
         </div>
       </div>
       <div class="field"><label for="nNfNum">Nº da nota (opcional)</label><input id="nNfNum" class="mono"></div>
-      <div class="field"><label for="nNfData">Data de emissão</label><input id="nNfData" type="date"></div>
-      <div class="field"><label for="nNfValor">Valor (R$)</label><input id="nNfValor" class="mono" type="number" min="0" step="0.01"></div>
+      <div class="field"><label for="nNfData">Data da NF</label><input id="nNfData" type="date"></div>
+      <div class="field"><label for="nNfValor">Valor da NF (R$)</label><input id="nNfValor" class="mono" type="number" min="0" step="0.01"></div>
     </div>
     <div class="row-actions">
       <button class="btn" type="button" id="btnCancelar">Cancelar</button>
@@ -303,7 +314,8 @@ dialog h2+.sub{margin:-6px 0 14px!important}
       <div class="field"><label for="aNum">Nº da nota</label><input id="aNum" class="mono" required></div>
       <div class="field"><label for="aData">Data de emissão</label><input id="aData" type="date" required></div>
       <div class="field"><label for="aDataServ">Data do serviço</label><input id="aDataServ" type="date"></div>
-      <div class="field" style="grid-column:span 2"><label for="aAero">Aeroporto</label><input id="aAero" placeholder="SBGR · Guarulhos"></div>
+      <div class="field" style="grid-column:span 2"><label for="aAero">Local</label><input id="aAero" placeholder="SBGR · Guarulhos"></div>
+      <div class="field full"><label for="aPrest">Prestador de serviço</label><input id="aPrest" placeholder="Nome da empresa ou profissional"></div>
       <div class="field"><label for="aValor">Valor (R$)</label><input id="aValor" class="mono" type="number" min="0" step="0.01" required></div>
       <div class="field full"><label for="aObs">Discriminação</label><textarea id="aObs" placeholder="Descrição dos serviços cobrados"></textarea></div>
       <div class="field full">
@@ -338,16 +350,16 @@ const CHECK_PADRAO = [
   "Banco de dados"
 ];
 const EXEMPLOS = [
-  {id:"ex1", exemplo:true, numero:"OS-0001", data:"2026-10-27", aeroporto:"SBGR · Guarulhos", hangar:"Hangar 3",
+  {id:"ex1", exemplo:true, numero:"OS-0001", data:"2026-10-27", aeroporto:"SBGR · Guarulhos", prestador:"Sky Handling Serviços Aeroportuários", valorOs:4850,
    obs:"Pernoite e limpeza completa. Cliente chega às 07h.", criado:1,
    checklist:CHECK_PADRAO.map(t=>({t,ok:true})), nf:{numero:"000.184", data:"2026-10-28", valor:4850}},
-  {id:"ex2", exemplo:true, numero:"OS-0002", data:"2026-10-30", aeroporto:"SBSP · Congonhas", hangar:"Hangar 7B",
+  {id:"ex2", exemplo:true, numero:"OS-0002", data:"2026-10-30", aeroporto:"SBSP · Congonhas", prestador:"AeroTec Manutenção Ltda.", valorOs:3200,
    obs:"Troca de pneu do trem principal esquerdo e reabastecimento.", criado:2,
    checklist:CHECK_PADRAO.map((t,i)=>({t,ok:i<4})), nf:{numero:"", data:"", valor:0}}
 ];
 
 let db=null, canWrite=false, items=[], selId=null, live=false;
-let notas=[{id:"nx1", exemplo:true, numero:"000.201", data:"2026-11-04", dataServ:"2026-11-04", aeroporto:"SBGR · Guarulhos",
+let notas=[{id:"nx1", exemplo:true, numero:"000.201", data:"2026-11-04", dataServ:"2026-11-04", aeroporto:"SBGR · Guarulhos", prestador:"Sky Handling Serviços Aeroportuários",
   obs:"Locação de sala VIP para tripulação e serviço de internet.", servicos:["Locação","Internet"], valor:980, criado:1}];
 let checkPadrao=[...CHECK_PADRAO], keepPadrao=true;
 const $=s=>document.querySelector(s);
@@ -361,7 +373,7 @@ function notice(msg){ const n=$("#notice"); n.textContent=msg||""; n.hidden=!msg
 function renderList(){
   const el=$("#list");
   if(!items.length){
-    el.innerHTML=`<div class="empty">Nenhuma solicitação ainda. Toque em <b>+ Nova solicitação</b> para registrar a primeira, com data, aeroporto e discriminação.</div>`;
+    el.innerHTML=`<div class="empty">Nenhuma solicitação ainda. Toque em <b>+ Nova solicitação</b> para registrar a primeira, com data, local e discriminação.</div>`;
     return;
   }
   el.innerHTML=items.map(it=>{
@@ -369,7 +381,7 @@ function renderList(){
     return `<button type="button" class="item" data-id="${esc(it.id)}" aria-current="${it.id===selId}">
       <span class="code">${esc(it.numero)}</span>
       <span class="pill ${done(it)?"done":"pend"}">${done(it)?"Concluída":`${n}/${it.checklist.length} ok`}</span>
-      <span class="meta">${dataBR(it.data)} — ${esc(it.aeroporto)}${it.exemplo?" · exemplo":""}</span>
+      <span class="meta">${dataBR(it.data)} — ${esc(it.aeroporto)}${it.prestador?" · "+esc(it.prestador):""}${it.exemplo?" · exemplo":""}</span>
     </button>`;
   }).join("");
 }
@@ -379,9 +391,10 @@ function nfDoc(n){
       <div class="nf-head"><b>NFS-e Nº ${esc(n.numero||"—")}</b><span>${esc(n.ref)}</span></div>
       <div class="nf-grid">
         <div class="nf-cell"><span>Data de emissão</span>${dataBR(n.data)}</div>
-        <div class="nf-cell"><span>Aeroporto</span>${esc(n.aeroporto||"—")}</div>
-        <div class="nf-cell"><span>Data do serviço</span>${dataBR(n.dataServ)}</div>
+        <div class="nf-cell"><span>Local</span>${esc(n.aeroporto||"—")}</div>
+        <div class="nf-cell"><span>Data da OS / serviço</span>${dataBR(n.dataServ)}</div>
       </div>
+      <div class="nf-cell"><span>Prestador de serviço</span>${esc(n.prestador||"—")}</div>
       <div class="nf-cell"><span>Discriminação dos serviços</span><div style="white-space:pre-wrap">${esc(n.obs||"—")}</div></div>
       <div class="nf-cell"><span>Serviços (${n.servicos.length})</span>
         ${n.servicos.length?`<ul class="nf-serv">${n.servicos.map(c=>`<li>${esc(c.t)}${c.ok===undefined?"":c.ok?"<b>OK</b>":"<i>pendente</i>"}</li>`).join("")}</ul>`:"—"}
@@ -391,9 +404,9 @@ function nfDoc(n){
 }
 function nfHtml(it){
   const nf=it.nf||{};
-  return nfDoc({numero:nf.numero, ref:"Ref. "+it.numero, data:nf.data, aeroporto:it.aeroporto, dataServ:it.data, obs:it.obs, servicos:it.checklist, valor:nf.valor});
+  return nfDoc({numero:nf.numero, ref:"Ref. "+it.numero, data:nf.data, aeroporto:it.aeroporto, prestador:it.prestador, dataServ:it.data, obs:it.obs, servicos:it.checklist, valor:nf.valor});
 }
-const avulsaDoc=a=>nfDoc({numero:a.numero, ref:"Avulsa", data:a.data, aeroporto:a.aeroporto, dataServ:a.dataServ, obs:a.obs, servicos:(a.servicos||[]).map(t=>({t})), valor:a.valor});
+const avulsaDoc=a=>nfDoc({numero:a.numero, ref:"Avulsa", data:a.data, aeroporto:a.aeroporto, prestador:a.prestador, dataServ:a.dataServ, obs:a.obs, servicos:(a.servicos||[]).map(t=>({t})), valor:a.valor});
 
 function renderDetail(){
   const el=$("#detail"); const it=items.find(i=>i.id===selId);
@@ -405,8 +418,10 @@ function renderDetail(){
   <section class="card">
     <h2>Solicitação de serviço <small>${esc(it.numero)}${it.exemplo?" · exemplo":""}</small></h2>
     <div class="fields">
-      <div class="field"><label for="dData">Data</label><input id="dData" type="date" value="${esc(it.data)}" ${dis}></div>
-      <div class="field" style="grid-column:span 2"><label for="dAero">Aeroporto</label><input id="dAero" value="${esc(it.aeroporto)}" ${dis}></div>
+      <div class="field"><label for="dData">Data da OS</label><input id="dData" type="date" value="${esc(it.data)}" ${dis}></div>
+      <div class="field" style="grid-column:span 2"><label for="dAero">Local</label><input id="dAero" value="${esc(it.aeroporto)}" ${dis}></div>
+      <div class="field" style="grid-column:span 2"><label for="dPrest">Prestador de serviço</label><input id="dPrest" value="${esc(it.prestador||"")}" ${dis}></div>
+      <div class="field"><label for="dValorOs">Valor da OS (R$)</label><input id="dValorOs" class="mono" type="number" min="0" step="0.01" value="${it.valorOs||""}" ${dis}></div>
       <div class="field full"><label for="dObs">Discriminação</label><textarea id="dObs" ${dis}>${esc(it.obs)}</textarea></div>
     </div>
     <div class="row-actions">
@@ -418,6 +433,7 @@ function renderDetail(){
 
   <section class="card">
     <h2>Checklist <small>${n} de ${it.checklist.length} ok · ${pct}%</small></h2>
+    <label class="status-sq" for="dConc"><input type="checkbox" id="dConc" ${done(it)?"checked":""} ${dis}><span><b>${done(it)?"OS concluída":"OS pendente"}</b> Marque para dar OK em todos os itens de uma vez</span></label>
     <div class="progress"><i style="width:${pct}%"></i></div>
     <ul class="checks">
       ${it.checklist.map((c,i)=>`<li class="${c.ok?"ok":""}">
@@ -438,8 +454,8 @@ function renderDetail(){
     ${nfHtml(it)}
     <div class="fields nf-edit">
       <div class="field"><label for="fNum">Nº da nota</label><input id="fNum" class="mono" value="${esc(nf.numero||"")}" ${dis}></div>
-      <div class="field"><label for="fData">Data de emissão</label><input id="fData" type="date" value="${esc(nf.data||"")}" ${dis}></div>
-      <div class="field"><label for="fValor">Valor (R$)</label><input id="fValor" class="mono" type="number" min="0" step="0.01" value="${nf.valor||""}" ${dis}></div>
+      <div class="field"><label for="fData">Data da NF</label><input id="fData" type="date" value="${esc(nf.data||"")}" ${dis}></div>
+      <div class="field"><label for="fValor">Valor da NF (R$)</label><input id="fValor" class="mono" type="number" min="0" step="0.01" value="${nf.valor||""}" ${dis}></div>
     </div>
     <div class="row-actions"><span class="saved" id="savedNf"></span><button class="btn primary" type="button" id="btnSalvarNf" ${dis}>Salvar nota fiscal</button></div>
   </section>`;
@@ -449,43 +465,47 @@ function renderDetail(){
 let view="planilha";
 const COLS=[
   {h:"OS",k:"numero",ro:true,w:80},
-  {h:"Data",k:"data",type:"date",w:140},
-  {h:"Aeroporto",k:"aeroporto",w:170},
-  {h:"Discriminação",k:"obs",area:true,w:340},
+  {h:"Data da OS",k:"data",type:"date",w:140},
+  {h:"Local",k:"aeroporto",w:160},
+  {h:"Prestador de serviço",k:"prestador",w:190},
+  {h:"Discriminação",k:"obs",area:true,w:280},
+  {h:"Valor da OS (R$)",k:"valorOs",type:"number",num:true,w:130,sum:true},
   {h:"Checklist",ro:true,w:80,v:it=>`${it.checklist.filter(c=>c.ok).length}/${it.checklist.length}`},
-  {h:"Status",ro:true,w:100,v:it=>`<span class="pill ${done(it)?"done":"pend"}">${done(it)?"Concluída":"Pendente"}</span>`,html:true},
+  {h:"Status",sq:true,w:130},
   {h:"NF nº",k:"nf.numero",w:100},
-  {h:"Data NF",k:"nf.data",type:"date",w:140},
-  {h:"Valor (R$)",k:"nf.valor",type:"number",num:true,w:120},
+  {h:"Data da NF",k:"nf.data",type:"date",w:140},
+  {h:"Valor da NF (R$)",k:"nf.valor",type:"number",num:true,w:130,sum:true},
   {h:"",ro:true,w:60,v:it=>`<button type="button" class="open" data-open="${esc(it.id)}">Abrir</button>`,html:true}
 ];
 const getF=(it,k)=>k.startsWith("nf.")?(it.nf||{})[k.slice(3)]:it[k];
 function filtered(){
   const q=$("#fBusca").value.trim().toLowerCase(), st=$("#fStatus").value;
   return items.filter(it=>(!st||(st==="done")===done(it)) &&
-    (!q||[it.numero,it.aeroporto,it.obs].join(" ").toLowerCase().includes(q)));
+    (!q||[it.numero,it.aeroporto,it.prestador,it.obs].join(" ").toLowerCase().includes(q)));
 }
 function renderSheet(){
   const rows=filtered(), dis=canWrite?"":"disabled";
-  const total=rows.reduce((s,it)=>s+(Number(it.nf?.valor)||0),0);
   $("#sheetCount").textContent=`${rows.length} de ${items.length} serviços`;
   const letters=COLS.map((c,i)=>`<th style="width:${c.w}px">${String.fromCharCode(65+i)}</th>`).join("");
   $("#sheet").innerHTML=`<thead><tr class="letters"><th class="rn"></th>${letters}</tr>
     <tr><th class="rn">1</th>${COLS.map(c=>`<th>${c.h}</th>`).join("")}</tr></thead>
     <tbody>${rows.map((it,r)=>`<tr><td class="rn">${r+2}</td>${COLS.map(c=>{
+      if(c.sq) return `<td class="sq"><label><input type="checkbox" data-status="${esc(it.id)}" ${done(it)?"checked":""} ${dis} aria-label="Concluída ${esc(it.numero)}"><span>${done(it)?"Concluída":"Pendente"}</span></label></td>`;
       if(c.ro) return `<td class="ro">${c.v?(c.html?c.v(it):esc(c.v(it))):esc(getF(it,c.k))}</td>`;
       const val=getF(it,c.k)??""; const a=`data-id="${esc(it.id)}" data-k="${c.k}" aria-label="${c.h} ${esc(it.numero)}" ${dis}`;
       return `<td class="${c.num?"num":""}">${c.area?`<textarea ${a}>${esc(val)}</textarea>`:`<input ${a} type="${c.type||"text"}" ${c.num?'step="0.01" min="0"':""} value="${esc(c.num&&!val?"":val)}">`}</td>`;
     }).join("")}</tr>`).join("")}
     ${rows.length?"":`<tr><td class="rn">2</td><td class="ro" colspan="${COLS.length}">Nenhum serviço encontrado.</td></tr>`}
-    <tr class="total"><td class="rn">${rows.length+2+(rows.length?0:1)}</td><td colspan="8">TOTAL</td><td class="num">${brl(total)}</td><td></td></tr></tbody>`;
+    <tr class="total"><td class="rn">${rows.length+2+(rows.length?0:1)}</td>${COLS.map((c,i)=>c.sum?`<td class="num">${brl(rows.reduce((s,it)=>s+(Number(getF(it,c.k))||0),0))}</td>`:`<td>${i===0?"TOTAL":""}</td>`).join("")}</tr></tbody>`;
 }
 const sheetFocused=()=>$("#sheet").contains(document.activeElement);
 $("#sheet").addEventListener("change",e=>{
-  const t=e.target, it=items.find(i=>i.id===t.dataset.id); if(!it||!t.dataset.k) return;
+  const t=e.target;
+  if(t.dataset.status){ const it=items.find(i=>i.id===t.dataset.status); if(it){ save(it,{checklist:it.checklist.map(c=>({...c,ok:t.checked}))}); renderSheet(); } return; }
+  const it=items.find(i=>i.id===t.dataset.id); if(!it||!t.dataset.k) return;
   const k=t.dataset.k;
   if(k.startsWith("nf.")){ const f=k.slice(3); save(it,{nf:{...it.nf,[f]:f==="valor"?(parseFloat(t.value)||0):t.value.trim()}}); }
-  else save(it,{[k]:t.type==="date"?t.value:t.value.trim()});
+  else save(it,{[k]:t.type==="number"?(parseFloat(t.value)||0):t.type==="date"?t.value:t.value.trim()});
 });
 $("#sheet").addEventListener("focusout",e=>{ if(!$("#sheet").contains(e.relatedTarget)) setTimeout(()=>{ if(!sheetFocused()) renderSheet(); },0); });
 $("#sheet").addEventListener("click",e=>{ const b=e.target.closest("[data-open]"); if(b){ selId=b.dataset.open; setView("fichas"); }});
@@ -496,8 +516,8 @@ function renderNotas(){
   const q=$("#nfBusca").value.trim().toLowerCase(), f=$("#nfFiltro").value;
   const emitida=it=>!!(it.nf&&it.nf.numero), dis=canWrite?"":"disabled";
   const has=arr=>!q||arr.join(" ").toLowerCase().includes(q);
-  const rowsOs=f==="avulsa"?[]:items.filter(it=>(!f||(f==="emitida")===emitida(it)) && has([it.nf?.numero,it.numero,it.aeroporto,it.obs,...it.checklist.map(c=>c.t)]));
-  const rowsAv=f==="sem"?[]:notas.filter(a=>has([a.numero,a.aeroporto,a.obs,...(a.servicos||[])]));
+  const rowsOs=f==="avulsa"?[]:items.filter(it=>(!f||(f==="emitida")===emitida(it)) && has([it.nf?.numero,it.numero,it.aeroporto,it.prestador,it.obs,...it.checklist.map(c=>c.t)]));
+  const rowsAv=f==="sem"?[]:notas.filter(a=>has([a.numero,a.aeroporto,a.prestador,a.obs,...(a.servicos||[])]));
   const total=rowsOs.reduce((s,it)=>s+(Number(it.nf?.valor)||0),0)+rowsAv.reduce((s,a)=>s+(Number(a.valor)||0),0);
   $("#notasResumo").innerHTML=`<div><span>Notas de OS</span><strong>${items.filter(emitida).length}</strong></div>
     <div><span>Notas avulsas</span><strong>${notas.length}</strong></div>
@@ -538,7 +558,7 @@ function abrirNf(a){
   $("#dlgNfTitulo").textContent=a?"Editar nota fiscal":"Nova nota fiscal"; $("#aSalvar").textContent=a?"Salvar nota fiscal":"Criar nota fiscal";
   const hoje=new Date().toISOString().slice(0,10);
   $("#aNum").value=a?.numero||""; $("#aData").value=a?.data||hoje; $("#aDataServ").value=a?.dataServ||"";
-  $("#aAero").value=a?.aeroporto||""; $("#aValor").value=a?.valor||""; $("#aObs").value=a?.obs||"";
+  $("#aAero").value=a?.aeroporto||""; $("#aPrest").value=a?.prestador||""; $("#aValor").value=a?.valor||""; $("#aObs").value=a?.obs||"";
   const sel=a?.servicos||[], lista=[...checkPadrao,...sel.filter(t=>!checkPadrao.includes(t))];
   $("#aPickList").innerHTML=lista.map((t,i)=>`<label for="apk${i}"><input type="checkbox" id="apk${i}" value="${esc(t)}" ${sel.includes(t)?"checked":""}> ${esc(t)}</label>`).join("");
   aPickUpdate(); dlgNf.showModal();
@@ -551,7 +571,7 @@ $("#formNf").addEventListener("submit",e=>{
   e.preventDefault();
   const id=editNfId||"n"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const antiga=notas.find(a=>a.id===id);
-  const a={numero:$("#aNum").value.trim(), data:$("#aData").value, dataServ:$("#aDataServ").value, aeroporto:$("#aAero").value.trim(),
+  const a={numero:$("#aNum").value.trim(), data:$("#aData").value, dataServ:$("#aDataServ").value, aeroporto:$("#aAero").value.trim(), prestador:$("#aPrest").value.trim(),
     valor:parseFloat($("#aValor").value)||0, obs:$("#aObs").value,
     servicos:[...$("#aPickList").querySelectorAll("input:checked")].map(x=>x.value), criado:antiga?.criado||Date.now()};
   if(antiga?.exemplo) a.exemplo=true;
@@ -605,6 +625,9 @@ function flash(id,txt){ const s=$(id); if(s){ s.textContent=txt; setTimeout(()=>
 $("#list").addEventListener("click",e=>{ const b=e.target.closest(".item"); if(b){ selId=b.dataset.id; render(); if(innerWidth<820) $("#detail").scrollIntoView({behavior:"smooth"}); }});
 
 $("#detail").addEventListener("change",e=>{
+  if(e.target.id==="dConc"){
+    const it=items.find(i=>i.id===selId); save(it,{checklist:it.checklist.map(c=>({...c,ok:e.target.checked}))}); return;
+  }
   if(e.target.matches(".checks input[type=checkbox]")){
     const it=items.find(i=>i.id===selId); const i=+e.target.dataset.i;
     const checklist=it.checklist.map((c,k)=>k===i?{...c,ok:e.target.checked}:c);
@@ -615,7 +638,7 @@ $("#detail").addEventListener("click",async e=>{
   const it=items.find(i=>i.id===selId); if(!it) return;
   const id=e.target.id;
   if(id==="btnSalvarSol"){
-    const ok=await save(it,{data:$("#dData").value, aeroporto:$("#dAero").value.trim(), obs:$("#dObs").value});
+    const ok=await save(it,{data:$("#dData").value, aeroporto:$("#dAero").value.trim(), prestador:$("#dPrest").value.trim(), valorOs:parseFloat($("#dValorOs").value)||0, obs:$("#dObs").value});
     if(ok) flash("#savedSol","Solicitação salva");
   } else if(id==="btnSalvarNf"){
     const ok=await save(it,{nf:{numero:$("#fNum").value.trim(), data:$("#fData").value, valor:parseFloat($("#fValor").value)||0}});
@@ -661,7 +684,7 @@ $("#formNova").addEventListener("submit",e=>{
   const max=items.reduce((m,i)=>Math.max(m,parseInt(String(i.numero).replace(/\D/g,""))||0),0);
   const id="s"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const it={id, numero:"OS-"+String(max+1).padStart(4,"0"), data:$("#nData").value, aeroporto:$("#nAero").value.trim(),
-    obs:$("#nObs").value, criado:Date.now(),
+    prestador:$("#nPrest").value.trim(), valorOs:parseFloat($("#nValorOs").value)||0, obs:$("#nObs").value, criado:Date.now(),
     checklist:[...$("#pickList").querySelectorAll("input:checked")].map(x=>({t:x.value,ok:false})),
     nf:{numero:$("#nNfNum").value.trim(), data:$("#nNfData").value, valor:parseFloat($("#nNfValor").value)||0}};
   items=[it,...items]; selId=id; dlg.close(); save(it,{});
@@ -674,35 +697,34 @@ function gerarPlanilha(){
   const linhas=items.map(it=>{
     const n=it.checklist.filter(c=>c.ok).length;
     return {
-      "OS":it.numero, "Data":dataBR(it.data), "Aeroporto":it.aeroporto,
-      "Discriminação":it.obs||"",
+      "OS":it.numero, "Data da OS":dataBR(it.data), "Local":it.aeroporto, "Prestador de serviço":it.prestador||"",
+      "Discriminação":it.obs||"", "Valor da OS (R$)":Number(it.valorOs)||0,
       "Checklist":`${n}/${it.checklist.length}`, "Status":done(it)?"Concluída":"Pendente",
       "Itens pendentes":it.checklist.filter(c=>!c.ok).map(c=>c.t).join("; "),
-      "NF nº":it.nf?.numero||"", "Data NF":it.nf?.data?dataBR(it.nf.data):"", "Valor (R$)":Number(it.nf?.valor)||0
+      "NF nº":it.nf?.numero||"", "Data da NF":it.nf?.data?dataBR(it.nf.data):"", "Valor da NF (R$)":Number(it.nf?.valor)||0
     };
   });
-  const total=linhas.reduce((s,l)=>s+l["Valor (R$)"],0);
-  linhas.push({"OS":"TOTAL","Valor (R$)":total});
+  linhas.push({"OS":"TOTAL","Valor da OS (R$)":linhas.reduce((s,l)=>s+l["Valor da OS (R$)"],0),"Valor da NF (R$)":linhas.reduce((s,l)=>s+l["Valor da NF (R$)"],0)});
   const ws=XLSX.utils.json_to_sheet(linhas);
-  ws["!cols"]=[10,12,22,50,10,11,44,12,12,14].map(w=>({wch:w}));
+  ws["!cols"]=[10,12,22,30,50,16,10,11,44,12,12,16].map(w=>({wch:w}));
   const range=XLSX.utils.decode_range(ws["!ref"]);
-  for(let r=1;r<=range.e.r;r++){ const c=ws[XLSX.utils.encode_cell({r,c:9})]; if(c) c.z='"R$" #,##0.00'; }
+  for(let r=1;r<=range.e.r;r++){ for(const col of [5,11]){ const c=ws[XLSX.utils.encode_cell({r,c:col})]; if(c) c.z='"R$" #,##0.00'; } }
   const det=[];
-  items.forEach(it=>it.checklist.forEach(c=>det.push({"OS":it.numero,"Aeroporto":it.aeroporto,"Item":c.t,"OK":c.ok?"Sim":"Não"})));
-  const ws2=XLSX.utils.json_to_sheet(det.length?det:[{"OS":"","Aeroporto":"","Item":"","OK":""}]);
+  items.forEach(it=>it.checklist.forEach(c=>det.push({"OS":it.numero,"Local":it.aeroporto,"Item":c.t,"OK":c.ok?"Sim":"Não"})));
+  const ws2=XLSX.utils.json_to_sheet(det.length?det:[{"OS":"","Local":"","Item":"","OK":""}]);
   ws2["!cols"]=[10,22,40,6].map(w=>({wch:w}));
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,"Serviços");
   XLSX.utils.book_append_sheet(wb,ws2,"Checklist");
   const nfs=[
-    ...items.filter(it=>it.nf?.numero).map(it=>({"NF nº":it.nf.numero,"Tipo":"OS "+it.numero,"Data emissão":dataBR(it.nf.data),"Aeroporto":it.aeroporto,"Discriminação":it.obs||"","Serviços":it.checklist.map(c=>c.t).join("; "),"Valor (R$)":Number(it.nf.valor)||0})),
-    ...notas.map(a=>({"NF nº":a.numero,"Tipo":"Avulsa","Data emissão":dataBR(a.data),"Aeroporto":a.aeroporto||"","Discriminação":a.obs||"","Serviços":(a.servicos||[]).join("; "),"Valor (R$)":Number(a.valor)||0}))
+    ...items.filter(it=>it.nf?.numero).map(it=>({"NF nº":it.nf.numero,"Tipo":"OS "+it.numero,"Data da NF":dataBR(it.nf.data),"Local":it.aeroporto,"Prestador de serviço":it.prestador||"","Discriminação":it.obs||"","Serviços":it.checklist.map(c=>c.t).join("; "),"Valor (R$)":Number(it.nf.valor)||0})),
+    ...notas.map(a=>({"NF nº":a.numero,"Tipo":"Avulsa","Data da NF":dataBR(a.data),"Local":a.aeroporto||"","Prestador de serviço":a.prestador||"","Discriminação":a.obs||"","Serviços":(a.servicos||[]).join("; "),"Valor (R$)":Number(a.valor)||0}))
   ];
   nfs.push({"NF nº":"TOTAL","Valor (R$)":nfs.reduce((s,l)=>s+l["Valor (R$)"],0)});
   const ws3=XLSX.utils.json_to_sheet(nfs);
-  ws3["!cols"]=[12,12,12,22,44,44,14].map(w=>({wch:w}));
+  ws3["!cols"]=[12,12,12,22,30,44,44,14].map(w=>({wch:w}));
   const r3=XLSX.utils.decode_range(ws3["!ref"]);
-  for(let r=1;r<=r3.e.r;r++){ const c=ws3[XLSX.utils.encode_cell({r,c:6})]; if(c) c.z='"R$" #,##0.00'; }
+  for(let r=1;r<=r3.e.r;r++){ const c=ws3[XLSX.utils.encode_cell({r,c:7})]; if(c) c.z='"R$" #,##0.00'; }
   XLSX.utils.book_append_sheet(wb,ws3,"Notas fiscais");
   return XLSX.write(wb,{bookType:"xlsx",type:"array"});
 }
@@ -730,7 +752,7 @@ setView(view);
 
 (async()=>{
   const [d,user]=await Promise.all([window.claude?.use("db"), window.claude?.use("user")].map(p=>Promise.resolve(p).catch(()=>null)));
-  if(!d){ canWrite=true; notice("Modo de demonstração: as solicitações abaixo são exemplos e as alterações não são salvas."); return; }
+  if(!d){ canWrite=true; notice("Modo de demonstração: as solicitações abaixo são exemplos e as alterações não são salvas."); render(); return; }
   db=d; live=true;
   const perm=user ? await Promise.resolve(user.can("data.write")).catch(()=>null) : null;
   canWrite = perm!==false;
