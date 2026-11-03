@@ -342,6 +342,7 @@ body.papel-operador .so-admin{display:none!important}
       <button class="btn primary" type="submit" id="tBtn">Salvar senha e entrar</button>
     </div>
     <div class="login-foot" id="loginFoot">Acesso restrito à equipe.</div>
+    <div class="login-foot" id="loginDemo" hidden>Modo de demonstração: entre com <b>demo@exemplo.com</b> e a senha <b>demo1234</b>.</div>
   </form>
 </div>
 
@@ -386,7 +387,7 @@ body.papel-operador .so-admin{display:none!important}
       <section id="equipeView" hidden>
         <section class="card">
           <h2>Membros da equipe <small id="equipeCount"></small></h2>
-          <p class="sub" style="margin:0 0 14px">Crie a conta de cada pessoa com uma senha provisória. No primeiro acesso ela troca por uma senha própria. <b>Administrador</b> faz tudo, inclusive gerenciar a equipe e excluir. <b>Operador</b> cria e edita OS, dá OK no checklist e emite notas, mas não exclui nem gerencia a equipe.</p>
+          <p class="sub" style="margin:0 0 14px">Crie a conta de cada pessoa com uma senha provisória. No primeiro acesso ela troca por uma senha própria. <b>Administrador</b> faz tudo, inclusive gerenciar a equipe e excluir. <b>Desenvolvedor</b> tem tudo do administrador e a conta fica protegida: só outro desenvolvedor pode alterá-la ou removê-la. <b>Operador</b> cria e edita OS, dá OK no checklist e emite notas, mas não exclui nem gerencia a equipe.</p>
           <div class="notice" id="equipeAviso" hidden></div>
           <div class="sheet-scroll" style="box-shadow:none"><table class="mini" id="equipeTabela"></table></div>
           <div class="row-actions"><button class="btn primary" type="button" id="btnNovoMembro">+ Novo membro</button></div>
@@ -434,11 +435,14 @@ body.papel-operador .so-admin{display:none!important}
   <form id="formNova" method="dialog">
     <h2>Nova solicitação</h2>
     <div class="fields">
+      <div class="field"><label for="nNum">Nº da OS</label><input id="nNum" class="mono" required placeholder="OS-0001"></div>
       <div class="field"><label for="nData">Data da OS</label><input id="nData" type="date" required></div>
-      <div class="field" style="grid-column:span 2"><label for="nAero">Local</label><input id="nAero" placeholder="SBGR · Guarulhos" required></div>
+      <div class="field"><label for="nAero">Local</label><input id="nAero" placeholder="SBGR · Guarulhos" required></div>
       <div class="field"><label for="nQtd">Quantidade</label><input id="nQtd" class="mono" type="number" min="0" step="any"></div>
       <div class="field"><label for="nUnid">Unidade</label><select id="nUnid"><option value="un">Unidade (objeto)</option><option value="L">Litros (líquido)</option><option value="kg">Quilos</option></select></div>
-      <div class="field"><label for="nValorOs">Valor da OS (R$)</label><input id="nValorOs" class="mono" type="number" min="0" step="0.01"></div>
+      <div class="field"><label for="nMoeda">Moeda</label><select id="nMoeda"><option value="BRL">Real (R$)</option><option value="USD">Dólar (US$)</option></select></div>
+      <div class="field"><label for="nValorUnit">Valor unitário</label><input id="nValorUnit" class="mono" type="number" min="0" step="0.01"></div>
+      <div class="field"><label for="nValorOs">Valor da OS</label><input id="nValorOs" class="mono" type="number" min="0" step="0.01" title="Quantidade × valor unitário (pode ser alterado)"></div>
       <div class="field full"><label for="nPrest">Prestador de serviço</label><input id="nPrest" placeholder="Nome da empresa ou profissional"></div>
       <div class="field full"><label for="nObs">Discriminação</label><textarea id="nObs" placeholder="Descrição dos serviços a realizar"></textarea></div>
       <div class="field full">
@@ -462,7 +466,7 @@ body.papel-operador .so-admin{display:none!important}
     <h2>Novo membro da equipe</h2>
     <div class="fields">
       <div class="field" style="grid-column:span 2"><label for="mNome">Nome</label><input id="mNome" required placeholder="Nome e sobrenome"></div>
-      <div class="field"><label for="mPapel">Perfil</label><select id="mPapel"><option value="operador">Operador</option><option value="admin">Administrador</option></select></div>
+      <div class="field"><label for="mPapel">Perfil</label><select id="mPapel"><option value="operador">Operador</option><option value="admin">Administrador</option><option value="dev" id="mPapelDev">Desenvolvedor</option></select></div>
       <div class="field" style="grid-column:span 2"><label for="mEmail">E-mail</label><input id="mEmail" type="email" required placeholder="pessoa@empresa.com.br"></div>
       <div class="field"><label for="mSenha">Senha provisória</label><input id="mSenha" class="mono" required minlength="4"></div>
     </div>
@@ -526,6 +530,16 @@ let notas=[];
 let checkPadrao=[...CHECK_PADRAO], keepPadrao=true;
 const $=s=>document.querySelector(s);
 const brl=v=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(v)||0);
+// moeda da OS: Real (padrão) ou Dólar
+const MOEDAS={BRL:"R$",USD:"US$"};
+const moedaDe=it=>it.moeda==="USD"?"USD":"BRL";
+const fmtMoeda=(v,m)=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:m==="USD"?"USD":"BRL"}).format(Number(v)||0);
+const moedaOpts=v=>`<option value="BRL">Real (R$)</option><option value="USD">Dólar (US$)</option>`.replace(`value="${v==="USD"?"USD":"BRL"}"`,`value="${v==="USD"?"USD":"BRL"}" selected`);
+// soma valores separando por moeda: "R$ 10,00 · US$ 5,00"
+function somaMoedas(lista,val){
+  const t={BRL:0,USD:0}; lista.forEach(it=>t[moedaDe(it)]+=Number(val(it))||0);
+  return t.USD?(t.BRL?fmtMoeda(t.BRL,"BRL")+" · ":"")+fmtMoeda(t.USD,"USD"):fmtMoeda(t.BRL,"BRL");
+}
 const dataBR=d=>{ if(!d) return "—"; const [y,m,dd]=d.split("-"); return `${dd}/${m}/${y}`; };
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const done=it=>!!(it.exec && it.conf);
@@ -603,11 +617,14 @@ function renderDetail(){
   <section class="card">
     <h2>Solicitação de serviço <small>${esc(it.numero)}${it.exemplo?" · exemplo":""}</small></h2>
     <div class="fields">
+      <div class="field"><label for="dNum">Nº da OS</label><input id="dNum" class="mono" value="${esc(it.numero)}" ${dis}></div>
       <div class="field"><label for="dData">Data da OS</label><input id="dData" type="date" value="${esc(it.data)}" ${dis}></div>
-      <div class="field" style="grid-column:span 2"><label for="dAero">Local</label><input id="dAero" value="${esc(it.aeroporto)}" ${dis}></div>
+      <div class="field"><label for="dAero">Local</label><input id="dAero" value="${esc(it.aeroporto)}" ${dis}></div>
       <div class="field"><label for="dQtd">Quantidade</label><input id="dQtd" class="mono" type="number" min="0" step="any" value="${it.qtd??""}" ${dis}></div>
       <div class="field"><label for="dUnid">Unidade</label><select id="dUnid" ${dis}>${unidOpts(it.unidade)}</select></div>
-      <div class="field"><label for="dValorOs">Valor da OS (R$)</label><input id="dValorOs" class="mono" type="number" min="0" step="0.01" value="${it.valorOs||""}" ${dis}></div>
+      <div class="field"><label for="dMoeda">Moeda</label><select id="dMoeda" ${dis}>${moedaOpts(it.moeda)}</select></div>
+      <div class="field"><label for="dValorUnit">Valor unitário</label><input id="dValorUnit" class="mono" type="number" min="0" step="0.01" value="${it.valorUnit||""}" ${dis}></div>
+      <div class="field"><label for="dValorOs">Valor da OS</label><input id="dValorOs" class="mono" type="number" min="0" step="0.01" value="${it.valorOs||""}" title="Quantidade × valor unitário (pode ser alterado)" ${dis}></div>
       <div class="field full"><label for="dPrest">Prestador de serviço</label><input id="dPrest" value="${esc(it.prestador||"")}" ${dis}></div>
       <div class="field full"><label for="dObs">Discriminação</label><textarea id="dObs" ${dis}>${esc(it.obs)}</textarea></div>
     </div>
@@ -650,13 +667,15 @@ function renderDetail(){
 // --- planilha ---
 let view="planilha";
 const COLS=[
-  {h:"OS",k:"numero",ro:true,w:80},
+  {h:"OS",k:"numero",w:110},
   {h:"Data da OS",k:"data",type:"date",w:140},
   {h:"Local",k:"aeroporto",w:160},
   {h:"Prestador de serviço",k:"prestador",w:190},
   {h:"Discriminação",k:"obs",area:true,w:280},
   {h:"Qtd.",qtd:true,w:170},
-  {h:"Valor da OS (R$)",k:"valorOs",type:"number",num:true,w:130,sum:true},
+  {h:"Moeda",moeda:true,w:90},
+  {h:"Valor unit.",k:"valorUnit",type:"number",num:true,w:120},
+  {h:"Valor da OS",k:"valorOs",type:"number",num:true,w:150,sum:true,porMoeda:true},
   {h:"① Ciente",chk:"cien",w:150},
   {h:"NF nº",k:"nf.numero",w:100},
   {h:"Data da NF",k:"nf.data",type:"date",w:140},
@@ -682,13 +701,14 @@ function renderSheet0(){
     <tbody>${rows.map((it,r)=>`<tr><td class="rn">${r+2}</td>${COLS.map(c=>{
       if(c.qtd) return `<td class="qtdcell"><div><input data-id="${esc(it.id)}" data-k="qtd" type="number" min="0" step="any" value="${it.qtd??""}" aria-label="Quantidade ${esc(it.numero)}" ${dis}><select data-id="${esc(it.id)}" data-k="unidade" aria-label="Unidade ${esc(it.numero)}" ${dis}>${unidOpts(it.unidade).replace(/ \(objeto\)| \(líquido\)/g,"").replace("Unidade","un").replace("Litros","L").replace("Quilos","kg")}</select></div></td>`;
       if(c.chk) return `<td class="ck2cell">${checkCell(it,c.chk)}</td>`;
+      if(c.moeda) return `<td><select data-id="${esc(it.id)}" data-k="moeda" aria-label="Moeda ${esc(it.numero)}" ${dis}>${moedaOpts(it.moeda).replace("Real (R$)","R$").replace("Dólar (US$)","US$")}</select></td>`;
       if(c.sq) return `<td class="sq"><label><input type="checkbox" data-status="${esc(it.id)}" ${done(it)?"checked":""} ${dis} aria-label="Concluída ${esc(it.numero)}" title="${done(it)?"Concluída":"Pendente"}"></label></td>`;
       if(c.ro) return `<td class="ro">${c.v?(c.html?c.v(it):esc(c.v(it))):esc(getF(it,c.k))}</td>`;
       const val=getF(it,c.k)??""; const a=`data-id="${esc(it.id)}" data-k="${c.k}" aria-label="${c.h} ${esc(it.numero)}" ${dis}`;
       return `<td class="${c.num?"num":""}">${c.area?`<textarea ${a}>${esc(val)}</textarea>`:`<input ${a} type="${c.type||"text"}" ${c.num?'step="0.01" min="0"':""} value="${esc(c.num&&!val?"":val)}">`}</td>`;
     }).join("")}</tr>`).join("")}
     ${rows.length?"":`<tr><td class="rn">2</td><td class="ro" colspan="${COLS.length}">Nenhum serviço encontrado.</td></tr>`}
-    <tr class="total"><td class="rn">${rows.length+2+(rows.length?0:1)}</td>${COLS.map((c,i)=>c.sum?`<td class="num">${brl(rows.reduce((s,it)=>s+(Number(getF(it,c.k))||0),0))}</td>`:`<td>${i===0?"TOTAL":""}</td>`).join("")}</tr></tbody>`;
+    <tr class="total"><td class="rn">${rows.length+2+(rows.length?0:1)}</td>${COLS.map((c,i)=>c.sum?`<td class="num">${c.porMoeda?somaMoedas(rows,it=>getF(it,c.k)):brl(rows.reduce((s,it)=>s+(Number(getF(it,c.k))||0),0))}</td>`:`<td>${i===0?"TOTAL":""}</td>`).join("")}</tr></tbody>`;
 }
 // --- ajustar à tela ---
 let ajustar=false;
@@ -716,7 +736,18 @@ $("#sheet").addEventListener("change",e=>{
   const k=t.dataset.k;
   const ac="Alterou "+(CAMPOS[k]||k)+" pela planilha";
   if(k.startsWith("nf.")){ const f=k.slice(3); save(it,{nf:{...it.nf,[f]:f==="valor"?(parseFloat(t.value)||0):t.value.trim()}},ac); }
-  else if(k==="qtd") save(it,{qtd:t.value===""?null:parseFloat(t.value)},ac);
+  else if(k==="moeda") save(it,{moeda:t.value},"Alterou a moeda para "+MOEDAS[t.value]);
+  else if(k==="numero"){
+    const num=t.value.trim();
+    if(!num||numeroEmUso(num,it.id)){ notice(num?`Já existe uma OS com o número ${num}.`:"O número da OS não pode ficar vazio."); t.value=it.numero; return; }
+    notice(""); save(it,{numero:num},"Alterou o Nº da OS de "+it.numero+" para "+num);
+  }
+  else if(k==="qtd"||k==="valorUnit"){
+    const v=t.value===""?(k==="qtd"?null:0):parseFloat(t.value), patch={[k]:v};
+    const q=k==="qtd"?v:it.qtd, u=k==="valorUnit"?v:it.valorUnit;
+    if(q>0&&u>0) patch.valorOs=Math.round(q*u*100)/100;
+    save(it,patch,ac);
+  }
   else save(it,{[k]:t.type==="number"?(parseFloat(t.value)||0):t.type==="date"?t.value:t.value.trim()},ac);
 });
 $("#sheet").addEventListener("focusout",e=>{ if(!$("#sheet").contains(e.relatedTarget)) setTimeout(()=>{ if(!sheetFocused()) renderSheet(); },0); });
@@ -861,7 +892,7 @@ function renderMonitor(){
   $("#monitor").innerHTML=`
     <section class="card wide"><h2>Resumo <small>atualizado agora</small></h2>
       <div class="resumo">
-        <div><span>Total das OS</span><strong>${brl(items.reduce((s,it)=>s+(Number(it.valorOs)||0),0))}</strong></div>
+        <div><span>Total das OS</span><strong>${somaMoedas(items,it=>it.valorOs)}</strong></div>
         <div><span>Total faturado (NF)</span><strong>${brl(todas.reduce((s,n)=>s+n.valor,0))}</strong></div>
         <div><span>Notas vencidas</span><strong style="color:${venc.length?"var(--red)":"inherit"}">${venc.length} · ${brl(venc.reduce((s,n)=>s+n.valor,0))}</strong></div>
         <div><span>Vencem em 7 dias</span><strong>${prox.length} · ${brl(prox.reduce((s,n)=>s+n.valor,0))}</strong></div>
@@ -902,7 +933,7 @@ function histHtml(lista,vazio){
 const UNIDADES={un:"un",L:"L",kg:"kg"};
 const unidOpts=v=>`<option value="un">Unidade (objeto)</option><option value="L">Litros (líquido)</option><option value="kg">Quilos</option>`.replace(`value="${v||"un"}"`,`value="${v||"un"}" selected`);
 const qtdTxt=it=>it.qtd==null||it.qtd===""?"":`${String(it.qtd).replace(".",",")} ${UNIDADES[it.unidade]||"un"}`;
-const CAMPOS={qtd:"Quantidade",unidade:"Unidade",data:"Data da OS",aeroporto:"Local",prestador:"Prestador de serviço",obs:"Discriminação",valorOs:"Valor da OS","nf.numero":"Nº da NF","nf.data":"Data da NF","nf.vencimento":"Vencimento da NF","nf.valor":"Valor da NF"};
+const CAMPOS={numero:"Nº da OS",valorUnit:"Valor unitário",qtd:"Quantidade",unidade:"Unidade",data:"Data da OS",aeroporto:"Local",prestador:"Prestador de serviço",obs:"Discriminação",valorOs:"Valor da OS","nf.numero":"Nº da NF","nf.data":"Data da NF","nf.vencimento":"Vencimento da NF","nf.valor":"Valor da NF"};
 function save(it, patch, acao){
   if(acao) patch={...patch,historico:comHist(it.historico,acao)};
   Object.assign(it, patch); render();
@@ -937,7 +968,11 @@ $("#detail").addEventListener("click",async e=>{
   const it=items.find(i=>i.id===selId); if(!it) return;
   const id=e.target.id;
   if(id==="btnSalvarSol"){
-    const ok=await save(it,{data:$("#dData").value, aeroporto:$("#dAero").value.trim(), prestador:$("#dPrest").value.trim(), valorOs:parseFloat($("#dValorOs").value)||0, qtd:$("#dQtd").value===""?null:parseFloat($("#dQtd").value), unidade:$("#dUnid").value, obs:$("#dObs").value},"Editou os dados da OS");
+    const num=$("#dNum").value.trim();
+    if(!num){ notice("Informe o número da OS."); $("#dNum").focus(); return; }
+    if(numeroEmUso(num,it.id)){ notice(`Já existe uma OS com o número ${num}.`); $("#dNum").focus(); return; }
+    notice("");
+    const ok=await save(it,{numero:num, moeda:$("#dMoeda").value, valorUnit:parseFloat($("#dValorUnit").value)||0, data:$("#dData").value, aeroporto:$("#dAero").value.trim(), prestador:$("#dPrest").value.trim(), valorOs:parseFloat($("#dValorOs").value)||0, qtd:$("#dQtd").value===""?null:parseFloat($("#dQtd").value), unidade:$("#dUnid").value, obs:$("#dObs").value},"Editou os dados da OS");
     if(ok) flash("#savedSol","Solicitação salva");
   } else if(id==="btnSalvarNf"){
     const ok=await save(it,{nf:{numero:$("#fNum").value.trim(), data:$("#fData").value, valor:parseFloat($("#fValor").value)||0}});
@@ -963,7 +998,7 @@ $("#detail").addEventListener("click",async e=>{
 const dlg=$("#dlgNova");
 $("#btnNova").addEventListener("click",()=>{
   if(!canWrite && live){ notice("Você não tem permissão para criar solicitações."); return; }
-  $("#formNova").reset(); $("#nData").value=new Date().toISOString().slice(0,10);
+  $("#formNova").reset(); $("#nData").value=new Date().toISOString().slice(0,10); $("#nNum").value=proxNumero();
   $("#pickList").innerHTML=checkPadrao.map((t,i)=>`<label for="pk${i}"><input type="checkbox" id="pk${i}" value="${esc(t)}" checked> ${esc(t)}</label>`).join("");
   pickUpdate(); dlg.showModal();
 });
@@ -980,12 +1015,23 @@ $("#pickAll").addEventListener("click",()=>{
 $("#btnCancelar").addEventListener("click",()=>dlg.close());
 let irNf=false;
 $("#nIrNf").addEventListener("click",()=>{ irNf=true; $("#formNova").requestSubmit(); if(dlg.open) irNf=false; });
+function proxNumero(){
+  const max=items.reduce((m,i)=>Math.max(m,parseInt(String(i.numero).replace(/\D/g,""))||0),0);
+  return "OS-"+String(max+1).padStart(4,"0");
+}
+const numeroEmUso=(num,exceto)=>items.some(i=>i.id!==exceto && String(i.numero).trim().toLowerCase()===num.trim().toLowerCase());
+// valor da OS = quantidade × valor unitário (calculado ao digitar; continua editável)
+function calcValor(q,u,v){ const a=parseFloat($(q).value), b=parseFloat($(u).value); if(a>0&&b>0) $(v).value=(Math.round(a*b*100)/100).toFixed(2); }
+["#nQtd","#nValorUnit"].forEach(s=>$(s).addEventListener("input",()=>calcValor("#nQtd","#nValorUnit","#nValorOs")));
+$("#detail").addEventListener("input",e=>{ if(e.target.id==="dQtd"||e.target.id==="dValorUnit") calcValor("#dQtd","#dValorUnit","#dValorOs"); });
+$("#nNum").addEventListener("input",e=>e.target.setCustomValidity(""));
 $("#formNova").addEventListener("submit",e=>{
   e.preventDefault();
-  const max=items.reduce((m,i)=>Math.max(m,parseInt(String(i.numero).replace(/\D/g,""))||0),0);
+  const num=$("#nNum").value.trim();
+  if(numeroEmUso(num)){ irNf=false; $("#nNum").setCustomValidity(`Já existe uma OS com o número ${num}.`); $("#nNum").reportValidity(); return; }
   const id="s"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-  const it={id, numero:"OS-"+String(max+1).padStart(4,"0"), data:$("#nData").value, aeroporto:$("#nAero").value.trim(),
-    prestador:$("#nPrest").value.trim(), valorOs:parseFloat($("#nValorOs").value)||0, qtd:$("#nQtd").value===""?null:parseFloat($("#nQtd").value), unidade:$("#nUnid").value, obs:$("#nObs").value, criado:Date.now(),
+  const it={id, numero:num, data:$("#nData").value, aeroporto:$("#nAero").value.trim(),
+    prestador:$("#nPrest").value.trim(), moeda:$("#nMoeda").value, valorUnit:parseFloat($("#nValorUnit").value)||0, valorOs:parseFloat($("#nValorOs").value)||0, qtd:$("#nQtd").value===""?null:parseFloat($("#nQtd").value), unidade:$("#nUnid").value, obs:$("#nObs").value, criado:Date.now(),
     checklist:[...$("#pickList").querySelectorAll("input:checked")].map(x=>({t:x.value,ok:false})),
     nf:{numero:"",data:"",valor:0}};
   items=[it,...items]; selId=id; dlg.close(); save(it,{},"Criou a OS");
@@ -1001,7 +1047,7 @@ function gerarPlanilha(){
     return {
       "OS":it.numero, "Data da OS":dataBR(it.data), "Local":it.aeroporto,
       "Prestador de serviço":it.prestador||"",
-      "Discriminação":it.obs||"", "Qtd.":it.qtd==null?"":Number(it.qtd), "Unidade":it.qtd==null?"":(UNIDADES[it.unidade]||"un"), "Valor da OS (R$)":Number(it.valorOs)||0,
+      "Discriminação":it.obs||"", "Qtd.":it.qtd==null?"":Number(it.qtd), "Unidade":it.qtd==null?"":(UNIDADES[it.unidade]||"un"), "Moeda":MOEDAS[moedaDe(it)], "Valor unitário":Number(it.valorUnit)||0, "Valor da OS":Number(it.valorOs)||0,
       "Checklist OK":`${n}/${it.checklist.length}`, "Status":done(it)?"Concluída":it.exec?"Aguardando pagamento":it.conf?"Paga, falta confirmar":"Pendente", "Ciente por":it.cien?`${it.cien.por} (${dataBR(it.cien.em.slice(0,10))})`:"", "Confirmado por":it.exec?`${it.exec.por} (${dataBR(it.exec.em.slice(0,10))})`:"", "Pago por":it.conf?`${it.conf.por} (${dataBR(it.conf.em.slice(0,10))})`:"",
       "Itens pendentes":it.checklist.filter(c=>!c.ok).map(c=>c.t).join("; "),
       "NF nº":it.nf?.numero||"", "Data da NF":it.nf?.data?dataBR(it.nf.data):"", "Vencimento NF":it.nf?.vencimento?dataBR(it.nf.vencimento):"", "Valor da NF (R$)":Number(it.nf?.valor)||0
@@ -1058,7 +1104,56 @@ async function hashSenha(senha,saltB64,iter){
   return b64(bits);
 }
 const lerSessao=()=>{ try{ const x=JSON.parse(localStorage.getItem(SESSAO)||"null"); return x&&x.ate>Date.now()?x:null; }catch(_){ return null; } };
-const gravarSessao=email=>{ try{ localStorage.setItem(SESSAO,JSON.stringify({email,ate:Date.now()+SESSAO_HORAS*36e5})); }catch(_){} };
+const gravarSessao=email=>{ try{ localStorage.setItem(SESSAO,JSON.stringify({email,token:siteToken,ate:Date.now()+SESSAO_HORAS*36e5})); }catch(_){} };
+
+// --- banco de dados do site (API /api/db na Vercel, com Postgres no Neon) ---
+// Imita a parte da API de banco que a página usa: collection().doc().get/set/update/delete, orderBy, onSnapshot.
+// As listas se atualizam sozinhas a cada poucos segundos, então outros aparelhos veem as mudanças.
+let siteToken=null, modoSite=false;
+async function api(op,corpo={}){
+  const r=await fetch("/api/db",{method:"POST",headers:{"content-type":"application/json",...(siteToken?{authorization:"Bearer "+siteToken}:{})},body:JSON.stringify({op,...corpo})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){ const e=new Error(j.erro||"Falha no servidor"); e.code=r.status; e.msg=j.erro; throw e; }
+  return j;
+}
+function criarDbSite(){
+  const vigias=new Set();
+  const foto=(id,data)=>({id,exists:data!=null,data:()=>data});
+  const avisar=()=>{ vigias.forEach(v=>v()); };
+  const ref=(c,id)=>({
+    get:async()=>foto(id,(await api("get",{c,id})).data),
+    set:d=>api("set",{c,id,data:d}).then(avisar),
+    update:d=>api("update",{c,id,data:d}).then(avisar),
+    delete:()=>api("delete",{c,id}).then(avisar)
+  });
+  function vigiar(buscar,cb,erro){
+    let ultimo=null, rodando=false;
+    const v=async()=>{
+      if(!siteToken||rodando) return; rodando=true;
+      try{ const {cru,snap}=await buscar(); const k=JSON.stringify(cru); if(k!==ultimo){ ultimo=k; cb(snap); } }
+      catch(e){ if(e.code===401){ sessaoExpirada(); } else if(erro) erro(e); }
+      finally{ rodando=false; }
+    };
+    vigias.add(v); v(); return ()=>vigias.delete(v);
+  }
+  setInterval(()=>{ if(!document.hidden) avisar(); },4000);
+  document.addEventListener("visibilitychange",()=>{ if(!document.hidden) avisar(); });
+  const col=(c,ord)=>({
+    doc:id=>ref(c,id),
+    orderBy:(f,dir)=>col(c,{f,dir}),
+    onSnapshot:(cb,erro)=>vigiar(async()=>{ const j=await api("list",{c,ord}); return {cru:j.docs,snap:{docs:j.docs.map(d=>foto(d.id,d.data))}}; },cb,erro)
+  });
+  return {
+    collection:c=>col(c),
+    doc:caminho=>{ const [c,id]=caminho.split("/"); return {...ref(c,id),onSnapshot:(cb,erro)=>vigiar(async()=>{ const j=await api("get",{c,id}); return {cru:j.data,snap:foto(id,j.data)}; },cb,erro)}; },
+    atualizar:avisar
+  };
+}
+function sessaoExpirada(){
+  if(!siteToken) return;
+  siteToken=null; limparSessao(); usuarioAtual=null; $("#who").hidden=true; mostrarLogin();
+  erroLogin("#lErro","Sua sessão expirou. Entre de novo.");
+}
 const limparSessao=()=>{ try{ localStorage.removeItem(SESSAO); }catch(_){} };
 let usuarioAtual=null, aoEntrar=null;
 function mostrarApp(email){
@@ -1079,12 +1174,19 @@ $("#formLogin").addEventListener("submit",async e=>{
   const email=$("#lEmail").value.trim().toLowerCase(), senha=$("#lSenha").value;
   erroLogin("#lErro",""); $("#lBtn").disabled=true; $("#lBtn").textContent="Entrando…";
   try{
-    const snap=await db.collection("usuarios").doc(email).get();
-    const u=snap.exists?snap.data():null;
-    if(!u || !u.hash || (await hashSenha(senha,u.salt,u.iter))!==u.hash){ erroLogin("#lErro","E-mail ou senha incorretos."); return; }
+    let u;
+    if(modoSite){
+      // no site a senha é conferida no servidor
+      try{ const j=await api("login",{email,senha}); siteToken=j.token; u=j.user; }
+      catch(e){ if(e.code===401){ erroLogin("#lErro","E-mail ou senha incorretos."); return; } throw e; }
+    } else {
+      if(live){ const snap=await db.collection("usuarios").doc(email).get(); u=snap.exists?snap.data():null; }
+      else u=equipe.find(x=>x.email===email)||null;
+      if(!u || !u.hash || (await hashSenha(senha,u.salt,u.iter))!==u.hash){ erroLogin("#lErro","E-mail ou senha incorretos."); return; }
+    }
     usuarioAtual={email,...u};
     if(u.trocarSenha){ $("#loginEntrar").hidden=true; $("#loginTrocar").hidden=false; $("#tNova").focus(); return; }
-    gravarSessao(email); mostrarApp(email);
+    gravarSessao(email); mostrarApp(email); db?.atualizar?.();
   }catch(_){ erroLogin("#lErro","Não foi possível entrar agora. Verifique a conexão e tente de novo."); }
   finally{ $("#lBtn").disabled=false; $("#lBtn").textContent="Entrar"; }
 });
@@ -1096,16 +1198,21 @@ async function trocarSenha(){
   erroLogin("#tErro",""); $("#tBtn").disabled=true; $("#tBtn").textContent="Salvando…";
   try{
     const salt=b64(crypto.getRandomValues(new Uint8Array(16))), iter=120000;
-    await db.collection("usuarios").doc(usuarioAtual.email).update({salt,iter,hash:await hashSenha(n,salt,iter),trocarSenha:false,senhaTrocadaEm:new Date().toISOString()});
+    const novo={salt,iter,hash:await hashSenha(n,salt,iter),trocarSenha:false,senhaTrocadaEm:new Date().toISOString()};
+    if(live) await db.collection("usuarios").doc(usuarioAtual.email).update(novo);
+    else { const x=equipe.find(y=>y.email===usuarioAtual.email); if(x) Object.assign(x,novo); }
+    Object.assign(usuarioAtual,novo);
     gravarSessao(usuarioAtual.email); mostrarApp(usuarioAtual.email);
   }catch(_){ erroLogin("#tErro","Não foi possível salvar a nova senha. Tente de novo."); }
   finally{ $("#tBtn").disabled=false; $("#tBtn").textContent="Salvar senha e entrar"; }
 }
-$("#btnSair").addEventListener("click",()=>{ limparSessao(); usuarioAtual=null; mostrarLogin(); });
+$("#btnSair").addEventListener("click",()=>{ limparSessao(); usuarioAtual=null; siteToken=null; $("#who").hidden=true; mostrarLogin(); });
 
 // --- equipe ---
 let equipe=[], unsubEquipe=null;
-const ehAdmin=()=>!live || usuarioAtual?.papel==="admin";
+const ehDev=()=>usuarioAtual?.papel==="dev";
+const ehAdmin=()=>ehDev() || usuarioAtual?.papel==="admin";
+const gestor=u=>u.papel==="admin"||u.papel==="dev";
 function aplicarPapel(){
   document.body.classList.toggle("papel-operador",!ehAdmin());
   if(!ehAdmin() && view==="equipe") setView("planilha");
@@ -1113,19 +1220,19 @@ function aplicarPapel(){
     unsubEquipe=db.collection("usuarios").onSnapshot(snap=>{ equipe=snap.docs.map(d=>({email:d.id,...d.data()})); renderEquipe(); },()=>{});
   }
 }
-const PAPEL={admin:"Administrador",operador:"Operador"};
+const PAPEL={dev:"Desenvolvedor",admin:"Administrador",operador:"Operador"};
 function renderEquipe(){
   if(view!=="equipe") return;
   const lista=[...equipe].sort((a,b)=>(a.nome||a.email).localeCompare(b.nome||b.email,"pt-BR"));
-  const admins=lista.filter(u=>u.papel==="admin").length, eu=usuarioAtual?.email;
+  const admins=lista.filter(gestor).length, eu=usuarioAtual?.email;
   $("#equipeCount").textContent=`${lista.length} ${lista.length===1?"pessoa":"pessoas"}`;
   $("#equipeTabela").innerHTML=`<thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Situação</th><th></th></tr></thead><tbody>${lista.map(u=>{
-    const souEu=u.email===eu, ultimoAdmin=u.papel==="admin"&&admins<=1;
-    return `<tr><td>${esc(u.nome||"—")}${souEu?`<span class="eu">(você)</span>`:""}</td><td>${esc(u.email)}</td><td>${PAPEL[u.papel]||"Operador"}</td>
+    const souEu=u.email===eu, ultimoAdmin=gestor(u)&&admins<=1, protegido=u.papel==="dev"&&!ehDev();
+    return `<tr><td>${esc(u.nome||"—")}${souEu?`<span class="eu">(você)</span>`:""}</td><td>${esc(u.email)}</td><td>${PAPEL[u.papel]||"Operador"}${u.papel==="dev"?` <span class="pill info">dev</span>`:""}</td>
       <td>${u.trocarSenha?`<span class="pill pend">Aguardando 1º acesso</span>`:`<span class="pill done">Ativo</span>`}</td>
       <td><div class="equipe-acoes" data-u="${esc(u.email)}">
-        <button type="button" class="open" data-acao="senha">Nova senha provisória</button>
-        ${souEu||ultimoAdmin?"":`<button type="button" class="open" data-acao="papel">${u.papel==="admin"?"Tornar operador":"Tornar administrador"}</button><button type="button" class="open" data-acao="remover">Remover</button>`}
+        ${protegido?`<span class="sub">Conta protegida</span>`:`<button type="button" class="open" data-acao="senha">Nova senha provisória</button>`}
+        ${souEu||ultimoAdmin||protegido?"":`<button type="button" class="open" data-acao="papel">${u.papel==="operador"||!u.papel?"Tornar administrador":"Tornar operador"}</button>${ehDev()&&u.papel!=="dev"?`<button type="button" class="open" data-acao="dev">Tornar desenvolvedor</button>`:""}<button type="button" class="open" data-acao="remover">Remover</button>`}
       </div></td></tr>`;}).join("")||`<tr><td colspan="5" class="sub">Ninguém cadastrado ainda.</td></tr>`}</tbody>`;
 }
 const senhaAleatoria=()=>String(Math.floor(100000+Math.random()*900000));
@@ -1135,12 +1242,15 @@ async function gravarMembro(email,dados){
   else { equipe=[...equipe.filter(u=>u.email!==email),{email,...dados}]; renderEquipe(); }
 }
 const dlgM=$("#dlgMembro");
-$("#btnNovoMembro").addEventListener("click",()=>{ $("#formMembro").reset(); $("#mSenha").value=senhaAleatoria(); erroLogin("#mErro",""); dlgM.showModal(); $("#mNome").focus(); });
+$("#btnNovoMembro").addEventListener("click",()=>{ $("#formMembro").reset();
+  // o perfil Desenvolvedor só pode ser dado por um desenvolvedor, ou por um administrador enquanto ainda não existir nenhum
+  const podeDev=ehDev()||!equipe.some(u=>u.papel==="dev"); $("#mPapelDev").hidden=!podeDev; $("#mPapelDev").disabled=!podeDev; $("#mSenha").value=senhaAleatoria(); erroLogin("#mErro",""); dlgM.showModal(); $("#mNome").focus(); });
 $("#mCancelar").addEventListener("click",()=>dlgM.close());
 $("#formMembro").addEventListener("submit",async e=>{
   e.preventDefault();
   const email=$("#mEmail").value.trim().toLowerCase(), nome=$("#mNome").value.trim(), papel=$("#mPapel").value, senha=$("#mSenha").value;
   if(equipe.some(u=>u.email===email)) return erroLogin("#mErro","Já existe uma conta com este e-mail.");
+  if(papel==="dev" && !ehDev() && equipe.some(u=>u.papel==="dev")) return erroLogin("#mErro","Só um desenvolvedor pode criar outra conta de desenvolvedor.");
   $("#mSalvar").disabled=true;
   try{
     const salt=b64(crypto.getRandomValues(new Uint8Array(16))), iter=120000;
@@ -1154,14 +1264,15 @@ $("#equipeTabela").addEventListener("click",async e=>{
   const b=e.target.closest("[data-acao]"); if(!b) return;
   const box=b.closest("[data-u]"), email=box.dataset.u, u=equipe.find(x=>x.email===email); if(!u) return;
   const ac=b.dataset.acao;
+  if(u.papel==="dev" && !ehDev()){ avisoEquipe("Esta conta é de desenvolvedor e só outro desenvolvedor pode alterá-la."); return; }
   if(ac==="remover"){ box.innerHTML=`<span class="confirm">Remover ${esc(u.nome||u.email)}? <button class="btn" type="button" data-acao="nao">Não</button><button class="btn primary" type="button" data-acao="sim">Sim, remover</button></span>`; return; }
   if(ac==="nao"){ renderEquipe(); return; }
   try{
     if(ac==="sim"){
       if(live) await db.collection("usuarios").doc(email).delete(); else { equipe=equipe.filter(x=>x.email!==email); renderEquipe(); }
       avisoEquipe(`Conta de <b>${esc(u.nome||u.email)}</b> removida.`);
-    } else if(ac==="papel"){
-      const papel=u.papel==="admin"?"operador":"admin";
+    } else if(ac==="papel"||ac==="dev"){
+      const papel=ac==="dev"?"dev":(u.papel==="operador"||!u.papel)?"admin":"operador";
       await gravarMembro(email,{...u,papel});
       avisoEquipe(`${esc(u.nome||email)} agora é <b>${PAPEL[papel]}</b>.`);
     } else if(ac==="senha"){
@@ -1200,12 +1311,23 @@ try{ const v=localStorage.getItem("hangar-view"); if(["fichas","notas","monitor"
 setView(view);
 
 (async()=>{
-  const [d,user]=await Promise.all([window.claude?.use("db"), window.claude?.use("user")].map(p=>Promise.resolve(p).catch(()=>null)));
-  if(!d){ canWrite=true; notice("Modo de demonstração: aqui as alterações não ficam salvas ao recarregar a página."); equipe=[{email:"demo@exemplo.com",nome:"Administrador (demonstração)",papel:"admin",trocarSenha:false}]; mostrarApp(null); render(); return; }
+  let [d,user]=await Promise.all([window.claude?.use("db"), window.claude?.use("user")].map(p=>Promise.resolve(p).catch(()=>null)));
+  // fora do claude.ai: usa o banco do site, se a API responder
+  if(!d && location.protocol.startsWith("http")){
+    try{ await api("ping"); d=criarDbSite(); modoSite=true; }
+    catch(e){ if(e.code===503) notice("O banco de dados ainda não está ligado a este site na Vercel."); }
+  }
+  if(!d){
+    canWrite=true; notice("Modo de demonstração: aqui as alterações não ficam salvas ao recarregar a página.");
+    const salt=b64(crypto.getRandomValues(new Uint8Array(16))), iter=1000;
+    equipe=[{email:"demo@exemplo.com",nome:"Administrador (demonstração)",papel:"admin",trocarSenha:false,salt,iter,hash:await hashSenha("demo1234",salt,iter)}];
+    $("#loginDemo").hidden=false; mostrarLogin(); render(); return;
+  }
   db=d; live=true;
   const sess=lerSessao();
   let ok=false;
-  if(sess){ try{ const s=await db.collection("usuarios").doc(sess.email).get(); ok=s.exists && !s.data().trocarSenha; if(ok) usuarioAtual={email:sess.email,...s.data()}; }catch(_){} }
+  if(sess && modoSite){ try{ siteToken=sess.token||null; const j=await api("me"); ok=!j.user.trocarSenha; if(ok) usuarioAtual={email:sess.email,...j.user}; }catch(_){ siteToken=null; } }
+  else if(sess){ try{ const s=await db.collection("usuarios").doc(sess.email).get(); ok=s.exists && !s.data().trocarSenha; if(ok) usuarioAtual={email:sess.email,...s.data()}; }catch(_){} }
   if(ok) mostrarApp(sess.email); else { limparSessao(); mostrarLogin(); }
   const perm=user ? await Promise.resolve(user.can("data.write")).catch(()=>null) : null;
   canWrite = perm!==false;
