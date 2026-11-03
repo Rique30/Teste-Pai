@@ -1104,7 +1104,56 @@ async function hashSenha(senha,saltB64,iter){
   return b64(bits);
 }
 const lerSessao=()=>{ try{ const x=JSON.parse(localStorage.getItem(SESSAO)||"null"); return x&&x.ate>Date.now()?x:null; }catch(_){ return null; } };
-const gravarSessao=email=>{ try{ localStorage.setItem(SESSAO,JSON.stringify({email,ate:Date.now()+SESSAO_HORAS*36e5})); }catch(_){} };
+const gravarSessao=email=>{ try{ localStorage.setItem(SESSAO,JSON.stringify({email,token:siteToken,ate:Date.now()+SESSAO_HORAS*36e5})); }catch(_){} };
+
+// --- banco de dados do site (API /api/db na Vercel, com Postgres no Neon) ---
+// Imita a parte da API de banco que a página usa: collection().doc().get/set/update/delete, orderBy, onSnapshot.
+// As listas se atualizam sozinhas a cada poucos segundos, então outros aparelhos veem as mudanças.
+let siteToken=null, modoSite=false;
+async function api(op,corpo={}){
+  const r=await fetch("/api/db",{method:"POST",headers:{"content-type":"application/json",...(siteToken?{authorization:"Bearer "+siteToken}:{})},body:JSON.stringify({op,...corpo})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){ const e=new Error(j.erro||"Falha no servidor"); e.code=r.status; e.msg=j.erro; throw e; }
+  return j;
+}
+function criarDbSite(){
+  const vigias=new Set();
+  const foto=(id,data)=>({id,exists:data!=null,data:()=>data});
+  const avisar=()=>{ vigias.forEach(v=>v()); };
+  const ref=(c,id)=>({
+    get:async()=>foto(id,(await api("get",{c,id})).data),
+    set:d=>api("set",{c,id,data:d}).then(avisar),
+    update:d=>api("update",{c,id,data:d}).then(avisar),
+    delete:()=>api("delete",{c,id}).then(avisar)
+  });
+  function vigiar(buscar,cb,erro){
+    let ultimo=null, rodando=false;
+    const v=async()=>{
+      if(!siteToken||rodando) return; rodando=true;
+      try{ const {cru,snap}=await buscar(); const k=JSON.stringify(cru); if(k!==ultimo){ ultimo=k; cb(snap); } }
+      catch(e){ if(e.code===401){ sessaoExpirada(); } else if(erro) erro(e); }
+      finally{ rodando=false; }
+    };
+    vigias.add(v); v(); return ()=>vigias.delete(v);
+  }
+  setInterval(()=>{ if(!document.hidden) avisar(); },4000);
+  document.addEventListener("visibilitychange",()=>{ if(!document.hidden) avisar(); });
+  const col=(c,ord)=>({
+    doc:id=>ref(c,id),
+    orderBy:(f,dir)=>col(c,{f,dir}),
+    onSnapshot:(cb,erro)=>vigiar(async()=>{ const j=await api("list",{c,ord}); return {cru:j.docs,snap:{docs:j.docs.map(d=>foto(d.id,d.data))}}; },cb,erro)
+  });
+  return {
+    collection:c=>col(c),
+    doc:caminho=>{ const [c,id]=caminho.split("/"); return {...ref(c,id),onSnapshot:(cb,erro)=>vigiar(async()=>{ const j=await api("get",{c,id}); return {cru:j.data,snap:foto(id,j.data)}; },cb,erro)}; },
+    atualizar:avisar
+  };
+}
+function sessaoExpirada(){
+  if(!siteToken) return;
+  siteToken=null; limparSessao(); usuarioAtual=null; $("#who").hidden=true; mostrarLogin();
+  erroLogin("#lErro","Sua sessão expirou. Entre de novo.");
+}
 const limparSessao=()=>{ try{ localStorage.removeItem(SESSAO); }catch(_){} };
 let usuarioAtual=null, aoEntrar=null;
 function mostrarApp(email){
@@ -1126,12 +1175,18 @@ $("#formLogin").addEventListener("submit",async e=>{
   erroLogin("#lErro",""); $("#lBtn").disabled=true; $("#lBtn").textContent="Entrando…";
   try{
     let u;
-    if(live){ const snap=await db.collection("usuarios").doc(email).get(); u=snap.exists?snap.data():null; }
-    else u=equipe.find(x=>x.email===email)||null;
-    if(!u || !u.hash || (await hashSenha(senha,u.salt,u.iter))!==u.hash){ erroLogin("#lErro","E-mail ou senha incorretos."); return; }
+    if(modoSite){
+      // no site a senha é conferida no servidor
+      try{ const j=await api("login",{email,senha}); siteToken=j.token; u=j.user; }
+      catch(e){ if(e.code===401){ erroLogin("#lErro","E-mail ou senha incorretos."); return; } throw e; }
+    } else {
+      if(live){ const snap=await db.collection("usuarios").doc(email).get(); u=snap.exists?snap.data():null; }
+      else u=equipe.find(x=>x.email===email)||null;
+      if(!u || !u.hash || (await hashSenha(senha,u.salt,u.iter))!==u.hash){ erroLogin("#lErro","E-mail ou senha incorretos."); return; }
+    }
     usuarioAtual={email,...u};
     if(u.trocarSenha){ $("#loginEntrar").hidden=true; $("#loginTrocar").hidden=false; $("#tNova").focus(); return; }
-    gravarSessao(email); mostrarApp(email);
+    gravarSessao(email); mostrarApp(email); db?.atualizar?.();
   }catch(_){ erroLogin("#lErro","Não foi possível entrar agora. Verifique a conexão e tente de novo."); }
   finally{ $("#lBtn").disabled=false; $("#lBtn").textContent="Entrar"; }
 });
@@ -1151,7 +1206,7 @@ async function trocarSenha(){
   }catch(_){ erroLogin("#tErro","Não foi possível salvar a nova senha. Tente de novo."); }
   finally{ $("#tBtn").disabled=false; $("#tBtn").textContent="Salvar senha e entrar"; }
 }
-$("#btnSair").addEventListener("click",()=>{ limparSessao(); usuarioAtual=null; $("#who").hidden=true; mostrarLogin(); });
+$("#btnSair").addEventListener("click",()=>{ limparSessao(); usuarioAtual=null; siteToken=null; $("#who").hidden=true; mostrarLogin(); });
 
 // --- equipe ---
 let equipe=[], unsubEquipe=null;
@@ -1256,7 +1311,12 @@ try{ const v=localStorage.getItem("hangar-view"); if(["fichas","notas","monitor"
 setView(view);
 
 (async()=>{
-  const [d,user]=await Promise.all([window.claude?.use("db"), window.claude?.use("user")].map(p=>Promise.resolve(p).catch(()=>null)));
+  let [d,user]=await Promise.all([window.claude?.use("db"), window.claude?.use("user")].map(p=>Promise.resolve(p).catch(()=>null)));
+  // fora do claude.ai: usa o banco do site, se a API responder
+  if(!d && location.protocol.startsWith("http")){
+    try{ await api("ping"); d=criarDbSite(); modoSite=true; }
+    catch(e){ if(e.code===503) notice("O banco de dados ainda não está ligado a este site na Vercel."); }
+  }
   if(!d){
     canWrite=true; notice("Modo de demonstração: aqui as alterações não ficam salvas ao recarregar a página.");
     const salt=b64(crypto.getRandomValues(new Uint8Array(16))), iter=1000;
@@ -1266,7 +1326,8 @@ setView(view);
   db=d; live=true;
   const sess=lerSessao();
   let ok=false;
-  if(sess){ try{ const s=await db.collection("usuarios").doc(sess.email).get(); ok=s.exists && !s.data().trocarSenha; if(ok) usuarioAtual={email:sess.email,...s.data()}; }catch(_){} }
+  if(sess && modoSite){ try{ siteToken=sess.token||null; const j=await api("me"); ok=!j.user.trocarSenha; if(ok) usuarioAtual={email:sess.email,...j.user}; }catch(_){ siteToken=null; } }
+  else if(sess){ try{ const s=await db.collection("usuarios").doc(sess.email).get(); ok=s.exists && !s.data().trocarSenha; if(ok) usuarioAtual={email:sess.email,...s.data()}; }catch(_){} }
   if(ok) mostrarApp(sess.email); else { limparSessao(); mostrarLogin(); }
   const perm=user ? await Promise.resolve(user.can("data.write")).catch(()=>null) : null;
   canWrite = perm!==false;
