@@ -129,6 +129,8 @@ async function rota(b, auth) {
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
+  // GET só diz se o banco está ligado (para conferir a configuração na Vercel)
+  if (req.method === "GET") return res.status(200).json({ banco: sql ? "ligado" : "não configurado" });
   if (req.method !== "POST") return res.status(405).json({ erro: "Use POST." });
   if (!sql) return res.status(503).json({ erro: "Banco de dados não configurado no Vercel.", code: 503 });
   try {
