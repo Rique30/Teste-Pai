@@ -650,7 +650,6 @@ function renderDetail(){
     <div class="row-actions">
       <span class="confirm" id="delWrap"><button class="btn so-admin" type="button" id="btnExcluir" ${dis}>Excluir</button></span>
       <span class="saved" id="savedSol"></span>
-      <button class="btn" type="button" id="btnEmitirNf" ${dis}>Emitir nota fiscal</button>
       <button class="btn primary" type="button" id="btnSalvarSol" ${dis}>Salvar solicitação</button>
     </div>
   </section>
@@ -681,6 +680,7 @@ function renderDetail(){
     <h2>Histórico <small>${(it.historico||[]).length} ${(it.historico||[]).length===1?"registro":"registros"}</small></h2>
     ${histHtml(it.historico,"Nenhuma ação registrada ainda. A partir de agora, cada alteração nesta OS aparece aqui com data, hora e quem fez.")}
   </section>`;
+  reporAvisos();
 }
 
 // --- planilha ---
@@ -1047,7 +1047,10 @@ function save(it, patch, acao){
   });
   return writing;
 }
-function flash(id,txt){ const s=$(id); if(s){ s.textContent=txt; setTimeout(()=>{ if(s) s.textContent=""; },2500);} }
+// aviso curto (ex.: "Solicitação salva"); continua visível mesmo se a tela for redesenhada
+let avisos={};
+function flash(id,txt){ avisos[id]={txt,ate:Date.now()+2500}; reporAvisos(); setTimeout(reporAvisos,2600); }
+function reporAvisos(){ for(const [id,a] of Object.entries(avisos)){ const s=$(id); if(s) s.textContent=Date.now()<a.ate?a.txt:""; } }
 
 $("#list").addEventListener("click",e=>{ const b=e.target.closest(".item"); if(b){ selId=b.dataset.id; render(); if(innerWidth<820) $("#detail").scrollIntoView({behavior:"smooth"}); }});
 
@@ -1064,7 +1067,6 @@ $("#detail").addEventListener("change",e=>{
 });
 $("#detail").addEventListener("click",async e=>{
   const ed=e.target.closest("[data-edit-nf]"); if(ed){ abrirNf(notas.find(a=>a.id===ed.dataset.editNf)); return; }
-  if(e.target.id==="btnEmitirNf"){ setView("notas"); abrirNf(null,selId); return; }
   const it=items.find(i=>i.id===selId); if(!it) return;
   const id=e.target.id;
   if(id==="btnSalvarSol"){
