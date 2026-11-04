@@ -117,7 +117,10 @@ body.planilha-fit #btnFit{background:var(--accent);border-color:var(--accent);co
 
 /* indicadores */
 .kpis,.resumo{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+.kpis>div[style]{border-top:3px solid var(--k)}
 @media (max-width:900px){.kpis,.resumo{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){.kpis{grid-template-columns:1fr}}
 .kpis>div,.resumo>div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:4px;min-width:0}
 .kpis span,.resumo span{font-size:.78rem;color:var(--muted)}
 .kpis strong,.resumo strong{font:600 1.45rem/1.15 var(--f-display);font-variant-numeric:tabular-nums}
@@ -135,6 +138,41 @@ body.planilha-fit #btnFit{background:var(--accent);border-color:var(--accent);co
 
 /* fichas */
 .grid{display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px;align-items:start}
+/* aba OS: quadro de pagamento em cima, detalhes da OS embaixo */
+#fichasView{grid-template-columns:minmax(0,1fr)}
+#fichasView .list{display:none}
+.pchip{display:inline-flex;align-items:center;gap:6px;font:500 .76rem var(--f-body);border-radius:99px;padding:3px 10px;border:1px solid transparent;white-space:nowrap;line-height:1.4}
+.pchip i{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.pchip .clip{width:13px;height:13px}
+.pchip.s0{background:var(--line);color:var(--muted)}
+.pchip.s1{background:var(--amber-bg);color:var(--amber)}
+.pchip.s2{background:var(--ok-bg);color:var(--ok)}
+.pchip.nf0{background:var(--red-bg);color:var(--red)}
+.pchip.nf1,.pchip.nf2{background:var(--accent-soft);color:var(--accent)}
+.pchip.nf2{border-color:color-mix(in srgb,var(--accent) 35%,transparent)}
+button.pchip{cursor:pointer;font-family:var(--f-body)}
+button.pchip:hover:not(:disabled){border-color:currentColor}
+button.pchip:disabled{cursor:not-allowed;opacity:.7}
+.pwho{display:block;font-size:.7rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sheet td.pcell{padding:6px 8px}
+.pg-board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:820px){.pg-board{grid-template-columns:1fr}}
+.pg-col{background:color-mix(in srgb,var(--surface) 82%,transparent);border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0;box-shadow:var(--shadow)}
+.pg-col-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pg-col-h>span:last-child{font:500 .78rem var(--f-mono);color:var(--muted)}
+.pg-tot{font:500 .8rem var(--f-mono);color:var(--muted);padding:0 2px}
+.pg-cards{display:flex;flex-direction:column;gap:8px;max-height:430px;overflow:auto;padding:1px}
+.pg-card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:9px 10px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.pg-card[aria-current="true"]{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.pg-card .t{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font:600 .86rem var(--f-mono)}
+.pg-card .t button{font:inherit;background:none;border:0;padding:0;color:var(--accent);cursor:pointer}
+.pg-card .t button:hover{text-decoration:underline}
+.pg-card .m{font-size:.78rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pg-card .a{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px}
+.pg-mv{font:500 .76rem var(--f-body);background:none;border:1px solid var(--line-strong);color:var(--accent);border-radius:5px;padding:3px 8px;cursor:pointer}
+.pg-mv:hover:not(:disabled){background:var(--accent-soft)}
+.pg-mv:disabled{opacity:.5;cursor:not-allowed}
+.pg-vazio{font-size:.8rem;color:var(--muted);text-align:center;padding:10px;border:1px dashed var(--line-strong);border-radius:6px}
 @media (max-width:980px){.grid{grid-template-columns:1fr}}
 .list{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);overflow:hidden;min-width:0}
 .item{display:grid;grid-template-columns:1fr auto;gap:2px 10px;text-align:left;width:100%;
@@ -434,6 +472,7 @@ body.papel-operador .so-admin{display:none!important}
       </section>
 
       <div class="grid" id="fichasView" hidden>
+        <section class="pg-board" id="pgBoard" aria-label="Pagamento das OS"></section>
         <nav class="list" id="list" aria-label="Solicitações"></nav>
         <main class="detail" id="detail"></main>
       </div>
@@ -578,6 +617,57 @@ function aplicarCheck(it,qual,marcar){
   save(it,{[qual]:marcar?assin:null},(marcar?"Marcou ":"Retirou o ")+CHK[qual]);
   renderSheet();
 }
+// --- estado da nota fiscal e do pagamento de cada OS ---
+const PAG=["A pagar","Em processo de pagamento","Pago"];
+const pagEstado=it=>it.conf?2:it.exec?1:0;
+function nfInfo(it){ const v=notas.filter(a=>a.osId===it.id); return {num:it.nf?.numero||v[0]?.numero||"", arq:v.some(a=>a.anexo)}; }
+function nfChip(it){
+  const n=nfInfo(it);
+  if(!n.num) return `<span class="pchip nf0"><i></i>Sem nota</span>`;
+  return `<span class="pchip ${n.arq?"nf2":"nf1"}" title="${n.arq?"Nota com arquivo anexado":"Nota sem arquivo"}">${n.arq?CLIP:"<i></i>"}NF ${esc(n.num)}</span>`;
+}
+const quemPag=it=>{ const a=it.conf||it.exec; return a?`<span class="pwho">${esc(a.por)} · ${curto(a.em)}</span>`:""; };
+function pagBotao(it){
+  const s=pagEstado(it), dis=canWrite?"":"disabled";
+  return `<button type="button" class="pchip s${s}" data-pag="${esc(it.id)}" ${dis} title="Clique para mudar: A pagar → Em processo → Pago" aria-label="Pagamento ${esc(it.numero)}: ${PAG[s]}"><i></i>${PAG[s]}</button>${quemPag(it)}`;
+}
+// muda o pagamento para 0 (a pagar), 1 (em processo) ou 2 (pago), respeitando quem pode desmarcar
+function mudarPagamento(it,novo){
+  const s=pagEstado(it); if(novo===s) return;
+  const falha=m=>{ notice(m); render(); renderSheet(); };
+  if(!canWrite) return falha("Sem permissão para alterar.");
+  const patch={};
+  if(novo<2 && it.conf){ const r=podeCheck(it,"conf",false); if(!r.ok) return falha(r.motivo); patch.conf=null; }
+  if(novo<1 && it.exec){ const r=podeCheck(it,"exec",false); if(!r.ok) return falha(r.motivo); patch.exec=null; }
+  const assin={por:quem(),email:euMesmo(),em:new Date().toISOString()};
+  if(novo>=1 && !it.exec) patch.exec=assin;
+  if(novo===2 && !it.conf) patch.conf=assin;
+  const acao=novo===2?"Marcou como Pago":novo===1?(s===2?"Desfez o Pago (voltou para Processo de pagamento)":"Colocou em Processo de pagamento"):"Voltou o pagamento para A pagar";
+  notice(""); save(it,patch,acao); renderSheet();
+}
+function renderPagamentos(){
+  const el=$("#pgBoard"); if(!el) return;
+  const dis=canWrite?"":"disabled";
+  el.innerHTML=[0,1,2].map(s=>{
+    const l=items.filter(it=>pagEstado(it)===s).sort((a,b)=>String(b.data||"").localeCompare(String(a.data||"")));
+    const botoes=it=>s===0?`<button type="button" class="pg-mv" data-pgmv="1" data-id="${esc(it.id)}" ${dis}>Iniciar pagamento →</button>`
+      :s===1?`<button type="button" class="pg-mv" data-pgmv="0" data-id="${esc(it.id)}" ${dis} title="Voltar para A pagar">←</button><button type="button" class="pg-mv" data-pgmv="2" data-id="${esc(it.id)}" ${dis}>Marcar pago →</button>`
+      :`<button type="button" class="pg-mv" data-pgmv="1" data-id="${esc(it.id)}" ${dis}>← Desfazer</button>`;
+    return `<div class="pg-col"><div class="pg-col-h"><span class="pchip s${s}"><i></i>${PAG[s]}</span><span>${l.length} OS</span></div>
+      <div class="pg-tot">${l.length?somaMoedas(l,it=>it.valorOs):"—"}</div>
+      <div class="pg-cards">${l.map(it=>`<article class="pg-card" aria-current="${it.id===selId}">
+        <div class="t"><button type="button" data-pgopen="${esc(it.id)}" title="Ver detalhes da OS">${esc(it.numero)}</button><span>${fmtMoeda(it.valorOs,moedaDe(it))}</span></div>
+        <div class="m">${dataBR(it.data)} · ${esc(it.aeroporto||"—")}${it.prestador?" · "+esc(it.prestador):""}</div>
+        <div>${nfChip(it)}</div>
+        <div class="a">${s?quemPag(it):`<span class="pwho">desde ${dataBR(it.data)}</span>`}<span style="display:flex;gap:4px">${botoes(it)}</span></div>
+      </article>`).join("")||`<div class="pg-vazio">Nenhuma OS aqui</div>`}</div></div>`;
+  }).join("");
+}
+$("#pgBoard").addEventListener("click",e=>{
+  const mv=e.target.closest("[data-pgmv]"); if(mv){ const it=items.find(i=>i.id===mv.dataset.id); if(it) mudarPagamento(it,+mv.dataset.pgmv); return; }
+  const op=e.target.closest("[data-pgopen]"); if(op){ selId=op.dataset.pgopen; render(); $("#detail").scrollIntoView({behavior:"smooth",block:"start"}); }
+});
+
 function checkCell(it,qual,soCaixa){
   const a=it[qual], dis=canWrite?"":"disabled", bloq=false;
   return `<label class="ck2${a?" on":""}"><input type="checkbox" data-check="${qual}" data-id="${esc(it.id)}" ${a?"checked":""} ${dis} ${bloq?"disabled":""} aria-label="${CHK[qual].slice(2)} ${esc(it.numero)}">${soCaixa?"":a?`<span><b>${esc(a.por)}</b><i>${curto(a.em)}</i></span>`:bloq?`<span><i>aguarda ①</i></span>`:""}</label>`;
@@ -697,8 +787,8 @@ const COLS=[
   {h:"Data da NF",k:"nf.data",type:"date",w:118},
   {h:"Venc. NF",k:"nf.vencimento",type:"date",w:118},
   {h:"Valor NF (R$)",k:"nf.valor",type:"number",num:true,w:112,sum:true},
-  {h:"① Processo de pagamento",chk:"exec",w:150},
-  {h:"② Pago",chk:"conf",w:110},
+  {h:"Nota fiscal",nfst:true,w:122},
+  {h:"Pagamento",pag:true,w:196},
   {h:"",ro:true,w:76,v:it=>`<button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button>`,html:true}
 ];
 const getF=(it,k)=>k.startsWith("nf.")?(it.nf||{})[k.slice(3)]:it[k];
@@ -717,6 +807,8 @@ function renderSheet0(){
     <tbody>${rows.map((it,r)=>`<tr><td class="rn">${r+2}</td>${COLS.map(c=>{
       if(c.qtd) return `<td class="qtdcell"><div><input data-id="${esc(it.id)}" data-k="qtd" type="number" min="0" step="any" value="${it.qtd??""}" aria-label="Quantidade ${esc(it.numero)}" ${dis}><select data-id="${esc(it.id)}" data-k="unidade" aria-label="Unidade ${esc(it.numero)}" ${dis}>${unidOpts(it.unidade).replace(/ \(objeto\)| \(líquido\)/g,"").replace("Unidade","un").replace("Litros","L").replace("Quilos","kg")}</select></div></td>`;
       if(c.chk) return `<td class="ck2cell">${checkCell(it,c.chk)}</td>`;
+      if(c.nfst) return `<td class="pcell">${nfChip(it)}</td>`;
+      if(c.pag) return `<td class="pcell">${pagBotao(it)}</td>`;
       if(c.moeda) return `<td><select data-id="${esc(it.id)}" data-k="moeda" aria-label="Moeda ${esc(it.numero)}" ${dis}>${moedaOpts(it.moeda).replace("Real (R$)","R$").replace("Dólar (US$)","US$")}</select></td>`;
       if(c.sq) return `<td class="sq"><label><input type="checkbox" data-status="${esc(it.id)}" ${done(it)?"checked":""} ${dis} aria-label="Concluída ${esc(it.numero)}" title="${done(it)?"Concluída":"Pendente"}"></label></td>`;
       if(c.ro) return `<td class="ro">${c.v?(c.html?c.v(it):esc(c.v(it))):esc(getF(it,c.k))}</td>`;
@@ -766,7 +858,9 @@ $("#sheet").addEventListener("change",e=>{
   else save(it,{[k]:t.type==="number"?(parseFloat(t.value)||0):t.type==="date"?t.value:t.value.trim()},ac);
 });
 $("#sheet").addEventListener("focusout",e=>{ if(!$("#sheet").contains(e.relatedTarget)) setTimeout(()=>{ if(!sheetFocused()) renderSheet(); },0); });
-$("#sheet").addEventListener("click",e=>{ const b=e.target.closest("[data-open]"); if(b){ selId=b.dataset.open; setView("fichas"); }});
+$("#sheet").addEventListener("click",e=>{
+  const pg=e.target.closest("[data-pag]"); if(pg){ const it=items.find(i=>i.id===pg.dataset.pag); if(it) mudarPagamento(it,(pagEstado(it)+1)%3); return; }
+  const b=e.target.closest("[data-open]"); if(b){ selId=b.dataset.open; setView("fichas"); }});
 $("#fBusca").addEventListener("input",renderSheet);
 $("#fStatus").addEventListener("change",renderSheet);
 // --- notas fiscais ---
@@ -1005,16 +1099,13 @@ function renderMonitor(){
 $("#monitor").addEventListener("click",e=>{ const b=e.target.closest("[data-open-os]"); if(b && items.some(i=>i.id===b.dataset.openOs)){ selId=b.dataset.openOs; setView("fichas"); } });
 
 function renderKpis(){
-  const conc=items.filter(done).length, pend=items.length-conc;
-  const fat=items.reduce((s,it)=>s+(it.nf?.numero?Number(it.nf.valor)||0:0),0)+notas.reduce((s,a)=>s+(Number(a.valor)||0),0);
-  const semNota=items.filter(it=>!emitida(it)).length;
-  $("#kpis").innerHTML=`<div><span>Ordens de serviço</span><strong>${items.length}</strong><em>registradas</em></div>
-    <div><span>Em andamento</span><strong>${pend}</strong><em>aguardando pagamento</em></div>
-    <div><span>Concluídas</span><strong>${conc}</strong><em>pagas</em></div>
-    <div><span>Faturado</span><strong>${brl(fat)}</strong><em>${semNota} OS ainda sem nota</em></div>`;
+  const semNota=items.filter(it=>!emitida(it)), proc=items.filter(it=>pagEstado(it)===1), pagos=items.filter(it=>pagEstado(it)===2);
+  $("#kpis").innerHTML=`<div style="--k:var(--red)"><span>Nota fiscal pendente</span><strong>${semNota.length}</strong><em>${semNota.length===1?"OS sem nota fiscal":"OS sem nota fiscal"}</em></div>
+    <div style="--k:var(--amber)"><span>Processo de pagamento</span><strong>${proc.length}</strong><em>aguardando o pagamento${proc.length?" · "+somaMoedas(proc,it=>it.valorOs):""}</em></div>
+    <div style="--k:var(--ok)"><span>Pagamento concluído</span><strong>${pagos.length}</strong><em>${pagos.length?somaMoedas(pagos,it=>it.valorOs)+" pagos":"nenhuma OS paga ainda"}</em></div>`;
   $("#kpis").hidden=view==="notas"||view==="monitor"||view==="equipe";
 }
-function render(){ renderList(); renderDetail(); if(!sheetFocused()) renderSheet(); renderNotas(); renderKpis(); renderMonitor(); renderEquipe(); }
+function render(){ renderList(); renderPagamentos(); renderDetail(); if(!sheetFocused()) renderSheet(); renderNotas(); renderKpis(); renderMonitor(); renderEquipe(); }
 
 // --- gravação ---
 let writing=Promise.resolve();
@@ -1429,7 +1520,7 @@ setView(view);
   items=[]; notas=[]; selId=null; render();
   db.collection("notas").orderBy("criado","desc").onSnapshot(snap=>{
     notas=snap.docs.map(s=>({id:s.id,...structuredClone(s.data())}));
-    renderNotas(); renderKpis(); renderMonitor();
+    renderNotas(); renderKpis(); renderMonitor(); renderPagamentos(); if(!sheetFocused()) renderSheet();
     if(!$("#detail").contains(document.activeElement)) renderDetail();
   },()=>{});
   db.doc("config/checklist").onSnapshot(s=>{
@@ -1441,7 +1532,7 @@ setView(view);
     items.forEach(i=>{ i.checklist=i.checklist||[]; i.nf=i.nf||{}; });
     const keepEditing=document.activeElement && $("#detail").contains(document.activeElement) && items.some(i=>i.id===selId);
     if(!items.some(i=>i.id===selId)) selId=items[0]?.id||null;
-    if(keepEditing) { renderList(); if(!sheetFocused()) renderSheet(); } else render();
+    if(keepEditing) { renderList(); renderPagamentos(); renderKpis(); if(!sheetFocused()) renderSheet(); } else render();
   },()=>notice("A conexão com os dados foi interrompida. Recarregue a página."));
 })();
 </script>
