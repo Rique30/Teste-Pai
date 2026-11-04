@@ -515,8 +515,8 @@ body.papel-operador .so-admin{display:none!important}
       <div class="field"><label for="nQtd">Quantidade</label><input id="nQtd" class="mono" type="number" min="0" step="any"></div>
       <div class="field"><label for="nUnid">Unidade</label><select id="nUnid"><option value="un">Unidade (objeto)</option><option value="L">Litros (líquido)</option><option value="kg">Quilos</option></select></div>
       <div class="field"><label for="nMoeda">Moeda</label><select id="nMoeda"><option value="BRL">Real (R$)</option><option value="USD">Dólar (US$)</option></select></div>
-      <div class="field"><label for="nValorUnit">Valor unitário</label><input id="nValorUnit" class="mono" type="number" min="0" step="0.01"></div>
-      <div class="field"><label for="nValorOs">Valor da OS</label><input id="nValorOs" class="mono" type="number" min="0" step="0.01" title="Quantidade × valor unitário (pode ser alterado)"></div>
+      <div class="field"><label for="nValorUnit">Valor unitário</label><input id="nValorUnit" class="mono" type="text" inputmode="decimal" data-valor="1" placeholder="0,00"></div>
+      <div class="field"><label for="nValorOs">Valor da OS</label><input id="nValorOs" class="mono" type="text" inputmode="decimal" data-valor="1" placeholder="0,00" title="Quantidade × valor unitário (pode ser alterado)"></div>
       <div class="field full"><label for="nPrest">Prestador de serviço</label><input id="nPrest" placeholder="Nome da empresa ou profissional"></div>
       <div class="field full"><label for="nObs">Discriminação</label><textarea id="nObs" placeholder="Descrição dos serviços a realizar"></textarea></div>
       <div class="field full">
@@ -563,7 +563,7 @@ body.papel-operador .so-admin{display:none!important}
       <div class="field"><label for="aDataServ">Data da OS / serviço</label><input id="aDataServ" type="date"></div>
       <div class="field" style="grid-column:span 2"><label for="aAero">Local</label><input id="aAero" placeholder="SBGR · Guarulhos"></div>
       <div class="field" style="grid-column:span 2"><label for="aPrest">Prestador de serviço</label><input id="aPrest" placeholder="Nome da empresa ou profissional"></div>
-      <div class="field"><label for="aValor">Valor da NF (R$)</label><input id="aValor" class="mono" type="number" min="0" step="0.01" required></div>
+      <div class="field"><label for="aValor">Valor da NF (R$)</label><input id="aValor" class="mono" type="text" inputmode="decimal" data-valor="1" placeholder="0,00" required></div>
       <div class="field full"><label for="aObs">Discriminação</label><textarea id="aObs" placeholder="Descrição dos serviços cobrados"></textarea></div>
       <div class="field full">
         <label for="aArquivo">Arquivo da nota fiscal (PDF ou foto, até 3 MB)</label>
@@ -612,6 +612,18 @@ let notas=[];
 let checkPadrao=[...CHECK_PADRAO], keepPadrao=true;
 const $=s=>document.querySelector(s);
 const brl=v=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(v)||0);
+// valores com ponto no milhar e vírgula nos centavos: 7.120,50
+const valorTxt=v=>{ const n=Number(v); return v===""||v==null||!n?"":new Intl.NumberFormat("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}).format(n); };
+// lê "7.120,50", "7120,5", "7120.50" ou "7.120" como número
+function lerValor(t){
+  t=String(t??"").trim().replace(/[^\d.,-]/g,"");
+  if(!t) return 0;
+  if(t.includes(",")) t=t.replace(/\./g,"").replace(",",".");
+  else if(/^\d{1,3}(\.\d{3})+$/.test(t)) t=t.replace(/\./g,"");
+  const n=parseFloat(t); return isNaN(n)?0:Math.round(n*100)/100;
+}
+// OS mais recentes primeiro (data da OS; no empate, a criada por último)
+const porData=(a,b)=>String(b.data||"").localeCompare(String(a.data||""))||(Number(b.criado)||0)-(Number(a.criado)||0);
 // moeda da OS: Real (padrão) ou Dólar
 const MOEDAS={BRL:"R$",USD:"US$"};
 const moedaDe=it=>it.moeda==="USD"?"USD":"BRL";
@@ -771,8 +783,8 @@ function renderDetail(){
       <div class="field"><label for="dQtd">Quantidade</label><input id="dQtd" class="mono" type="number" min="0" step="any" value="${it.qtd??""}" ${dis}></div>
       <div class="field"><label for="dUnid">Unidade</label><select id="dUnid" ${dis}>${unidOpts(it.unidade)}</select></div>
       <div class="field"><label for="dMoeda">Moeda</label><select id="dMoeda" ${dis}>${moedaOpts(it.moeda)}</select></div>
-      <div class="field"><label for="dValorUnit">Valor unitário</label><input id="dValorUnit" class="mono" type="number" min="0" step="0.01" value="${it.valorUnit||""}" ${dis}></div>
-      <div class="field"><label for="dValorOs">Valor da OS</label><input id="dValorOs" class="mono" type="number" min="0" step="0.01" value="${it.valorOs||""}" title="Quantidade × valor unitário (pode ser alterado)" ${dis}></div>
+      <div class="field"><label for="dValorUnit">Valor unitário</label><input id="dValorUnit" class="mono" type="text" inputmode="decimal" data-valor="1" placeholder="0,00" value="${valorTxt(it.valorUnit)}" ${dis}></div>
+      <div class="field"><label for="dValorOs">Valor da OS</label><input id="dValorOs" class="mono" type="text" inputmode="decimal" data-valor="1" placeholder="0,00" value="${valorTxt(it.valorOs)}" title="Quantidade × valor unitário (pode ser alterado)" ${dis}></div>
       <div class="field full"><label for="dPrest">Prestador de serviço</label><input id="dPrest" value="${esc(it.prestador||"")}" ${dis}></div>
       <div class="field full"><label for="dObs">Discriminação</label><textarea id="dObs" ${dis}>${esc(it.obs)}</textarea></div>
     </div>
@@ -852,7 +864,7 @@ function filtered(){
     (!f.fPrest || (it.prestador||"").trim()===f.fPrest) &&
     (!f.fMes || String(it.data||"").startsWith(f.fMes)) &&
     (!f.fMoeda || moedaDe(it)===f.fMoeda) &&
-    (!q||[it.numero,it.aeroporto,it.prestador,it.obs].join(" ").toLowerCase().includes(q)));
+    (!q||[it.numero,it.aeroporto,it.prestador,it.obs].join(" ").toLowerCase().includes(q))).sort(porData);
 }
 function renderSheet(){ opcoesFiltros(); renderSheet0(); ajustarPlanilha(); }
 function renderSheet0(){
@@ -871,7 +883,7 @@ function renderSheet0(){
       if(c.sq) return `<td class="sq"><label><input type="checkbox" data-status="${esc(it.id)}" ${done(it)?"checked":""} ${dis} aria-label="Concluída ${esc(it.numero)}" title="${done(it)?"Concluída":"Pendente"}"></label></td>`;
       if(c.ro) return `<td class="ro">${c.v?(c.html?c.v(it):esc(c.v(it))):esc(getF(it,c.k))}</td>`;
       const val=getF(it,c.k)??""; const a=`data-id="${esc(it.id)}" data-k="${c.k}" aria-label="${c.h} ${esc(it.numero)}" ${dis}`;
-      return `<td class="${c.num?"num":""}">${c.area?`<textarea ${a} wrap="off" title="${esc(val)}">${esc(val)}</textarea>`:`<input ${a} type="${c.type||"text"}" ${c.num?'step="0.01" min="0"':""} value="${esc(c.num&&!val?"":val)}">`}</td>`;
+      return `<td class="${c.num?"num":""}">${c.area?`<textarea ${a} wrap="off" title="${esc(val)}">${esc(val)}</textarea>`:`<input ${a} type="${c.num?"text":c.type||"text"}" ${c.num?'inputmode="decimal" data-valor="1"':""} value="${esc(c.num?valorTxt(val):val)}">`}</td>`;
     }).join("")}</tr>`).join("")}
     ${rows.length?"":`<tr><td class="rn">2</td><td class="ro" colspan="${COLS.length}">Nenhum serviço encontrado.</td></tr>`}</tbody>`;
 }
@@ -900,20 +912,20 @@ $("#sheet").addEventListener("change",e=>{
   const it=items.find(i=>i.id===t.dataset.id); if(!it||!t.dataset.k) return;
   const k=t.dataset.k;
   const ac="Alterou "+(CAMPOS[k]||k)+" pela planilha";
-  if(k.startsWith("nf.")){ const f=k.slice(3); save(it,{nf:{...it.nf,[f]:f==="valor"?(parseFloat(t.value)||0):t.value.trim()}},ac); }
+  if(k.startsWith("nf.")){ const f=k.slice(3); save(it,{nf:{...it.nf,[f]:f==="valor"?lerValor(t.value):t.value.trim()}},ac); }
   else if(k==="moeda") save(it,{moeda:t.value},"Alterou a moeda para "+MOEDAS[t.value]);
   else if(k==="numero"){
     const num=t.value.trim();
-    if(!num||numeroEmUso(num,it.id)){ notice(num?`Já existe uma OS com o número ${num}.`:"O número da OS não pode ficar vazio."); t.value=it.numero; return; }
+    if(!num){ notice("O número da OS não pode ficar vazio."); t.value=it.numero; return; }
     notice(""); save(it,{numero:num},"Alterou o Nº da OS de "+it.numero+" para "+num);
   }
   else if(k==="qtd"||k==="valorUnit"){
-    const v=t.value===""?(k==="qtd"?null:0):parseFloat(t.value), patch={[k]:v};
+    const v=t.value===""?(k==="qtd"?null:0):k==="qtd"?parseFloat(t.value):lerValor(t.value), patch={[k]:v};
     const q=k==="qtd"?v:it.qtd, u=k==="valorUnit"?v:it.valorUnit;
     if(q>0&&u>0) patch.valorOs=Math.round(q*u*100)/100;
     save(it,patch,ac);
   }
-  else save(it,{[k]:t.type==="number"?(parseFloat(t.value)||0):t.type==="date"?t.value:t.value.trim()},ac);
+  else save(it,{[k]:t.dataset.valor?lerValor(t.value):t.type==="number"?(parseFloat(t.value)||0):t.type==="date"?t.value:t.value.trim()},ac);
 });
 $("#sheet").addEventListener("focusout",e=>{ if(!$("#sheet").contains(e.relatedTarget)) setTimeout(()=>{ if(!sheetFocused()) renderSheet(); },0); });
 $("#sheet").addEventListener("click",e=>{
@@ -986,7 +998,7 @@ function abrirNf(a,osId){
   $("#dlgNfTitulo").textContent=a?"Editar nota fiscal":"Nova nota fiscal"; $("#aSalvar").textContent=a?"Salvar nota fiscal":"Criar nota fiscal";
   const hoje=new Date().toISOString().slice(0,10);
   $("#aNum").value=a?.numero||""; $("#aData").value=a?.data||hoje; $("#aDataServ").value=a?.dataServ||""; $("#aVenc").value=a?.vencimento||"";
-  $("#aAero").value=a?.aeroporto||""; $("#aPrest").value=a?.prestador||""; $("#aValor").value=a?.valor||""; $("#aObs").value=a?.obs||"";
+  $("#aAero").value=a?.aeroporto||""; $("#aPrest").value=a?.prestador||""; $("#aValor").value=valorTxt(a?.valor); $("#aObs").value=a?.obs||"";
   const sel=a?.servicos||[], lista=[...checkPadrao,...sel.filter(t=>!checkPadrao.includes(t))];
   $("#aPickList").innerHTML=lista.map((t,i)=>`<label for="apk${i}"><input type="checkbox" id="apk${i}" value="${esc(t)}" ${sel.includes(t)?"checked":""}> ${esc(t)}</label>`).join("");
   $("#aOs").innerHTML=`<option value="">Nenhuma (nota avulsa)</option>`+items.map(it=>`<option value="${esc(it.id)}">${esc(it.numero)} · ${dataBR(it.data)} · ${esc(it.aeroporto||"")}${it.prestador?" · "+esc(it.prestador):""}</option>`).join("");
@@ -998,7 +1010,7 @@ function abrirNf(a,osId){
 $("#aOs").addEventListener("change",()=>{
   const it=items.find(i=>i.id===$("#aOs").value); if(!it) return;
   $("#aDataServ").value=it.data||""; $("#aAero").value=it.aeroporto||""; $("#aPrest").value=it.prestador||"";
-  $("#aObs").value=it.obs||""; if(it.valorOs) $("#aValor").value=it.valorOs;
+  $("#aObs").value=it.obs||""; if(it.valorOs) $("#aValor").value=valorTxt(it.valorOs);
   const sel=it.checklist.map(c=>c.t);
   [...$("#aPickList").querySelectorAll("input")].forEach(x=>x.checked=sel.includes(x.value));
   const extra=sel.filter(t=>![...$("#aPickList").querySelectorAll("input")].some(x=>x.value===t));
@@ -1027,7 +1039,7 @@ $("#formNf").addEventListener("submit",async e=>{
   const anexoAntigo=antiga?.anexo;
   if(anexoAntigo && anexoAntigo.id!==anexo?.id && modoSite) api("excluirAnexo",{id:anexoAntigo.id}).catch(()=>{});
   const a={numero:$("#aNum").value.trim(), data:$("#aData").value, vencimento:$("#aVenc").value, dataServ:$("#aDataServ").value, aeroporto:$("#aAero").value.trim(), prestador:$("#aPrest").value.trim(),
-    valor:parseFloat($("#aValor").value)||0, obs:$("#aObs").value,
+    valor:lerValor($("#aValor").value), obs:$("#aObs").value,
     servicos:[...$("#aPickList").querySelectorAll("input:checked")].map(x=>x.value), osId:$("#aOs").value, criado:antiga?.criado||Date.now()};
   if(antiga?.exemplo) a.exemplo=true;
   if(anexo) a.anexo=anexo;
@@ -1221,9 +1233,8 @@ $("#detail").addEventListener("click",async e=>{
   if(id==="btnSalvarSol"){
     const num=$("#dNum").value.trim();
     if(!num){ notice("Informe o número da OS."); $("#dNum").focus(); return; }
-    if(numeroEmUso(num,it.id)){ notice(`Já existe uma OS com o número ${num}.`); $("#dNum").focus(); return; }
     notice("");
-    const ok=await save(it,{numero:num, moeda:$("#dMoeda").value, valorUnit:parseFloat($("#dValorUnit").value)||0, data:$("#dData").value, aeroporto:$("#dAero").value.trim(), prestador:$("#dPrest").value.trim(), valorOs:parseFloat($("#dValorOs").value)||0, qtd:$("#dQtd").value===""?null:parseFloat($("#dQtd").value), unidade:$("#dUnid").value, obs:$("#dObs").value},"Editou os dados da OS");
+    const ok=await save(it,{numero:num, moeda:$("#dMoeda").value, valorUnit:lerValor($("#dValorUnit").value), data:$("#dData").value, aeroporto:$("#dAero").value.trim(), prestador:$("#dPrest").value.trim(), valorOs:lerValor($("#dValorOs").value), qtd:$("#dQtd").value===""?null:parseFloat($("#dQtd").value), unidade:$("#dUnid").value, obs:$("#dObs").value},"Editou os dados da OS");
     if(ok) flash("#savedSol","Solicitação salva");
   } else if(id==="btnSalvarNf"){
     const ok=await save(it,{nf:{numero:$("#fNum").value.trim(), data:$("#fData").value, valor:parseFloat($("#fValor").value)||0}});
@@ -1268,22 +1279,22 @@ function proxNumero(){
   const max=items.reduce((m,i)=>Math.max(m,parseInt(String(i.numero).replace(/\D/g,""))||0),0);
   return "OS-"+String(max+1).padStart(4,"0");
 }
-const numeroEmUso=(num,exceto)=>items.some(i=>i.id!==exceto && String(i.numero).trim().toLowerCase()===num.trim().toLowerCase());
 // valor da OS = quantidade × valor unitário (calculado ao digitar; continua editável)
-function calcValor(q,u,v){ const a=parseFloat($(q).value), b=parseFloat($(u).value); if(a>0&&b>0) $(v).value=(Math.round(a*b*100)/100).toFixed(2); }
+function calcValor(q,u,v){ const a=parseFloat($(q).value), b=lerValor($(u).value); if(a>0&&b>0) $(v).value=valorTxt(Math.round(a*b*100)/100); }
+// ao sair de um campo de valor, mostra no formato 7.120,50
+document.addEventListener("focusout",e=>{ const t=e.target; if(t.matches?.("input[data-valor]:not([data-id])") && t.value.trim()) t.value=valorTxt(lerValor(t.value)); });
 ["#nQtd","#nValorUnit"].forEach(s=>$(s).addEventListener("input",()=>calcValor("#nQtd","#nValorUnit","#nValorOs")));
 $("#detail").addEventListener("input",e=>{ if(e.target.id==="dQtd"||e.target.id==="dValorUnit") calcValor("#dQtd","#dValorUnit","#dValorOs"); });
 $("#nNum").addEventListener("input",e=>e.target.setCustomValidity(""));
 $("#formNova").addEventListener("submit",e=>{
   e.preventDefault();
   const num=$("#nNum").value.trim();
-  if(numeroEmUso(num)){ $("#nNum").setCustomValidity(`Já existe uma OS com o número ${num}.`); $("#nNum").reportValidity(); return; }
   const id="s"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const it={id, numero:num, data:$("#nData").value, aeroporto:$("#nAero").value.trim(),
-    prestador:$("#nPrest").value.trim(), moeda:$("#nMoeda").value, valorUnit:parseFloat($("#nValorUnit").value)||0, valorOs:parseFloat($("#nValorOs").value)||0, qtd:$("#nQtd").value===""?null:parseFloat($("#nQtd").value), unidade:$("#nUnid").value, obs:$("#nObs").value, criado:Date.now(),
+    prestador:$("#nPrest").value.trim(), moeda:$("#nMoeda").value, valorUnit:lerValor($("#nValorUnit").value), valorOs:lerValor($("#nValorOs").value), qtd:$("#nQtd").value===""?null:parseFloat($("#nQtd").value), unidade:$("#nUnid").value, obs:$("#nObs").value, criado:Date.now(),
     checklist:[...$("#pickList").querySelectorAll("input:checked")].map(x=>({t:x.value,ok:false})),
     nf:{numero:"",data:"",valor:0}};
-  items=[it,...items]; selId=id; dlg.close(); save(it,{},"Criou a OS");
+  items=[it,...items].sort(porData); selId=id; dlg.close(); save(it,{},"Criou a OS");
   if(view==="planilha") setTimeout(()=>{ const f=$(`#sheet [data-id="${id}"][data-k="obs"]`); if(f) f.focus(); },0);
 });
 
@@ -1592,6 +1603,7 @@ setView(view);
   db.collection("solicitacoes").orderBy("criado","desc").onSnapshot(snap=>{
     items=snap.docs.map(s=>({id:s.id,...structuredClone(s.data())}));
     items.forEach(i=>{ i.checklist=i.checklist||[]; i.nf=i.nf||{}; });
+    items.sort(porData);
     const keepEditing=document.activeElement && $("#detail").contains(document.activeElement) && items.some(i=>i.id===selId);
     if(!items.some(i=>i.id===selId)) selId=items[0]?.id||null;
     if(keepEditing) { renderList(); renderPagamentos(); renderKpis(); if(!sheetFocused()) renderSheet(); } else render();
