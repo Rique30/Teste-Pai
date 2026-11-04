@@ -155,11 +155,11 @@ button.pchip:hover:not(:disabled){border-color:currentColor}
 button.pchip:disabled{cursor:not-allowed;opacity:.7}
 .pwho{display:block;font-size:.7rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sheet td.pcell{padding:6px 8px}
-.filtros{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
-.filtros label{display:flex;flex-direction:column;gap:3px;font:500 .74rem var(--f-body);color:var(--muted);flex:1 1 150px;min-width:0;max-width:220px}
-.filtros select{padding:6px 8px;font-size:.84rem}
-.filtros select.ativo{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
-.filtros .linkbtn{padding:8px 4px;align-self:flex-end}
+.filtros{display:grid;grid-template-columns:repeat(auto-fill,minmax(225px,1fr));gap:12px 14px;align-items:end;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;box-shadow:var(--shadow)}
+.filtros label{display:flex;flex-direction:column;gap:5px;font:600 .9rem var(--f-body);color:var(--ink);min-width:0}
+.filtros select{padding:9px 10px;font-size:.95rem;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong)}
+.filtros select.ativo{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent);background:var(--accent-soft);font-weight:600}
+.filtros .linkbtn{padding:10px 6px;justify-self:start;font-size:.92rem;font-weight:600}
 body.planilha-max .filtros{display:none}
 .legenda{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 @media (max-width:980px){.legenda{grid-template-columns:1fr}}
