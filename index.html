@@ -221,7 +221,7 @@ input.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .sheet-tools input,.sheet-tools select{width:auto;flex:1 1 200px;max-width:320px}
 .sheet-tools .count{color:var(--muted);font-size:.82rem;margin-left:auto}
 .sheet-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);box-shadow:var(--shadow)}
-table.sheet{border-collapse:collapse;table-layout:fixed;width:100%;min-width:1982px;font-size:.86rem;font-variant-numeric:tabular-nums}
+table.sheet{border-collapse:collapse;table-layout:fixed;width:100%;min-width:1890px;font-size:.86rem;font-variant-numeric:tabular-nums}
 .sheet th,.sheet td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:0;vertical-align:middle}
 .sheet thead th{position:sticky;top:0;background:var(--head);font:600 .75rem var(--f-body);color:var(--muted);text-align:left;padding:8px;z-index:1}
 .sheet thead tr.letters th{text-align:center;font:500 .66rem var(--f-mono);padding:3px;background:var(--bg)}
@@ -252,7 +252,7 @@ table.sheet{border-collapse:collapse;table-layout:fixed;width:100%;min-width:198
 .ck2 b{font-size:.78rem;font-weight:600;color:var(--ok);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ck2 i{font-style:normal;font-size:.7rem;color:var(--muted)}
 .sheet td.ck2cell{padding:6px}
-.duplo{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.duplo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}
 @media (max-width:640px){.duplo{grid-template-columns:1fr}}
 .duplo .status-sq{margin-bottom:0;align-items:flex-start}
 .duplo .status-sq .ck2{flex:none}
@@ -424,7 +424,7 @@ body.papel-operador .so-admin{display:none!important}
         <div style="display:flex;flex-direction:column;gap:12px">
           <div class="sheet-tools">
             <input id="fBusca" placeholder="Buscar por OS, local, prestador ou discriminação">
-            <select id="fStatus"><option value="">Todos os status</option><option value="pend">Pendentes</option><option value="done">Concluídas</option></select>
+            <select id="fStatus"><option value="">Todos os status</option><option value="pend">A pagar</option><option value="done">Pagas</option></select>
             <span class="count" id="sheetCount"></span>
             <button class="btn" type="button" id="btnFit" aria-pressed="false" title="Diminuir a planilha até caber inteira na largura da tela"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></svg>Ajustar à tela</button>
             <button class="btn" type="button" id="btnMax" title="Usar a tela inteira para a planilha"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" id="maxIcon"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span id="maxTxt">Maximizar planilha</span></button>
@@ -560,11 +560,11 @@ function somaMoedas(lista,val){
 }
 const dataBR=d=>{ if(!d) return "—"; const [y,m,dd]=d.split("-"); return `${dd}/${m}/${y}`; };
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const done=it=>!!(it.exec && it.conf);
+const done=it=>!!it.conf; // concluída quando está paga
 const curto=iso=>{ if(!iso) return ""; const d=new Date(iso); return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"}); };
 const euMesmo=()=>usuarioAtual?.email||"demo";
 // Regras dos dois checks: retorna {ok:boolean, motivo:string} para cada ação
-const CHK={cien:"① Ciente",exec:"② Confirmado",conf:"③ Pago"};
+const CHK={exec:"① Processo de pagamento",conf:"② Pago"};
 function podeCheck(it,qual,marcar){
   if(!canWrite) return {ok:false,motivo:"Sem permissão para alterar."};
   if(!marcar && live && it[qual]?.email!==euMesmo() && !ehAdmin()) return {ok:false,motivo:`Só quem marcou o ${CHK[qual].slice(2)} ou um administrador pode retirar este check.`};
@@ -595,7 +595,7 @@ function renderList(){
     const n=it.checklist.filter(c=>c.ok).length;
     return `<button type="button" class="item" data-id="${esc(it.id)}" aria-current="${it.id===selId}">
       <span class="code">${esc(it.numero)}</span>
-      <span class="pill ${done(it)?"done":"pend"}">${done(it)?"Concluída":it.exec?"Aguardando pagamento":it.conf?"Paga · falta confirmar":`${n}/${it.checklist.length} ok`}</span>
+      <span class="pill ${done(it)?"done":"pend"}">${done(it)?"Paga":it.exec?"Em processo de pagamento":`${n}/${it.checklist.length} ok`}</span>
       <span class="meta">${dataBR(it.data)} — ${esc(it.aeroporto)}${it.prestador?" · "+esc(it.prestador):""}${it.exemplo?" · exemplo":""}</span>
     </button>`;
   }).join("");
@@ -656,9 +656,8 @@ function renderDetail(){
   <section class="card">
     <h2>Checklist <small>${n} de ${it.checklist.length} ok · ${pct}%</small></h2>
     <div class="duplo">
-      <div class="status-sq">${checkCell(it,"cien",true)}<span><b>① Ciente</b> ${it.cien?`Marcado por <strong>${esc(it.cien.por)}</strong> em ${quando(it.cien.em)}`:"Marque para registrar que você está ciente da OS."}</span></div>
-      <div class="status-sq">${checkCell(it,"exec",true)}<span><b>② Confirmado</b> ${it.exec?`Marcado por <strong>${esc(it.exec.por)}</strong> em ${quando(it.exec.em)}`:"Quem recebe a OS confirma o serviço."}</span></div>
-      <div class="status-sq">${checkCell(it,"conf",true)}<span><b>③ Pago</b> ${it.conf?`Marcado por <strong>${esc(it.conf.por)}</strong> em ${quando(it.conf.em)}`:"Marque quando o pagamento for feito. A OS fica concluída com Confirmado e Pago marcados."}</span></div>
+      <div class="status-sq">${checkCell(it,"exec",true)}<span><b>① Processo de pagamento</b> ${it.exec?`Marcado por <strong>${esc(it.exec.por)}</strong> em ${quando(it.exec.em)}`:"Marque quando o pagamento entrar em processo."}</span></div>
+      <div class="status-sq">${checkCell(it,"conf",true)}<span><b>② Pago</b> ${it.conf?`Marcado por <strong>${esc(it.conf.por)}</strong> em ${quando(it.conf.em)}`:"Marque quando o pagamento for feito. A OS fica concluída."}</span></div>
     </div>
     <div class="progress"><i style="width:${pct}%"></i></div>
     <ul class="checks">
@@ -694,13 +693,12 @@ const COLS=[
   {h:"Moeda",moeda:true,w:68},
   {h:"Valor unit.",k:"valorUnit",type:"number",num:true,w:100},
   {h:"Valor da OS",k:"valorOs",type:"number",num:true,w:124,sum:true,porMoeda:true},
-  {h:"① Ciente",chk:"cien",w:118},
   {h:"NF nº",k:"nf.numero",w:90},
   {h:"Data da NF",k:"nf.data",type:"date",w:118},
   {h:"Venc. NF",k:"nf.vencimento",type:"date",w:118},
   {h:"Valor NF (R$)",k:"nf.valor",type:"number",num:true,w:112,sum:true},
-  {h:"② Confirmado",chk:"exec",w:124},
-  {h:"③ Pago",chk:"conf",w:110},
+  {h:"① Processo de pagamento",chk:"exec",w:150},
+  {h:"② Pago",chk:"conf",w:110},
   {h:"",ro:true,w:76,v:it=>`<button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button>`,html:true}
 ];
 const getF=(it,k)=>k.startsWith("nf.")?(it.nf||{})[k.slice(3)]:it[k];
@@ -725,8 +723,7 @@ function renderSheet0(){
       const val=getF(it,c.k)??""; const a=`data-id="${esc(it.id)}" data-k="${c.k}" aria-label="${c.h} ${esc(it.numero)}" ${dis}`;
       return `<td class="${c.num?"num":""}">${c.area?`<textarea ${a} wrap="off" title="${esc(val)}">${esc(val)}</textarea>`:`<input ${a} type="${c.type||"text"}" ${c.num?'step="0.01" min="0"':""} value="${esc(c.num&&!val?"":val)}">`}</td>`;
     }).join("")}</tr>`).join("")}
-    ${rows.length?"":`<tr><td class="rn">2</td><td class="ro" colspan="${COLS.length}">Nenhum serviço encontrado.</td></tr>`}
-    <tr class="total"><td class="rn">${rows.length+2+(rows.length?0:1)}</td>${COLS.map((c,i)=>c.sum?`<td class="num">${c.porMoeda?somaMoedas(rows,it=>getF(it,c.k)):brl(rows.reduce((s,it)=>s+(Number(getF(it,c.k))||0),0))}</td>`:`<td>${i===0?"TOTAL":""}</td>`).join("")}</tr></tbody>`;
+    ${rows.length?"":`<tr><td class="rn">2</td><td class="ro" colspan="${COLS.length}">Nenhum serviço encontrado.</td></tr>`}</tbody>`;
 }
 // --- ajustar à tela ---
 let ajustar=false;
@@ -1012,8 +1009,8 @@ function renderKpis(){
   const fat=items.reduce((s,it)=>s+(it.nf?.numero?Number(it.nf.valor)||0:0),0)+notas.reduce((s,a)=>s+(Number(a.valor)||0),0);
   const semNota=items.filter(it=>!emitida(it)).length;
   $("#kpis").innerHTML=`<div><span>Ordens de serviço</span><strong>${items.length}</strong><em>registradas</em></div>
-    <div><span>Em andamento</span><strong>${pend}</strong><em>aguardando confirmação ou pagamento</em></div>
-    <div><span>Concluídas</span><strong>${conc}</strong><em>confirmadas e pagas</em></div>
+    <div><span>Em andamento</span><strong>${pend}</strong><em>aguardando pagamento</em></div>
+    <div><span>Concluídas</span><strong>${conc}</strong><em>pagas</em></div>
     <div><span>Faturado</span><strong>${brl(fat)}</strong><em>${semNota} OS ainda sem nota</em></div>`;
   $("#kpis").hidden=view==="notas"||view==="monitor"||view==="equipe";
 }
@@ -1146,12 +1143,11 @@ function gerarPlanilha(){
       "OS":it.numero, "Data da OS":dataBR(it.data), "Local":it.aeroporto,
       "Prestador de serviço":it.prestador||"",
       "Discriminação":it.obs||"", "Qtd.":it.qtd==null?"":Number(it.qtd), "Unidade":it.qtd==null?"":(UNIDADES[it.unidade]||"un"), "Moeda":MOEDAS[moedaDe(it)], "Valor unitário":Number(it.valorUnit)||0, "Valor da OS":Number(it.valorOs)||0,
-      "Checklist OK":`${n}/${it.checklist.length}`, "Status":done(it)?"Concluída":it.exec?"Aguardando pagamento":it.conf?"Paga, falta confirmar":"Pendente", "Ciente por":it.cien?`${it.cien.por} (${dataBR(it.cien.em.slice(0,10))})`:"", "Confirmado por":it.exec?`${it.exec.por} (${dataBR(it.exec.em.slice(0,10))})`:"", "Pago por":it.conf?`${it.conf.por} (${dataBR(it.conf.em.slice(0,10))})`:"",
+      "Checklist OK":`${n}/${it.checklist.length}`, "Status":done(it)?"Paga":it.exec?"Em processo de pagamento":"Pendente", "Processo de pagamento por":it.exec?`${it.exec.por} (${dataBR(it.exec.em.slice(0,10))})`:"", "Pago por":it.conf?`${it.conf.por} (${dataBR(it.conf.em.slice(0,10))})`:"",
       "Itens pendentes":it.checklist.filter(c=>!c.ok).map(c=>c.t).join("; "),
       "NF nº":it.nf?.numero||"", "Data da NF":it.nf?.data?dataBR(it.nf.data):"", "Vencimento NF":it.nf?.vencimento?dataBR(it.nf.vencimento):"", "Valor da NF (R$)":Number(it.nf?.valor)||0
     };
   });
-  linhas.push({"OS":"TOTAL","Valor da OS (R$)":linhas.reduce((s,l)=>s+l["Valor da OS (R$)"],0),"Valor da NF (R$)":linhas.reduce((s,l)=>s+l["Valor da NF (R$)"],0)});
   const ws=XLSX.utils.json_to_sheet(linhas);
   ws["!cols"]=[10,12,22,30,50,10,8,16,12,11,44,12,12,14,16].map(w=>({wch:w}));
   const range=XLSX.utils.decode_range(ws["!ref"]);
