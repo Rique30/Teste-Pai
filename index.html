@@ -1100,9 +1100,9 @@ $("#monitor").addEventListener("click",e=>{ const b=e.target.closest("[data-open
 
 function renderKpis(){
   const semNota=items.filter(it=>!emitida(it)), proc=items.filter(it=>pagEstado(it)===1), pagos=items.filter(it=>pagEstado(it)===2);
-  $("#kpis").innerHTML=`<div style="--k:var(--red)"><span>Nota fiscal pendente</span><strong>${semNota.length}</strong><em>${semNota.length===1?"OS sem nota fiscal":"OS sem nota fiscal"}</em></div>
-    <div style="--k:var(--amber)"><span>Processo de pagamento</span><strong>${proc.length}</strong><em>aguardando o pagamento${proc.length?" · "+somaMoedas(proc,it=>it.valorOs):""}</em></div>
-    <div style="--k:var(--ok)"><span>Pagamento concluído</span><strong>${pagos.length}</strong><em>${pagos.length?somaMoedas(pagos,it=>it.valorOs)+" pagos":"nenhuma OS paga ainda"}</em></div>`;
+  $("#kpis").innerHTML=`<div style="--k:var(--red)"><span>Nota fiscal pendente</span><strong>${semNota.length}</strong></div>
+    <div style="--k:var(--amber)"><span>Processo de pagamento</span><strong>${proc.length}</strong><em>aguardando o início do processo${proc.length?" · "+somaMoedas(proc,it=>it.valorOs):""}</em></div>
+    <div style="--k:var(--ok)"><span>Pagamento concluído</span><strong>${pagos.length}</strong><em>${pagos.length?somaMoedas(pagos,it=>it.valorOs)+" pagos":"aguardando o início do processo de pagamento"}</em></div>`;
   $("#kpis").hidden=view==="notas"||view==="monitor"||view==="equipe";
 }
 function render(){ renderList(); renderPagamentos(); renderDetail(); if(!sheetFocused()) renderSheet(); renderNotas(); renderKpis(); renderMonitor(); renderEquipe(); }
