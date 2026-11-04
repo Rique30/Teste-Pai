@@ -271,7 +271,7 @@ input.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .sheet-tools input,.sheet-tools select{width:auto;flex:1 1 200px;max-width:320px}
 .sheet-tools .count{color:var(--muted);font-size:.82rem;margin-left:auto}
 .sheet-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);box-shadow:var(--shadow)}
-table.sheet{border-collapse:collapse;table-layout:fixed;width:100%;min-width:2182px;font-size:.86rem;font-variant-numeric:tabular-nums}
+table.sheet{border-collapse:collapse;table-layout:fixed;width:100%;min-width:2214px;font-size:.86rem;font-variant-numeric:tabular-nums}
 .sheet th,.sheet td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:0;vertical-align:middle}
 .sheet thead th{position:sticky;top:0;background:var(--head);font:600 .75rem var(--f-body);color:var(--muted);text-align:left;padding:8px;z-index:1}
 .sheet thead tr.letters th{text-align:center;font:500 .66rem var(--f-mono);padding:3px;background:var(--bg)}
@@ -512,10 +512,10 @@ body.papel-operador .so-admin{display:none!important}
       <div class="field"><label for="nNum">Nº da OS</label><input id="nNum" class="mono" required placeholder="OS-0001"></div>
       <div class="field"><label for="nData">Data da OS</label><input id="nData" type="date" required></div>
       <div class="field"><label for="nAero">Local</label><input id="nAero" placeholder="SBGR · Guarulhos" required></div>
-      <div class="field"><label for="nQtd">Quantidade</label><input id="nQtd" class="mono" type="number" min="0" step="any"></div>
+      <div class="field"><label for="nQtd">Quantidade</label><input id="nQtd" class="mono" type="text" inputmode="decimal" data-qtd="1" placeholder="0"></div>
       <div class="field"><label for="nUnid">Unidade</label><select id="nUnid"><option value="un">Unidade (objeto)</option><option value="L">Litros (líquido)</option><option value="kg">Quilos</option></select></div>
       <div class="field"><label for="nMoeda">Moeda</label><select id="nMoeda"><option value="BRL">Real (R$)</option><option value="USD">Dólar (US$)</option></select></div>
-      <div class="field"><label for="nValorUnit">Valor unitário</label><input id="nValorUnit" class="mono" type="text" inputmode="decimal" data-valor="1" placeholder="0,00"></div>
+      <div class="field"><label for="nValorUnit">Valor unitário</label><input id="nValorUnit" class="mono" type="text" inputmode="decimal" data-valor="6" placeholder="0,000000"></div>
       <div class="field"><label for="nValorOs">Valor da OS</label><input id="nValorOs" class="mono" type="text" inputmode="decimal" data-valor="1" placeholder="0,00" title="Quantidade × valor unitário (pode ser alterado)"></div>
       <div class="field full"><label for="nPrest">Prestador de serviço</label><input id="nPrest" placeholder="Nome da empresa ou profissional"></div>
       <div class="field full"><label for="nObs">Discriminação</label><textarea id="nObs" placeholder="Descrição dos serviços a realizar"></textarea></div>
@@ -613,15 +613,19 @@ let checkPadrao=[...CHECK_PADRAO], keepPadrao=true;
 const $=s=>document.querySelector(s);
 const brl=v=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(v)||0);
 // valores com ponto no milhar e vírgula nos centavos: 7.120,50
-const valorTxt=v=>{ const n=Number(v); return v===""||v==null||!n?"":new Intl.NumberFormat("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}).format(n); };
+// casas: 2 para valores em dinheiro, 6 para o valor unitário; zero aparece como 0,00
+const valorTxt=(v,casas=2)=>{ if(v===""||v==null) return ""; const n=Number(v); return isNaN(n)?"":new Intl.NumberFormat("pt-BR",{minimumFractionDigits:casas,maximumFractionDigits:casas}).format(n); };
+// quantidade com ponto no milhar e até 3 casas: 12.500 / 1.234,5
+const qtdFmt=v=>{ if(v===""||v==null) return ""; const n=Number(v); return isNaN(n)?"":new Intl.NumberFormat("pt-BR",{maximumFractionDigits:3}).format(n); };
 // lê "7.120,50", "7120,5", "7120.50" ou "7.120" como número
-function lerValor(t){
+function lerValor(t,casas=2){
   t=String(t??"").trim().replace(/[^\d.,-]/g,"");
   if(!t) return 0;
   if(t.includes(",")) t=t.replace(/\./g,"").replace(",",".");
   else if(/^\d{1,3}(\.\d{3})+$/.test(t)) t=t.replace(/\./g,"");
-  const n=parseFloat(t); return isNaN(n)?0:Math.round(n*100)/100;
+  const n=parseFloat(t), k=10**casas; return isNaN(n)?0:Math.round(n*k)/k;
 }
+const lerQtd=t=>String(t??"").trim()===""?null:lerValor(t,3);
 // OS mais recentes primeiro (data da OS; no empate, a criada por último)
 const porData=(a,b)=>String(b.data||"").localeCompare(String(a.data||""))||(Number(b.criado)||0)-(Number(a.criado)||0);
 // moeda da OS: Real (padrão) ou Dólar
@@ -780,10 +784,10 @@ function renderDetail(){
       <div class="field"><label for="dNum">Nº da OS</label><input id="dNum" class="mono" value="${esc(it.numero)}" ${dis}></div>
       <div class="field"><label for="dData">Data da OS</label><input id="dData" type="date" value="${esc(it.data)}" ${dis}></div>
       <div class="field"><label for="dAero">Local</label><input id="dAero" value="${esc(it.aeroporto)}" ${dis}></div>
-      <div class="field"><label for="dQtd">Quantidade</label><input id="dQtd" class="mono" type="number" min="0" step="any" value="${it.qtd??""}" ${dis}></div>
+      <div class="field"><label for="dQtd">Quantidade</label><input id="dQtd" class="mono" type="text" inputmode="decimal" data-qtd="1" placeholder="0" value="${qtdFmt(it.qtd)}" ${dis}></div>
       <div class="field"><label for="dUnid">Unidade</label><select id="dUnid" ${dis}>${unidOpts(it.unidade)}</select></div>
       <div class="field"><label for="dMoeda">Moeda</label><select id="dMoeda" ${dis}>${moedaOpts(it.moeda)}</select></div>
-      <div class="field"><label for="dValorUnit">Valor unitário</label><input id="dValorUnit" class="mono" type="text" inputmode="decimal" data-valor="1" placeholder="0,00" value="${valorTxt(it.valorUnit)}" ${dis}></div>
+      <div class="field"><label for="dValorUnit">Valor unitário</label><input id="dValorUnit" class="mono" type="text" inputmode="decimal" data-valor="6" placeholder="0,000000" value="${valorTxt(it.valorUnit,6)}" ${dis}></div>
       <div class="field"><label for="dValorOs">Valor da OS</label><input id="dValorOs" class="mono" type="text" inputmode="decimal" data-valor="1" placeholder="0,00" value="${valorTxt(it.valorOs)}" title="Quantidade × valor unitário (pode ser alterado)" ${dis}></div>
       <div class="field full"><label for="dPrest">Prestador de serviço</label><input id="dPrest" value="${esc(it.prestador||"")}" ${dis}></div>
       <div class="field full"><label for="dObs">Discriminação</label><textarea id="dObs" ${dis}>${esc(it.obs)}</textarea></div>
@@ -833,7 +837,7 @@ const COLS=[
   {h:"Discriminação",k:"obs",area:true,w:190},
   {h:"Qtd.",qtd:true,w:108},
   {h:"Moeda",moeda:true,w:68},
-  {h:"Valor unit.",k:"valorUnit",type:"number",num:true,w:100},
+  {h:"Valor unit.",k:"valorUnit",type:"number",num:true,casas:6,w:132},
   {h:"Valor da OS",k:"valorOs",type:"number",num:true,w:124,sum:true,porMoeda:true},
   {h:"NF nº",k:"nf.numero",w:90},
   {h:"Data da NF",k:"nf.data",type:"date",w:118},
@@ -874,7 +878,7 @@ function renderSheet0(){
   $("#sheet").innerHTML=`<thead><tr class="letters"><th class="rn"></th>${letters}</tr>
     <tr><th class="rn">1</th>${COLS.map(c=>`<th>${c.h}</th>`).join("")}</tr></thead>
     <tbody>${rows.map((it,r)=>`<tr><td class="rn">${r+2}</td>${COLS.map(c=>{
-      if(c.qtd) return `<td class="qtdcell"><div><input data-id="${esc(it.id)}" data-k="qtd" type="number" min="0" step="any" value="${it.qtd??""}" aria-label="Quantidade ${esc(it.numero)}" ${dis}><select data-id="${esc(it.id)}" data-k="unidade" aria-label="Unidade ${esc(it.numero)}" ${dis}>${unidOpts(it.unidade).replace(/ \(objeto\)| \(líquido\)/g,"").replace("Unidade","un").replace("Litros","L").replace("Quilos","kg")}</select></div></td>`;
+      if(c.qtd) return `<td class="qtdcell"><div><input data-id="${esc(it.id)}" data-k="qtd" type="text" inputmode="decimal" data-qtd="1" value="${qtdFmt(it.qtd)}" aria-label="Quantidade ${esc(it.numero)}" ${dis}><select data-id="${esc(it.id)}" data-k="unidade" aria-label="Unidade ${esc(it.numero)}" ${dis}>${unidOpts(it.unidade).replace(/ \(objeto\)| \(líquido\)/g,"").replace("Unidade","un").replace("Litros","L").replace("Quilos","kg")}</select></div></td>`;
       if(c.chk) return `<td class="ck2cell">${checkCell(it,c.chk)}</td>`;
       if(c.nfst) return `<td class="pcell">${nfChip(it,true)}</td>`;
       if(c.ini) return `<td class="pcell">${iniBotao(it)}</td>`;
@@ -883,7 +887,7 @@ function renderSheet0(){
       if(c.sq) return `<td class="sq"><label><input type="checkbox" data-status="${esc(it.id)}" ${done(it)?"checked":""} ${dis} aria-label="Concluída ${esc(it.numero)}" title="${done(it)?"Concluída":"Pendente"}"></label></td>`;
       if(c.ro) return `<td class="ro">${c.v?(c.html?c.v(it):esc(c.v(it))):esc(getF(it,c.k))}</td>`;
       const val=getF(it,c.k)??""; const a=`data-id="${esc(it.id)}" data-k="${c.k}" aria-label="${c.h} ${esc(it.numero)}" ${dis}`;
-      return `<td class="${c.num?"num":""}">${c.area?`<textarea ${a} wrap="off" title="${esc(val)}">${esc(val)}</textarea>`:`<input ${a} type="${c.num?"text":c.type||"text"}" ${c.num?'inputmode="decimal" data-valor="1"':""} value="${esc(c.num?valorTxt(val):val)}">`}</td>`;
+      return `<td class="${c.num?"num":""}">${c.area?`<textarea ${a} wrap="off" title="${esc(val)}">${esc(val)}</textarea>`:`<input ${a} type="${c.num?"text":c.type||"text"}" ${c.num?`inputmode="decimal" data-valor="${c.casas||2}"`:""} value="${esc(c.num?valorTxt(val,c.casas||2):val)}">`}</td>`;
     }).join("")}</tr>`).join("")}
     ${rows.length?"":`<tr><td class="rn">2</td><td class="ro" colspan="${COLS.length}">Nenhum serviço encontrado.</td></tr>`}</tbody>`;
 }
@@ -920,12 +924,12 @@ $("#sheet").addEventListener("change",e=>{
     notice(""); save(it,{numero:num},"Alterou o Nº da OS de "+it.numero+" para "+num);
   }
   else if(k==="qtd"||k==="valorUnit"){
-    const v=t.value===""?(k==="qtd"?null:0):k==="qtd"?parseFloat(t.value):lerValor(t.value), patch={[k]:v};
+    const v=k==="qtd"?lerQtd(t.value):lerValor(t.value,6), patch={[k]:v};
     const q=k==="qtd"?v:it.qtd, u=k==="valorUnit"?v:it.valorUnit;
     if(q>0&&u>0) patch.valorOs=Math.round(q*u*100)/100;
     save(it,patch,ac);
   }
-  else save(it,{[k]:t.dataset.valor?lerValor(t.value):t.type==="number"?(parseFloat(t.value)||0):t.type==="date"?t.value:t.value.trim()},ac);
+  else save(it,{[k]:t.dataset.valor?lerValor(t.value,+t.dataset.valor||2):t.type==="number"?(parseFloat(t.value)||0):t.type==="date"?t.value:t.value.trim()},ac);
 });
 $("#sheet").addEventListener("focusout",e=>{ if(!$("#sheet").contains(e.relatedTarget)) setTimeout(()=>{ if(!sheetFocused()) renderSheet(); },0); });
 $("#sheet").addEventListener("click",e=>{
@@ -1234,7 +1238,7 @@ $("#detail").addEventListener("click",async e=>{
     const num=$("#dNum").value.trim();
     if(!num){ notice("Informe o número da OS."); $("#dNum").focus(); return; }
     notice("");
-    const ok=await save(it,{numero:num, moeda:$("#dMoeda").value, valorUnit:lerValor($("#dValorUnit").value), data:$("#dData").value, aeroporto:$("#dAero").value.trim(), prestador:$("#dPrest").value.trim(), valorOs:lerValor($("#dValorOs").value), qtd:$("#dQtd").value===""?null:parseFloat($("#dQtd").value), unidade:$("#dUnid").value, obs:$("#dObs").value},"Editou os dados da OS");
+    const ok=await save(it,{numero:num, moeda:$("#dMoeda").value, valorUnit:lerValor($("#dValorUnit").value,6), data:$("#dData").value, aeroporto:$("#dAero").value.trim(), prestador:$("#dPrest").value.trim(), valorOs:lerValor($("#dValorOs").value), qtd:lerQtd($("#dQtd").value), unidade:$("#dUnid").value, obs:$("#dObs").value},"Editou os dados da OS");
     if(ok) flash("#savedSol","Solicitação salva");
   } else if(id==="btnSalvarNf"){
     const ok=await save(it,{nf:{numero:$("#fNum").value.trim(), data:$("#fData").value, valor:parseFloat($("#fValor").value)||0}});
@@ -1280,9 +1284,13 @@ function proxNumero(){
   return "OS-"+String(max+1).padStart(4,"0");
 }
 // valor da OS = quantidade × valor unitário (calculado ao digitar; continua editável)
-function calcValor(q,u,v){ const a=parseFloat($(q).value), b=lerValor($(u).value); if(a>0&&b>0) $(v).value=valorTxt(Math.round(a*b*100)/100); }
+function calcValor(q,u,v){ const a=lerQtd($(q).value), b=lerValor($(u).value,6); if(a>0&&b>0) $(v).value=valorTxt(Math.round(a*b*100)/100); }
 // ao sair de um campo de valor, mostra no formato 7.120,50
-document.addEventListener("focusout",e=>{ const t=e.target; if(t.matches?.("input[data-valor]:not([data-id])") && t.value.trim()) t.value=valorTxt(lerValor(t.value)); });
+document.addEventListener("focusout",e=>{
+  const t=e.target; if(!t.matches?.("input:not([data-id])") || !t.value.trim()) return;
+  if(t.dataset.valor){ const c=+t.dataset.valor||2; t.value=valorTxt(lerValor(t.value,c),c); }
+  else if(t.dataset.qtd) t.value=qtdFmt(lerQtd(t.value));
+});
 ["#nQtd","#nValorUnit"].forEach(s=>$(s).addEventListener("input",()=>calcValor("#nQtd","#nValorUnit","#nValorOs")));
 $("#detail").addEventListener("input",e=>{ if(e.target.id==="dQtd"||e.target.id==="dValorUnit") calcValor("#dQtd","#dValorUnit","#dValorOs"); });
 $("#nNum").addEventListener("input",e=>e.target.setCustomValidity(""));
@@ -1291,7 +1299,7 @@ $("#formNova").addEventListener("submit",e=>{
   const num=$("#nNum").value.trim();
   const id="s"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const it={id, numero:num, data:$("#nData").value, aeroporto:$("#nAero").value.trim(),
-    prestador:$("#nPrest").value.trim(), moeda:$("#nMoeda").value, valorUnit:lerValor($("#nValorUnit").value), valorOs:lerValor($("#nValorOs").value), qtd:$("#nQtd").value===""?null:parseFloat($("#nQtd").value), unidade:$("#nUnid").value, obs:$("#nObs").value, criado:Date.now(),
+    prestador:$("#nPrest").value.trim(), moeda:$("#nMoeda").value, valorUnit:lerValor($("#nValorUnit").value,6), valorOs:lerValor($("#nValorOs").value), qtd:lerQtd($("#nQtd").value), unidade:$("#nUnid").value, obs:$("#nObs").value, criado:Date.now(),
     checklist:[...$("#pickList").querySelectorAll("input:checked")].map(x=>({t:x.value,ok:false})),
     nf:{numero:"",data:"",valor:0}};
   items=[it,...items].sort(porData); selId=id; dlg.close(); save(it,{},"Criou a OS");
