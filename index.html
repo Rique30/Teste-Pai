@@ -259,7 +259,7 @@ input.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .sheet-tools input,.sheet-tools select{width:auto;flex:1 1 200px;max-width:320px}
 .sheet-tools .count{color:var(--muted);font-size:.82rem;margin-left:auto}
 .sheet-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);box-shadow:var(--shadow)}
-table.sheet{border-collapse:collapse;table-layout:fixed;width:100%;min-width:1890px;font-size:.86rem;font-variant-numeric:tabular-nums}
+table.sheet{border-collapse:collapse;table-layout:fixed;width:100%;min-width:2006px;font-size:.86rem;font-variant-numeric:tabular-nums}
 .sheet th,.sheet td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:0;vertical-align:middle}
 .sheet thead th{position:sticky;top:0;background:var(--head);font:600 .75rem var(--f-body);color:var(--muted);text-align:left;padding:8px;z-index:1}
 .sheet thead tr.letters th{text-align:center;font:500 .66rem var(--f-mono);padding:3px;background:var(--bg)}
@@ -451,7 +451,7 @@ body.papel-operador .so-admin{display:none!important}
           <div class="resumo" id="notasResumo"></div>
           <div class="sheet-tools">
             <input id="nfBusca" placeholder="Buscar por nota, OS, local, prestador ou serviço">
-            <select id="nfFiltro"><option value="">Todas</option><option value="emitida">Emitidas</option><option value="sem">Sem nota</option><option value="avulsa">Notas criadas na aba</option><option value="vencida">Vencidas</option></select>
+            <select id="nfFiltro"><option value="">Todas</option><option value="emitida">Emitidas</option><option value="sem">Aguardando a nota fiscal</option><option value="avulsa">Notas criadas na aba</option><option value="vencida">Vencidas</option></select>
             <button class="btn primary" id="btnNovaNf" type="button" style="margin-left:auto">+ Nova nota fiscal</button>
           </div>
           <div class="notas" id="notasList"></div>
@@ -623,7 +623,7 @@ const pagEstado=it=>it.conf?2:it.exec?1:0;
 function nfInfo(it){ const v=notas.filter(a=>a.osId===it.id); return {num:it.nf?.numero||v[0]?.numero||"", arq:v.some(a=>a.anexo)}; }
 function nfChip(it){
   const n=nfInfo(it);
-  if(!n.num) return `<span class="pchip nf0"><i></i>Sem nota</span>`;
+  if(!n.num) return `<span class="pchip nf0"><i></i>Aguardando a nota fiscal</span>`;
   return `<span class="pchip ${n.arq?"nf2":"nf1"}" title="${n.arq?"Nota com arquivo anexado":"Nota sem arquivo"}">${n.arq?CLIP:"<i></i>"}NF ${esc(n.num)}</span>`;
 }
 const quemPag=it=>{ const a=it.conf||it.exec; return a?`<span class="pwho">${esc(a.por)} · ${curto(a.em)}</span>`:""; };
@@ -787,7 +787,7 @@ const COLS=[
   {h:"Data da NF",k:"nf.data",type:"date",w:118},
   {h:"Venc. NF",k:"nf.vencimento",type:"date",w:118},
   {h:"Valor NF (R$)",k:"nf.valor",type:"number",num:true,w:112,sum:true},
-  {h:"Nota fiscal",nfst:true,w:122},
+  {h:"Nota fiscal",nfst:true,w:180},
   {h:"Pagamento",pag:true,w:196},
   {h:"",ro:true,w:76,v:it=>`<button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button>`,html:true}
 ];
@@ -891,7 +891,7 @@ function renderNotas(){
       <span class="confirm" data-delwrap="${esc(a.id)}">${a.anexo?`<button type="button" class="open btn-anexo" data-anexo="${esc(a.anexo.id)}" title="${esc(a.anexo.nome)}">${CLIP}Ver arquivo</button>`:""}<button type="button" class="open" data-edit-nf="${esc(a.id)}" ${dis}>Editar</button><button type="button" class="open so-admin" data-del-nf="${esc(a.id)}" ${dis}>Excluir</button></span></div>
       <details class="hist-nf"><summary>Histórico (${(a.historico||[]).length})</summary>${histHtml(a.historico,"Sem registros ainda.")}</details></article>`})),
     ...rowsOs.map(it=>({ord:it.nf?.data||it.data||"",html:`<article>${nfHtml(it)}
-      <div class="nota-foot"><span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill ${emitida(it)?"done":"pend"}">${emitida(it)?"Emitida":"Sem nota"}</span>${vencPill(it.nf?.vencimento)}</span>
+      <div class="nota-foot"><span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill ${emitida(it)?"done":"pend"}">${emitida(it)?"Emitida":"Aguardando a nota fiscal"}</span>${vencPill(it.nf?.vencimento)}</span>
       <button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button></div>
       <details class="hist-nf"><summary>Histórico da OS (${(it.historico||[]).length})</summary>${histHtml(it.historico,"Sem registros ainda.")}</details></article>`}))
   ].sort((a,b)=>b.ord.localeCompare(a.ord));
