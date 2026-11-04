@@ -465,7 +465,6 @@ body.papel-operador .so-admin{display:none!important}
     </div>
     <div class="row-actions">
       <button class="btn" type="button" id="btnCancelar">Cancelar</button>
-      <button class="btn" type="button" id="nIrNf">Criar e emitir nota fiscal</button>
       <button class="btn primary" type="submit">Criar solicitação</button>
     </div>
   </form>
@@ -1115,8 +1114,6 @@ $("#pickAll").addEventListener("click",()=>{
   all.forEach(x=>x.checked=on); pickUpdate();
 });
 $("#btnCancelar").addEventListener("click",()=>dlg.close());
-let irNf=false;
-$("#nIrNf").addEventListener("click",()=>{ irNf=true; $("#formNova").requestSubmit(); if(dlg.open) irNf=false; });
 function proxNumero(){
   const max=items.reduce((m,i)=>Math.max(m,parseInt(String(i.numero).replace(/\D/g,""))||0),0);
   return "OS-"+String(max+1).padStart(4,"0");
@@ -1130,14 +1127,13 @@ $("#nNum").addEventListener("input",e=>e.target.setCustomValidity(""));
 $("#formNova").addEventListener("submit",e=>{
   e.preventDefault();
   const num=$("#nNum").value.trim();
-  if(numeroEmUso(num)){ irNf=false; $("#nNum").setCustomValidity(`Já existe uma OS com o número ${num}.`); $("#nNum").reportValidity(); return; }
+  if(numeroEmUso(num)){ $("#nNum").setCustomValidity(`Já existe uma OS com o número ${num}.`); $("#nNum").reportValidity(); return; }
   const id="s"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const it={id, numero:num, data:$("#nData").value, aeroporto:$("#nAero").value.trim(),
     prestador:$("#nPrest").value.trim(), moeda:$("#nMoeda").value, valorUnit:parseFloat($("#nValorUnit").value)||0, valorOs:parseFloat($("#nValorOs").value)||0, qtd:$("#nQtd").value===""?null:parseFloat($("#nQtd").value), unidade:$("#nUnid").value, obs:$("#nObs").value, criado:Date.now(),
     checklist:[...$("#pickList").querySelectorAll("input:checked")].map(x=>({t:x.value,ok:false})),
     nf:{numero:"",data:"",valor:0}};
   items=[it,...items]; selId=id; dlg.close(); save(it,{},"Criou a OS");
-  if(irNf){ irNf=false; setView("notas"); abrirNf(null,id); return; }
   if(view==="planilha") setTimeout(()=>{ const f=$(`#sheet [data-id="${id}"][data-k="obs"]`); if(f) f.focus(); },0);
 });
 
