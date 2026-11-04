@@ -509,7 +509,7 @@ body.papel-operador .so-admin{display:none!important}
   <form id="formNova" method="dialog">
     <h2>Nova solicitação</h2>
     <div class="fields">
-      <div class="field"><label for="nNum">Nº da OS</label><input id="nNum" class="mono" required placeholder="OS-0001"></div>
+      <div class="field"><label for="nNum">Nº da OS</label><input id="nNum" class="mono" required placeholder="000001" inputmode="numeric" data-num6="1"></div>
       <div class="field"><label for="nData">Data da OS</label><input id="nData" type="date" required></div>
       <div class="field"><label for="nAero">Local</label><input id="nAero" placeholder="SBGR · Guarulhos" required></div>
       <div class="field"><label for="nQtd">Quantidade</label><input id="nQtd" class="mono" type="text" inputmode="decimal" data-qtd="1" placeholder="0"></div>
@@ -557,7 +557,7 @@ body.papel-operador .so-admin{display:none!important}
     <p class="sub" style="margin:-8px 0 14px">Vincule a uma OS já criada para trazer os dados dela, ou deixe como nota avulsa.</p>
     <div class="fields">
       <div class="field full"><label for="aOs">Ordem de serviço</label><select id="aOs"></select></div>
-      <div class="field"><label for="aNum">Nº da nota</label><input id="aNum" class="mono" required></div>
+      <div class="field"><label for="aNum">Nº da nota</label><input id="aNum" class="mono" required placeholder="000001" inputmode="numeric" data-num6="1"></div>
       <div class="field"><label for="aData">Data da NF</label><input id="aData" type="date" required></div>
       <div class="field"><label for="aVenc">Data de vencimento</label><input id="aVenc" type="date"></div>
       <div class="field"><label for="aDataServ">Data da OS / serviço</label><input id="aDataServ" type="date"></div>
@@ -625,6 +625,8 @@ function lerValor(t,casas=2){
   else if(/^\d{1,3}(\.\d{3})+$/.test(t)) t=t.replace(/\./g,"");
   const n=parseFloat(t), k=10**casas; return isNaN(n)?0:Math.round(n*k)/k;
 }
+// número de OS e de NF sempre com 6 dígitos, completando com zero à esquerda: 011 -> 000011
+const num6=v=>{ const t=String(v??"").trim(), d=t.replace(/\D/g,""); return d?d.padStart(6,"0"):t; };
 const lerQtd=t=>String(t??"").trim()===""?null:lerValor(t,3);
 // OS mais recentes primeiro (data da OS; no empate, a criada por último)
 const porData=(a,b)=>String(b.data||"").localeCompare(String(a.data||""))||(Number(b.criado)||0)-(Number(a.criado)||0);
@@ -781,7 +783,7 @@ function renderDetail(){
   <section class="card">
     <h2>Solicitação de serviço <small>${esc(it.numero)}${it.exemplo?" · exemplo":""}</small></h2>
     <div class="fields">
-      <div class="field"><label for="dNum">Nº da OS</label><input id="dNum" class="mono" value="${esc(it.numero)}" ${dis}></div>
+      <div class="field"><label for="dNum">Nº da OS</label><input id="dNum" class="mono" inputmode="numeric" data-num6="1" value="${esc(it.numero)}" ${dis}></div>
       <div class="field"><label for="dData">Data da OS</label><input id="dData" type="date" value="${esc(it.data)}" ${dis}></div>
       <div class="field"><label for="dAero">Local</label><input id="dAero" value="${esc(it.aeroporto)}" ${dis}></div>
       <div class="field"><label for="dQtd">Quantidade</label><input id="dQtd" class="mono" type="text" inputmode="decimal" data-qtd="1" placeholder="0" value="${qtdFmt(it.qtd)}" ${dis}></div>
@@ -916,10 +918,10 @@ $("#sheet").addEventListener("change",e=>{
   const it=items.find(i=>i.id===t.dataset.id); if(!it||!t.dataset.k) return;
   const k=t.dataset.k;
   const ac="Alterou "+(CAMPOS[k]||k)+" pela planilha";
-  if(k.startsWith("nf.")){ const f=k.slice(3); save(it,{nf:{...it.nf,[f]:f==="valor"?lerValor(t.value):t.value.trim()}},ac); }
+  if(k.startsWith("nf.")){ const f=k.slice(3); save(it,{nf:{...it.nf,[f]:f==="valor"?lerValor(t.value):f==="numero"?num6(t.value):t.value.trim()}},ac); }
   else if(k==="moeda") save(it,{moeda:t.value},"Alterou a moeda para "+MOEDAS[t.value]);
   else if(k==="numero"){
-    const num=t.value.trim();
+    const num=num6(t.value);
     if(!num){ notice("O número da OS não pode ficar vazio."); t.value=it.numero; return; }
     notice(""); save(it,{numero:num},"Alterou o Nº da OS de "+it.numero+" para "+num);
   }
@@ -1042,7 +1044,7 @@ $("#formNf").addEventListener("submit",async e=>{
   }
   const anexoAntigo=antiga?.anexo;
   if(anexoAntigo && anexoAntigo.id!==anexo?.id && modoSite) api("excluirAnexo",{id:anexoAntigo.id}).catch(()=>{});
-  const a={numero:$("#aNum").value.trim(), data:$("#aData").value, vencimento:$("#aVenc").value, dataServ:$("#aDataServ").value, aeroporto:$("#aAero").value.trim(), prestador:$("#aPrest").value.trim(),
+  const a={numero:num6($("#aNum").value), data:$("#aData").value, vencimento:$("#aVenc").value, dataServ:$("#aDataServ").value, aeroporto:$("#aAero").value.trim(), prestador:$("#aPrest").value.trim(),
     valor:lerValor($("#aValor").value), obs:$("#aObs").value,
     servicos:[...$("#aPickList").querySelectorAll("input:checked")].map(x=>x.value), osId:$("#aOs").value, criado:antiga?.criado||Date.now()};
   if(antiga?.exemplo) a.exemplo=true;
@@ -1235,7 +1237,7 @@ $("#detail").addEventListener("click",async e=>{
   const it=items.find(i=>i.id===selId); if(!it) return;
   const id=e.target.id;
   if(id==="btnSalvarSol"){
-    const num=$("#dNum").value.trim();
+    const num=num6($("#dNum").value);
     if(!num){ notice("Informe o número da OS."); $("#dNum").focus(); return; }
     notice("");
     const ok=await save(it,{numero:num, moeda:$("#dMoeda").value, valorUnit:lerValor($("#dValorUnit").value,6), data:$("#dData").value, aeroporto:$("#dAero").value.trim(), prestador:$("#dPrest").value.trim(), valorOs:lerValor($("#dValorOs").value), qtd:lerQtd($("#dQtd").value), unidade:$("#dUnid").value, obs:$("#dObs").value},"Editou os dados da OS");
@@ -1281,7 +1283,7 @@ $("#pickAll").addEventListener("click",()=>{
 $("#btnCancelar").addEventListener("click",()=>dlg.close());
 function proxNumero(){
   const max=items.reduce((m,i)=>Math.max(m,parseInt(String(i.numero).replace(/\D/g,""))||0),0);
-  return "OS-"+String(max+1).padStart(4,"0");
+  return String(max+1).padStart(6,"0");
 }
 // valor da OS = quantidade × valor unitário (calculado ao digitar; continua editável)
 function calcValor(q,u,v){ const a=lerQtd($(q).value), b=lerValor($(u).value,6); if(a>0&&b>0) $(v).value=valorTxt(Math.round(a*b*100)/100); }
@@ -1290,13 +1292,14 @@ document.addEventListener("focusout",e=>{
   const t=e.target; if(!t.matches?.("input:not([data-id])") || !t.value.trim()) return;
   if(t.dataset.valor){ const c=+t.dataset.valor||2; t.value=valorTxt(lerValor(t.value,c),c); }
   else if(t.dataset.qtd) t.value=qtdFmt(lerQtd(t.value));
+  else if(t.dataset.num6) t.value=num6(t.value);
 });
 ["#nQtd","#nValorUnit"].forEach(s=>$(s).addEventListener("input",()=>calcValor("#nQtd","#nValorUnit","#nValorOs")));
 $("#detail").addEventListener("input",e=>{ if(e.target.id==="dQtd"||e.target.id==="dValorUnit") calcValor("#dQtd","#dValorUnit","#dValorOs"); });
 $("#nNum").addEventListener("input",e=>e.target.setCustomValidity(""));
 $("#formNova").addEventListener("submit",e=>{
   e.preventDefault();
-  const num=$("#nNum").value.trim();
+  const num=num6($("#nNum").value);
   const id="s"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const it={id, numero:num, data:$("#nData").value, aeroporto:$("#nAero").value.trim(),
     prestador:$("#nPrest").value.trim(), moeda:$("#nMoeda").value, valorUnit:lerValor($("#nValorUnit").value,6), valorOs:lerValor($("#nValorOs").value), qtd:lerQtd($("#nQtd").value), unidade:$("#nUnid").value, obs:$("#nObs").value, criado:Date.now(),
@@ -1572,7 +1575,7 @@ try{ if(localStorage.getItem("cs-menu")==="1") aplicarMenu(true); }catch(_){}
 try{ if(localStorage.getItem("cs-ajustar")==="1") setAjustar(true); }catch(_){}
 
 // --- início ---
-items=EXEMPLOS.map(x=>structuredClone(x)); selId=items[0]?.id||null;
+items=EXEMPLOS.map(x=>structuredClone(x)).sort(porData); items.forEach(i=>{ i.numero=num6(i.numero); if(i.nf?.numero) i.nf.numero=num6(i.nf.numero); }); selId=items[0]?.id||null;
 try{ const v=localStorage.getItem("hangar-view"); if(["fichas","notas","monitor","equipe"].includes(v)) view=v; }catch(_){}
 setView(view);
 
@@ -1601,6 +1604,7 @@ setView(view);
   items=[]; notas=[]; selId=null; render();
   db.collection("notas").orderBy("criado","desc").onSnapshot(snap=>{
     notas=snap.docs.map(s=>({id:s.id,...structuredClone(s.data())}));
+    notas.forEach(a=>{ if(a.numero) a.numero=num6(a.numero); });
     renderNotas(); renderKpis(); renderMonitor(); renderPagamentos(); if(!sheetFocused()) renderSheet();
     if(!$("#detail").contains(document.activeElement)) renderDetail();
   },()=>{});
@@ -1610,7 +1614,7 @@ setView(view);
   },()=>{});
   db.collection("solicitacoes").orderBy("criado","desc").onSnapshot(snap=>{
     items=snap.docs.map(s=>({id:s.id,...structuredClone(s.data())}));
-    items.forEach(i=>{ i.checklist=i.checklist||[]; i.nf=i.nf||{}; });
+    items.forEach(i=>{ i.checklist=i.checklist||[]; i.nf=i.nf||{}; i.numero=num6(i.numero); if(i.nf.numero) i.nf.numero=num6(i.nf.numero); });
     items.sort(porData);
     const keepEditing=document.activeElement && $("#detail").contains(document.activeElement) && items.some(i=>i.id===selId);
     if(!items.some(i=>i.id===selId)) selId=items[0]?.id||null;
