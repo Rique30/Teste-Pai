@@ -12,9 +12,17 @@ const COLECOES = new Set(["solicitacoes", "notas", "config", "usuarios"]);
 const CAMPOS_SENHA = new Set(["salt", "iter", "hash", "trocarSenha", "senhaTrocadaEm"]);
 
 let pronto = null;
-const iniciar = () => (pronto ??= sql`create table if not exists docs (
-  coll text not null, id text not null, data jsonb not null,
-  atualizado timestamptz not null default now(), primary key (coll, id))`);
+const iniciar = () => (pronto ??= (async () => {
+  await sql`create table if not exists docs (
+    coll text not null, id text not null, data jsonb not null,
+    atualizado timestamptz not null default now(), primary key (coll, id))`;
+  // arquivos anexados às notas fiscais (PDF ou foto)
+  await sql`create table if not exists anexos (
+    id text primary key, nome text not null, tipo text not null, tamanho integer not null,
+    dados bytea not null, por text, criado timestamptz not null default now())`;
+})());
+const ANEXO_MAX = 3 * 1024 * 1024; // 3 MB (o limite de envio da Vercel é 4,5 MB, e o arquivo vai em base64)
+const TIPOS_ANEXO = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
 
 class Erro extends Error { constructor(status, msg) { super(msg); this.status = status; } }
 
@@ -64,6 +72,29 @@ async function rota(b, auth) {
   const eu = email ? await lerDoc("usuarios", email) : null;
   if (!eu) throw new Erro(401, "Sessão expirada. Entre de novo.");
   if (op === "me") return { user: limpo(eu) };
+
+  if (op === "anexar") {
+    const tipo = String(b.tipo || ""), nome = String(b.nome || "arquivo").slice(0, 200);
+    if (!TIPOS_ANEXO.has(tipo)) throw new Erro(400, "Envie um PDF ou uma foto (JPG, PNG ou WEBP).");
+    const dados = Buffer.from(String(b.dados || ""), "base64");
+    if (!dados.length) throw new Erro(400, "O arquivo está vazio.");
+    if (dados.length > ANEXO_MAX) throw new Erro(413, "O arquivo passa de 3 MB. Envie um arquivo menor.");
+    const id = "a" + crypto.randomUUID().replace(/-/g, "");
+    await sql`insert into anexos (id, nome, tipo, tamanho, dados, por) values (${id}, ${nome}, ${tipo}, ${dados.length}, decode(${dados.toString("base64")}, 'base64'), ${email})`;
+    return { anexo: { id, nome, tipo, tamanho: dados.length } };
+  }
+  if (op === "baixarAnexo") {
+    const r = await sql`select nome, tipo, encode(dados, 'base64') as dados from anexos where id = ${String(b.id || "")}`;
+    if (!r.length) throw new Erro(404, "Arquivo não encontrado.");
+    return r[0];
+  }
+  if (op === "excluirAnexo") {
+    const r = await sql`select por from anexos where id = ${String(b.id || "")}`;
+    if (!r.length) return { ok: true };
+    if (!gestor(eu) && r[0].por !== email) throw new Erro(403, "Só quem anexou ou um administrador pode remover o arquivo.");
+    await sql`delete from anexos where id = ${String(b.id || "")}`;
+    return { ok: true };
+  }
 
   const coll = String(b.c || "");
   if (!COLECOES.has(coll)) throw new Erro(400, "Coleção inválida.");

@@ -208,6 +208,12 @@ input.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .nf-serv li i{font:400 .72rem var(--f-mono);font-style:normal;color:var(--muted)}
 .notas{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,460px),1fr));gap:18px;align-items:start}
 .notas article{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px;box-shadow:var(--shadow)}
+.anexo-box{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px dashed var(--line-strong);border-radius:6px;padding:10px 12px}
+.anexo-box input[type=file]{border:0;padding:0;width:auto;flex:1 1 220px;font-size:.85rem}
+.anexo-atual{display:flex;align-items:center;gap:8px;min-width:0;font-size:.85rem}
+.anexo-atual b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px}
+.clip{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.btn-anexo{display:inline-flex;align-items:center;gap:6px}
 .nota-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
 
 /* planilha */
@@ -215,14 +221,15 @@ input.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .sheet-tools input,.sheet-tools select{width:auto;flex:1 1 200px;max-width:320px}
 .sheet-tools .count{color:var(--muted);font-size:.82rem;margin-left:auto}
 .sheet-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);box-shadow:var(--shadow)}
-table.sheet{border-collapse:collapse;width:100%;min-width:2050px;font-size:.86rem;font-variant-numeric:tabular-nums}
+table.sheet{border-collapse:collapse;table-layout:fixed;width:100%;min-width:1982px;font-size:.86rem;font-variant-numeric:tabular-nums}
 .sheet th,.sheet td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:0;vertical-align:middle}
 .sheet thead th{position:sticky;top:0;background:var(--head);font:600 .75rem var(--f-body);color:var(--muted);text-align:left;padding:8px;z-index:1}
 .sheet thead tr.letters th{text-align:center;font:500 .66rem var(--f-mono);padding:3px;background:var(--bg)}
 .sheet th.rn,.sheet td.rn{width:38px;text-align:center;background:var(--bg);color:var(--muted);font:500 .7rem var(--f-mono)}
 .sheet tbody tr:hover td:not(.rn){background:var(--head)}
-.sheet td>input,.sheet td>textarea{border:0;border-radius:0;background:transparent;padding:8px;width:100%;font-size:.86rem}
-.sheet td>textarea{min-height:36px;height:36px;resize:vertical;display:block}
+.sheet td>input,.sheet td>textarea{border:0;border-radius:0;background:transparent;padding:7px 6px;width:100%;font-size:.86rem}
+.sheet td>textarea{min-height:34px;height:34px;line-height:1.45;resize:vertical;display:block;overflow:hidden;text-overflow:ellipsis}
+.sheet td>textarea:focus{overflow:auto}
 .sheet td>input:focus,.sheet td>textarea:focus{outline:2px solid var(--accent);outline-offset:-2px;background:var(--surface)}
 .sheet td.ro{padding:8px;white-space:nowrap}
 .sheet td.num input{text-align:right;font-family:var(--f-mono)}
@@ -232,8 +239,11 @@ table.sheet{border-collapse:collapse;width:100%;min-width:2050px;font-size:.86re
 .sheet td.ro .qtd b{font:600 .8rem var(--f-mono);background:var(--accent-soft);color:var(--accent);border-radius:4px;padding:1px 7px;flex:none}
 .sheet td.ro .qtd span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:.82rem}
 .sheet td.qtdcell>div{display:flex;align-items:center}
-.sheet td.qtdcell input{border:0;background:transparent;padding:8px;width:100%;text-align:right;font-family:var(--f-mono);font-size:.86rem;min-width:0}
-.sheet td.qtdcell select{border:0;background:transparent;padding:8px 4px;width:auto;font-size:.82rem;color:var(--muted);flex:none}
+.sheet td>select{border:0;border-radius:0;background:transparent;padding:7px 4px;font-size:.84rem}
+.sheet td>select:focus{outline:2px solid var(--accent);outline-offset:-2px}
+.sheet thead th{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sheet td.qtdcell input{border:0;background:transparent;padding:7px 4px;width:100%;text-align:right;font-family:var(--f-mono);font-size:.86rem;min-width:0}
+.sheet td.qtdcell select{border:0;background:transparent;padding:7px 2px;width:auto;font-size:.82rem;color:var(--muted);flex:none}
 .sheet td.qtdcell input:focus,.sheet td.qtdcell select:focus{outline:2px solid var(--accent);outline-offset:-2px;background:var(--surface)}
 .ck2{display:flex;align-items:center;gap:8px;cursor:pointer;min-width:0}
 .ck2 input{width:20px;height:20px;accent-color:var(--ok);flex:none;margin:0;cursor:pointer}
@@ -241,7 +251,7 @@ table.sheet{border-collapse:collapse;width:100%;min-width:2050px;font-size:.86re
 .ck2 span{display:flex;flex-direction:column;line-height:1.2;min-width:0}
 .ck2 b{font-size:.78rem;font-weight:600;color:var(--ok);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ck2 i{font-style:normal;font-size:.7rem;color:var(--muted)}
-.sheet td.ck2cell{padding:6px 8px}
+.sheet td.ck2cell{padding:6px}
 .duplo{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}
 @media (max-width:640px){.duplo{grid-template-columns:1fr}}
 .duplo .status-sq{margin-bottom:0;align-items:flex-start}
@@ -493,6 +503,14 @@ body.papel-operador .so-admin{display:none!important}
       <div class="field"><label for="aValor">Valor da NF (R$)</label><input id="aValor" class="mono" type="number" min="0" step="0.01" required></div>
       <div class="field full"><label for="aObs">Discriminação</label><textarea id="aObs" placeholder="Descrição dos serviços cobrados"></textarea></div>
       <div class="field full">
+        <label for="aArquivo">Arquivo da nota fiscal (PDF ou foto, até 3 MB)</label>
+        <div class="anexo-box">
+          <span class="anexo-atual" id="aAnexoAtual" hidden></span>
+          <input id="aArquivo" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/*">
+        </div>
+        <span class="sub" id="aAnexoAviso" hidden></span>
+      </div>
+      <div class="field full">
         <label>Serviços da nota</label>
         <div class="pick">
           <div class="pick-head"><span class="sub" id="aPickCount" style="margin:0"></span><button type="button" class="linkbtn" id="aPickAll">Marcar todos</button></div>
@@ -500,6 +518,7 @@ body.papel-operador .so-admin{display:none!important}
         </div>
       </div>
     </div>
+    <div class="login-err" id="aErro" hidden style="margin-top:12px"></div>
     <div class="row-actions">
       <button class="btn" type="button" id="aCancelar">Cancelar</button>
       <button class="btn primary" type="submit" id="aSalvar">Criar nota fiscal</button>
@@ -585,7 +604,7 @@ function renderList(){
 
 function nfDoc(n){
   return `<div class="nf">
-      <div class="nf-head"><b>NFS-e Nº ${esc(n.numero||"—")}</b><span>${esc(n.ref)}</span></div>
+      <div class="nf-head"><b>NFS-e Nº ${esc(n.numero||"—")}</b><span>${n.anexo?`<span class="pill info btn-anexo" title="${esc(n.anexo.nome)}">${CLIP}Arquivo anexado</span> `:""}${esc(n.ref)}</span></div>
       <div class="nf-grid">
         <div class="nf-cell"><span>Data de emissão</span>${dataBR(n.data)}</div>
         <div class="nf-cell"><span>Data de vencimento</span>${dataBR(n.vencimento)}</div>
@@ -605,7 +624,7 @@ function nfHtml(it){
   return nfDoc({numero:nf.numero, ref:"Ref. "+it.numero, data:nf.data, vencimento:nf.vencimento, aeroporto:it.aeroporto, prestador:it.prestador, dataServ:it.data, obs:it.obs, servicos:it.checklist, valor:nf.valor});
 }
 const osDe=a=>a.osId?items.find(i=>i.id===a.osId):null;
-const avulsaDoc=a=>nfDoc({numero:a.numero, ref:osDe(a)?"Ref. "+osDe(a).numero:"Avulsa", data:a.data, vencimento:a.vencimento, aeroporto:a.aeroporto, prestador:a.prestador, dataServ:a.dataServ, obs:a.obs, servicos:(a.servicos||[]).map(t=>({t})), valor:a.valor});
+const avulsaDoc=a=>nfDoc({anexo:a.anexo, numero:a.numero, ref:osDe(a)?"Ref. "+osDe(a).numero:"Avulsa", data:a.data, vencimento:a.vencimento, aeroporto:a.aeroporto, prestador:a.prestador, dataServ:a.dataServ, obs:a.obs, servicos:(a.servicos||[]).map(t=>({t})), valor:a.valor});
 
 function renderDetail(){
   const el=$("#detail"); const it=items.find(i=>i.id===selId);
@@ -667,23 +686,23 @@ function renderDetail(){
 // --- planilha ---
 let view="planilha";
 const COLS=[
-  {h:"OS",k:"numero",w:110},
-  {h:"Data da OS",k:"data",type:"date",w:140},
-  {h:"Local",k:"aeroporto",w:160},
-  {h:"Prestador de serviço",k:"prestador",w:190},
-  {h:"Discriminação",k:"obs",area:true,w:280},
-  {h:"Qtd.",qtd:true,w:170},
-  {h:"Moeda",moeda:true,w:90},
-  {h:"Valor unit.",k:"valorUnit",type:"number",num:true,w:120},
-  {h:"Valor da OS",k:"valorOs",type:"number",num:true,w:150,sum:true,porMoeda:true},
-  {h:"① Ciente",chk:"cien",w:150},
-  {h:"NF nº",k:"nf.numero",w:100},
-  {h:"Data da NF",k:"nf.data",type:"date",w:140},
-  {h:"Vencimento NF",k:"nf.vencimento",type:"date",w:140},
-  {h:"Valor da NF (R$)",k:"nf.valor",type:"number",num:true,w:130,sum:true},
-  {h:"② Confirmado",chk:"exec",w:150},
-  {h:"③ Pago",chk:"conf",w:150},
-  {h:"",ro:true,w:84,v:it=>`<button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button>`,html:true}
+  {h:"OS",k:"numero",w:90},
+  {h:"Data da OS",k:"data",type:"date",w:118},
+  {h:"Local",k:"aeroporto",w:130},
+  {h:"Prestador",k:"prestador",w:150},
+  {h:"Discriminação",k:"obs",area:true,w:190},
+  {h:"Qtd.",qtd:true,w:108},
+  {h:"Moeda",moeda:true,w:68},
+  {h:"Valor unit.",k:"valorUnit",type:"number",num:true,w:100},
+  {h:"Valor da OS",k:"valorOs",type:"number",num:true,w:124,sum:true,porMoeda:true},
+  {h:"① Ciente",chk:"cien",w:118},
+  {h:"NF nº",k:"nf.numero",w:90},
+  {h:"Data da NF",k:"nf.data",type:"date",w:118},
+  {h:"Venc. NF",k:"nf.vencimento",type:"date",w:118},
+  {h:"Valor NF (R$)",k:"nf.valor",type:"number",num:true,w:112,sum:true},
+  {h:"② Confirmado",chk:"exec",w:124},
+  {h:"③ Pago",chk:"conf",w:110},
+  {h:"",ro:true,w:76,v:it=>`<button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button>`,html:true}
 ];
 const getF=(it,k)=>k.startsWith("nf.")?(it.nf||{})[k.slice(3)]:it[k];
 function filtered(){
@@ -705,7 +724,7 @@ function renderSheet0(){
       if(c.sq) return `<td class="sq"><label><input type="checkbox" data-status="${esc(it.id)}" ${done(it)?"checked":""} ${dis} aria-label="Concluída ${esc(it.numero)}" title="${done(it)?"Concluída":"Pendente"}"></label></td>`;
       if(c.ro) return `<td class="ro">${c.v?(c.html?c.v(it):esc(c.v(it))):esc(getF(it,c.k))}</td>`;
       const val=getF(it,c.k)??""; const a=`data-id="${esc(it.id)}" data-k="${c.k}" aria-label="${c.h} ${esc(it.numero)}" ${dis}`;
-      return `<td class="${c.num?"num":""}">${c.area?`<textarea ${a}>${esc(val)}</textarea>`:`<input ${a} type="${c.type||"text"}" ${c.num?'step="0.01" min="0"':""} value="${esc(c.num&&!val?"":val)}">`}</td>`;
+      return `<td class="${c.num?"num":""}">${c.area?`<textarea ${a} wrap="off" title="${esc(val)}">${esc(val)}</textarea>`:`<input ${a} type="${c.type||"text"}" ${c.num?'step="0.01" min="0"':""} value="${esc(c.num&&!val?"":val)}">`}</td>`;
     }).join("")}</tr>`).join("")}
     ${rows.length?"":`<tr><td class="rn">2</td><td class="ro" colspan="${COLS.length}">Nenhum serviço encontrado.</td></tr>`}
     <tr class="total"><td class="rn">${rows.length+2+(rows.length?0:1)}</td>${COLS.map((c,i)=>c.sum?`<td class="num">${c.porMoeda?somaMoedas(rows,it=>getF(it,c.k)):brl(rows.reduce((s,it)=>s+(Number(getF(it,c.k))||0),0))}</td>`:`<td>${i===0?"TOTAL":""}</td>`).join("")}</tr></tbody>`;
@@ -779,7 +798,7 @@ function renderNotas(){
   const cards=[
     ...rowsAv.map(a=>({ord:a.data||"",html:`<article>${avulsaDoc(a)}
       <div class="nota-foot"><span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill done">${osDe(a)?"Vinculada à "+esc(osDe(a).numero):"Avulsa"}${a.exemplo?" · exemplo":""}</span>${vencPill(a.vencimento)}</span>
-      <span class="confirm" data-delwrap="${esc(a.id)}"><button type="button" class="open" data-edit-nf="${esc(a.id)}" ${dis}>Editar</button><button type="button" class="open so-admin" data-del-nf="${esc(a.id)}" ${dis}>Excluir</button></span></div>
+      <span class="confirm" data-delwrap="${esc(a.id)}">${a.anexo?`<button type="button" class="open btn-anexo" data-anexo="${esc(a.anexo.id)}" title="${esc(a.anexo.nome)}">${CLIP}Ver arquivo</button>`:""}<button type="button" class="open" data-edit-nf="${esc(a.id)}" ${dis}>Editar</button><button type="button" class="open so-admin" data-del-nf="${esc(a.id)}" ${dis}>Excluir</button></span></div>
       <details class="hist-nf"><summary>Histórico (${(a.historico||[]).length})</summary>${histHtml(a.historico,"Sem registros ainda.")}</details></article>`})),
     ...rowsOs.map(it=>({ord:it.nf?.data||it.data||"",html:`<article>${nfHtml(it)}
       <div class="nota-foot"><span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill ${emitida(it)?"done":"pend"}">${emitida(it)?"Emitida":"Sem nota"}</span>${vencPill(it.nf?.vencimento)}</span>
@@ -789,6 +808,7 @@ function renderNotas(){
   $("#notasList").innerHTML=cards.length?cards.map(c=>c.html).join(""):`<div class="empty">Nenhuma nota encontrada. Use <b>+ Nova nota fiscal</b> para emitir uma nota avulsa.</div>`;
 }
 $("#notasList").addEventListener("click",e=>{
+  const ax=e.target.closest("[data-anexo]"); if(ax){ abrirAnexo(ax.dataset.anexo); return; }
   const b=e.target.closest("[data-open]"); if(b){ selId=b.dataset.open; setView("fichas"); return; }
   const ed=e.target.closest("[data-edit-nf]"); if(ed){ abrirNf(notas.find(a=>a.id===ed.dataset.editNf)); return; }
   const dl=e.target.closest("[data-del-nf]");
@@ -796,7 +816,8 @@ $("#notasList").addEventListener("click",e=>{
     dl.parentElement.innerHTML=`Excluir nota ${esc(a.numero)}? <button class="btn" type="button" data-nao>Não</button><button class="btn primary" type="button" data-sim-nf="${esc(a.id)}">Sim, excluir</button>`; return; }
   if(e.target.closest("[data-nao]")){ renderNotas(); return; }
   const sim=e.target.closest("[data-sim-nf]");
-  if(sim){ const id=sim.dataset.simNf; notas=notas.filter(a=>a.id!==id); renderNotas();
+  if(sim){ const id=sim.dataset.simNf, anexo=notas.find(a=>a.id===id)?.anexo; notas=notas.filter(a=>a.id!==id); renderNotas();
+    if(anexo && modoSite) api("excluirAnexo",{id:anexo.id}).catch(()=>{});
     if(live) db.collection("notas").doc(id).delete().catch(()=>notice("Não foi possível excluir a nota agora.")); }
 });
 
@@ -818,6 +839,7 @@ function abrirNf(a,osId){
   $("#aPickList").innerHTML=lista.map((t,i)=>`<label for="apk${i}"><input type="checkbox" id="apk${i}" value="${esc(t)}" ${sel.includes(t)?"checked":""}> ${esc(t)}</label>`).join("");
   $("#aOs").innerHTML=`<option value="">Nenhuma (nota avulsa)</option>`+items.map(it=>`<option value="${esc(it.id)}">${esc(it.numero)} · ${dataBR(it.data)} · ${esc(it.aeroporto||"")}${it.prestador?" · "+esc(it.prestador):""}</option>`).join("");
   $("#aOs").value=a?.osId&&items.some(i=>i.id===a.osId)?a.osId:"";
+  anexoAtual=a?.anexo||null; removerAnexo=false; erroLogin("#aErro",""); mostrarAnexo();
   aPickUpdate(); dlgNf.showModal();
   if(osId){ $("#aOs").value=osId; $("#aOs").dispatchEvent(new Event("change")); $("#aNum").focus(); }
 }
@@ -836,21 +858,99 @@ $("#btnNovaNf").addEventListener("click",()=>abrirNf(null));
 $("#aCancelar").addEventListener("click",()=>dlgNf.close());
 $("#aPickList").addEventListener("change",aPickUpdate);
 $("#aPickAll").addEventListener("click",()=>{ const all=[...$("#aPickList").querySelectorAll("input")], on=!all.every(x=>x.checked); all.forEach(x=>x.checked=on); aPickUpdate(); });
-$("#formNf").addEventListener("submit",e=>{
+$("#formNf").addEventListener("submit",async e=>{
   e.preventDefault();
   const id=editNfId||"n"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const antiga=notas.find(a=>a.id===id);
+  // arquivo da nota: envia o novo antes de salvar a nota
+  let anexo=removerAnexo?null:anexoAtual;
+  const arq=$("#aArquivo").files[0];
+  if(arq){
+    if(!modoSite){ erroLogin("#aErro","Anexar arquivos funciona no site (hangar-os-six.vercel.app)."); return; }
+    $("#aSalvar").disabled=true; const txt=$("#aSalvar").textContent; $("#aSalvar").textContent="Enviando arquivo…"; erroLogin("#aErro","");
+    try{ anexo=await enviarAnexo(arq); }
+    catch(err){ erroLogin("#aErro",err.msg||err.message||"Não foi possível enviar o arquivo. Tente de novo."); return; }
+    finally{ $("#aSalvar").disabled=false; $("#aSalvar").textContent=txt; }
+  }
+  const anexoAntigo=antiga?.anexo;
+  if(anexoAntigo && anexoAntigo.id!==anexo?.id && modoSite) api("excluirAnexo",{id:anexoAntigo.id}).catch(()=>{});
   const a={numero:$("#aNum").value.trim(), data:$("#aData").value, vencimento:$("#aVenc").value, dataServ:$("#aDataServ").value, aeroporto:$("#aAero").value.trim(), prestador:$("#aPrest").value.trim(),
     valor:parseFloat($("#aValor").value)||0, obs:$("#aObs").value,
     servicos:[...$("#aPickList").querySelectorAll("input:checked")].map(x=>x.value), osId:$("#aOs").value, criado:antiga?.criado||Date.now()};
   if(antiga?.exemplo) a.exemplo=true;
-  a.historico=comHist(antiga?.historico,antiga?"Editou a nota fiscal":"Criou a nota fiscal"+(a.osId?"":" (avulsa)"));
+  if(anexo) a.anexo=anexo;
+  let acao=antiga?"Editou a nota fiscal":"Criou a nota fiscal"+(a.osId?"":" (avulsa)");
+  if(arq) acao+=" e anexou o arquivo "+anexo.nome; else if(anexoAntigo && !anexo) acao+=" e removeu o arquivo";
+  a.historico=comHist(antiga?.historico,acao);
   const os=items.find(i=>i.id===a.osId);
   if(os && (!antiga || antiga.osId!==a.osId)) save(os,{},"Nota fiscal "+(a.numero||"sem número")+" vinculada a esta OS");
   notas=antiga?notas.map(x=>x.id===id?{id,...a}:x):[{id,...a},...notas];
   dlgNf.close(); render();
   if(live) db.collection("notas").doc(id).set(a).catch(()=>notice("Não foi possível salvar a nota agora. Tente de novo em instantes."));
 });
+// --- datas com ano de dois dígitos ---
+// Quem digita só "26" no ano fica com 0026; ao sair do campo (ou ao salvar o formulário) vira 2026.
+function anoCompleto(campo){
+  const m=/^(\d{4})-(\d\d)-(\d\d)$/.exec(campo.value||"");
+  if(!m || +m[1]>=100) return false;
+  campo.value=`${2000+ +m[1]}-${m[2]}-${m[3]}`; return true;
+}
+document.addEventListener("focusout",e=>{
+  const t=e.target; if(t.matches?.('input[type="date"]') && anoCompleto(t)) t.dispatchEvent(new Event("change",{bubbles:true}));
+},true);
+document.addEventListener("submit",e=>{ e.target.querySelectorAll?.('input[type="date"]').forEach(anoCompleto); },true);
+document.addEventListener("click",e=>{
+  // botões que salvam sem enviar formulário (ex.: Salvar solicitação)
+  if(e.target.closest?.("button")) document.querySelectorAll('input[type="date"]').forEach(anoCompleto);
+},true);
+
+// --- arquivo da nota fiscal ---
+const CLIP=`<svg class="clip" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l8.6-8.6a3.3 3.3 0 0 1 4.7 4.7l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9"/></svg>`;
+let anexoAtual=null, removerAnexo=false;
+const tamanhoTxt=n=>n>=1048576?(n/1048576).toFixed(1).replace(".",",")+" MB":Math.max(1,Math.round(n/1024))+" KB";
+function mostrarAnexo(){
+  const box=$("#aAnexoAtual"), a=removerAnexo?null:anexoAtual;
+  box.hidden=!a;
+  box.innerHTML=a?`${CLIP}<b title="${esc(a.nome)}">${esc(a.nome)}</b><span class="sub" style="margin:0">${tamanhoTxt(a.tamanho)}</span><button type="button" class="linkbtn" id="aVerAnexo">Ver</button><button type="button" class="linkbtn" id="aRemAnexo">Remover</button>`:"";
+  $("#aArquivo").title=a?"Escolher outro arquivo para substituir":"";
+  const av=$("#aAnexoAviso"); av.hidden=modoSite; av.textContent=modoSite?"":"Anexar arquivos funciona no site (hangar-os-six.vercel.app), que guarda o arquivo no banco de dados.";
+}
+$("#aAnexoAtual").addEventListener("click",e=>{
+  if(e.target.id==="aVerAnexo" && anexoAtual) abrirAnexo(anexoAtual.id);
+  if(e.target.id==="aRemAnexo"){ removerAnexo=true; mostrarAnexo(); }
+});
+const lerBase64=blob=>new Promise((ok,falha)=>{ const fr=new FileReader(); fr.onload=()=>ok(String(fr.result).split(",")[1]||""); fr.onerror=()=>falha(fr.error); fr.readAsDataURL(blob); });
+// fotos grandes do celular são reduzidas antes de enviar (até 2000 px, JPEG)
+async function reduzirFoto(arq){
+  try{
+    const img=await createImageBitmap(arq), k=Math.min(1,2000/Math.max(img.width,img.height));
+    const c=document.createElement("canvas"); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k);
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+    const blob=await new Promise(ok=>c.toBlob(ok,"image/jpeg",0.85));
+    return blob&&blob.size<arq.size?{blob,tipo:"image/jpeg",nome:arq.name.replace(/\.[^.]+$/,"")+".jpg"}:null;
+  }catch(_){ return null; }
+}
+async function enviarAnexo(arq){
+  let blob=arq, tipo=arq.type, nome=arq.name;
+  if(tipo.startsWith("image/") && (arq.size>800*1024 || !["image/jpeg","image/png","image/webp"].includes(tipo))){
+    const r=await reduzirFoto(arq); if(r){ blob=r.blob; tipo=r.tipo; nome=r.nome; }
+  }
+  if(!["application/pdf","image/jpeg","image/png","image/webp"].includes(tipo)) throw Object.assign(new Error(),{msg:"Envie um PDF ou uma foto (JPG, PNG ou WEBP)."});
+  if(blob.size>3*1024*1024) throw Object.assign(new Error(),{msg:`O arquivo tem ${tamanhoTxt(blob.size)}. O limite é 3 MB.`});
+  return (await api("anexar",{nome,tipo,dados:await lerBase64(blob)})).anexo;
+}
+async function abrirAnexo(id){
+  if(!modoSite){ notice("Os arquivos das notas ficam no site (hangar-os-six.vercel.app)."); return; }
+  const janela=window.open("","_blank");
+  try{
+    const r=await api("baixarAnexo",{id});
+    const bin=Uint8Array.from(atob(r.dados),c=>c.charCodeAt(0));
+    const url=URL.createObjectURL(new Blob([bin],{type:r.tipo}));
+    if(janela) janela.location.href=url;
+    else { const l=document.createElement("a"); l.href=url; l.download=r.nome; document.body.append(l); l.click(); l.remove(); }
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+  }catch(e){ if(janela) janela.close(); notice(e.msg||"Não foi possível abrir o arquivo agora."); }
+}
 $("#nfBusca").addEventListener("input",renderNotas);
 $("#nfFiltro").addEventListener("change",renderNotas);
 
