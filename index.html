@@ -647,24 +647,19 @@ function mudarPagamento(it,novo){
 }
 function renderPagamentos(){
   const el=$("#pgBoard"); if(!el) return;
-  const dis=canWrite?"":"disabled";
   el.innerHTML=[0,1,2].map(s=>{
     const l=items.filter(it=>pagEstado(it)===s).sort((a,b)=>String(b.data||"").localeCompare(String(a.data||"")));
-    const botoes=it=>s===0?`<button type="button" class="pg-mv" data-pgmv="1" data-id="${esc(it.id)}" ${dis}>Iniciar pagamento →</button>`
-      :s===1?`<button type="button" class="pg-mv" data-pgmv="0" data-id="${esc(it.id)}" ${dis} title="Voltar para A pagar">←</button><button type="button" class="pg-mv" data-pgmv="2" data-id="${esc(it.id)}" ${dis}>Marcar pago →</button>`
-      :`<button type="button" class="pg-mv" data-pgmv="1" data-id="${esc(it.id)}" ${dis}>← Desfazer</button>`;
     return `<div class="pg-col"><div class="pg-col-h"><span class="pchip s${s}"><i></i>${PAG[s]}</span><span>${l.length} OS</span></div>
       <div class="pg-tot">${l.length?somaMoedas(l,it=>it.valorOs):"—"}</div>
       <div class="pg-cards">${l.map(it=>`<article class="pg-card" aria-current="${it.id===selId}">
         <div class="t"><button type="button" data-pgopen="${esc(it.id)}" title="Ver detalhes da OS">${esc(it.numero)}</button><span>${fmtMoeda(it.valorOs,moedaDe(it))}</span></div>
         <div class="m">${dataBR(it.data)} · ${esc(it.aeroporto||"—")}${it.prestador?" · "+esc(it.prestador):""}</div>
         <div>${nfChip(it)}</div>
-        <div class="a">${s?quemPag(it):`<span class="pwho">desde ${dataBR(it.data)}</span>`}<span style="display:flex;gap:4px">${botoes(it)}</span></div>
+        <div class="a">${s?quemPag(it):`<span class="pwho">desde ${dataBR(it.data)}</span>`}</div>
       </article>`).join("")||`<div class="pg-vazio">Nenhuma OS aqui</div>`}</div></div>`;
   }).join("");
 }
 $("#pgBoard").addEventListener("click",e=>{
-  const mv=e.target.closest("[data-pgmv]"); if(mv){ const it=items.find(i=>i.id===mv.dataset.id); if(it) mudarPagamento(it,+mv.dataset.pgmv); return; }
   const op=e.target.closest("[data-pgopen]"); if(op){ selId=op.dataset.pgopen; render(); $("#detail").scrollIntoView({behavior:"smooth",block:"start"}); }
 });
 
