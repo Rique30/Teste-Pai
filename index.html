@@ -155,6 +155,12 @@ button.pchip:hover:not(:disabled){border-color:currentColor}
 button.pchip:disabled{cursor:not-allowed;opacity:.7}
 .pwho{display:block;font-size:.7rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sheet td.pcell{padding:6px 8px}
+.filtros{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.filtros label{display:flex;flex-direction:column;gap:3px;font:500 .74rem var(--f-body);color:var(--muted);flex:1 1 150px;min-width:0;max-width:220px}
+.filtros select{padding:6px 8px;font-size:.84rem}
+.filtros select.ativo{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.filtros .linkbtn{padding:8px 4px;align-self:flex-end}
+body.planilha-max .filtros{display:none}
 .legenda{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 @media (max-width:980px){.legenda{grid-template-columns:1fr}}
 .legenda>div{display:flex;flex-wrap:wrap;align-items:center;gap:6px;background:color-mix(in srgb,var(--surface) 90%,transparent);border:1px solid var(--line);border-radius:8px;padding:9px 12px;min-width:0}
@@ -468,13 +474,21 @@ body.papel-operador .so-admin{display:none!important}
         <div style="display:flex;flex-direction:column;gap:12px">
           <div class="sheet-tools">
             <input id="fBusca" placeholder="Buscar por OS, local, prestador ou discriminação">
-            <select id="fStatus"><option value="">Todos os status</option><option value="pend">A pagar</option><option value="done">Pagas</option></select>
             <span class="count" id="sheetCount"></span>
             <button class="btn" type="button" id="btnFit" aria-pressed="false" title="Diminuir a planilha até caber inteira na largura da tela"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></svg>Ajustar à tela</button>
             <button class="btn" type="button" id="btnMax" title="Usar a tela inteira para a planilha"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" id="maxIcon"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span id="maxTxt">Maximizar planilha</span></button>
           </div>
+          <div class="filtros" aria-label="Filtros da planilha">
+            <label for="fNf">Nota fiscal<select id="fNf"><option value="">Todas</option><option value="0">Aguardando a nota fiscal</option><option value="1">NF recebida</option></select></label>
+            <label for="fIni">Início do processo<select id="fIni"><option value="">Todos</option><option value="0">Aguardando início</option><option value="1">Processo iniciado</option></select></label>
+            <label for="fPag">Pagamento<select id="fPag"><option value="">Todos</option><option value="0">Pendente de pagamento</option><option value="1">Pago</option></select></label>
+            <label for="fPrest">Prestador<select id="fPrest"><option value="">Todos</option></select></label>
+            <label for="fMes">Mês da OS<select id="fMes"><option value="">Todos</option></select></label>
+            <label for="fMoeda">Moeda<select id="fMoeda"><option value="">Todas</option><option value="BRL">Real (R$)</option><option value="USD">Dólar (US$)</option></select></label>
+            <button type="button" class="linkbtn" id="fLimpar" hidden>Limpar filtros</button>
+          </div>
           <div class="legenda" aria-label="Legenda dos status">
-            <div><b>Recebimento da nota fiscal</b><span class="pchip nf0"><i></i>Aguardando a nota fiscal</span><span class="pchip nf1"><i></i>NF recebida</span><span class="pchip nf2"><svg class="clip" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l8.6-8.6a3.3 3.3 0 0 1 4.7 4.7l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9"/></svg>NF com arquivo anexado</span><em>Muda sozinho quando a nota é lançada na aba Nota Fiscal.</em></div>
+            <div><b>Recebimento da nota fiscal</b><span class="pchip nf0"><i></i>Aguardando a nota fiscal</span><span class="pchip nf1"><i></i>NF recebida</span><span class="pchip nf2"><svg class="clip" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l8.6-8.6a3.3 3.3 0 0 1 4.7 4.7l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9"/></svg>NF com arquivo anexado</span><em>Clique para marcar quando a nota chegar. Muda sozinho quando a nota é lançada na aba Nota Fiscal.</em></div>
             <div><b>Início do processo</b><span class="pchip s0"><i></i>Aguardando início</span><span class="pchip s1"><i></i>Processo iniciado</span><em>Clique para marcar ou desmarcar.</em></div>
             <div><b>Pagamento</b><span class="pchip s0"><i></i>Pendente de pagamento</span><span class="pchip s2"><i></i>Pago</span><em>Clique para marcar ou desmarcar. Marcar como pago também marca o início do processo.</em></div>
           </div>
@@ -614,7 +628,7 @@ const done=it=>!!it.conf; // concluída quando está paga
 const curto=iso=>{ if(!iso) return ""; const d=new Date(iso); return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"}); };
 const euMesmo=()=>usuarioAtual?.email||"demo";
 // Regras dos dois checks: retorna {ok:boolean, motivo:string} para cada ação
-const CHK={exec:"① Processo de pagamento",conf:"② Pago"};
+const CHK={exec:"① Processo de pagamento",conf:"② Pago",nfRec:"• Recebimento da nota fiscal"};
 function podeCheck(it,qual,marcar){
   if(!canWrite) return {ok:false,motivo:"Sem permissão para alterar."};
   if(!marcar && live && it[qual]?.email!==euMesmo() && !ehAdmin()) return {ok:false,motivo:`Só quem marcou o ${CHK[qual].slice(2)} ou um administrador pode retirar este check.`};
@@ -632,10 +646,27 @@ function aplicarCheck(it,qual,marcar){
 const PAG=["A pagar","Em processo de pagamento","Pago"];
 const pagEstado=it=>it.conf?2:it.exec?1:0;
 function nfInfo(it){ const v=notas.filter(a=>a.osId===it.id); return {num:it.nf?.numero||v[0]?.numero||"", arq:v.some(a=>a.anexo)}; }
-function nfChip(it){
-  const n=nfInfo(it);
-  if(!n.num) return `<span class="pchip nf0"><i></i>Aguardando a nota fiscal</span>`;
-  return `<span class="pchip ${n.arq?"nf2":"nf1"}" title="${n.arq?"Nota com arquivo anexado":"Nota sem arquivo"}">${n.arq?CLIP:"<i></i>"}NF recebida · ${esc(n.num)}</span>`;
+// recebida quando a nota foi lançada na aba Nota Fiscal ou quando alguém marcou o recebimento na planilha
+const nfRecebida=it=>!!nfInfo(it).num || !!it.nfRec;
+function nfChip(it,botao){
+  const n=nfInfo(it), rec=nfRecebida(it), dis=canWrite?"":"disabled";
+  const cls=!rec?"nf0":n.arq?"nf2":"nf1", ico=n.arq?CLIP:"<i></i>";
+  const txt=!rec?"Aguardando a nota fiscal":n.num?`NF recebida · ${esc(n.num)}`:"NF recebida";
+  const dica=!rec?"Clique para marcar que a nota fiscal chegou":n.num?(n.arq?"Nota lançada, com arquivo anexado":"Nota lançada na aba Nota Fiscal"):"Clique para desmarcar";
+  if(!botao) return `<span class="pchip ${cls}" title="${dica}">${ico}${txt}</span>`;
+  return `<button type="button" class="pchip ${cls}" data-nfrec="${esc(it.id)}" ${dis} title="${dica}">${ico}${txt}</button>${it.nfRec?`<span class="pwho">${esc(it.nfRec.por)} · ${curto(it.nfRec.em)}</span>`:""}`;
+}
+function marcarNfRecebida(it){
+  if(it.nfRec){
+    const r=podeCheck(it,"nfRec",false); if(!r.ok){ notice(r.motivo); return; }
+    notice(nfInfo(it).num?"A nota já foi lançada na aba Nota Fiscal, então o status continua como recebida.":"");
+    save(it,{nfRec:null},"Desmarcou o recebimento da nota fiscal");
+  } else {
+    if(!canWrite){ notice("Sem permissão para alterar."); return; }
+    if(nfInfo(it).num){ notice("A nota desta OS já foi lançada na aba Nota Fiscal."); return; }
+    notice(""); save(it,{nfRec:{por:quem(),email:euMesmo(),em:new Date().toISOString()}},"Marcou o recebimento da nota fiscal");
+  }
+  renderSheet();
 }
 const quemPag=it=>{ const a=it.conf||it.exec; return a?`<span class="pwho">${esc(a.por)} · ${curto(a.em)}</span>`:""; };
 function iniBotao(it){
@@ -802,12 +833,28 @@ const COLS=[
   {h:"",ro:true,w:76,v:it=>`<button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button>`,html:true}
 ];
 const getF=(it,k)=>k.startsWith("nf.")?(it.nf||{})[k.slice(3)]:it[k];
+const MESES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+const FILTROS=["fNf","fIni","fPag","fPrest","fMes","fMoeda"];
+// opções de Prestador e Mês vêm das OS cadastradas
+function opcoesFiltros(){
+  const encher=(id,vals,rot)=>{ const sel=$(id), v=sel.value; sel.innerHTML=sel.options[0].outerHTML+vals.map(x=>`<option value="${esc(x)}">${esc(rot(x))}</option>`).join(""); sel.value=vals.includes(v)?v:""; };
+  encher("#fPrest",[...new Set(items.map(i=>(i.prestador||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"pt-BR")),x=>x);
+  encher("#fMes",[...new Set(items.map(i=>String(i.data||"").slice(0,7)).filter(x=>/^\d{4}-\d\d$/.test(x)))].sort().reverse(),x=>MESES[+x.slice(5)-1]+" de "+x.slice(0,4));
+}
 function filtered(){
-  const q=$("#fBusca").value.trim().toLowerCase(), st=$("#fStatus").value;
-  return items.filter(it=>(!st||(st==="done")===done(it)) &&
+  const q=$("#fBusca").value.trim().toLowerCase(), f=Object.fromEntries(FILTROS.map(id=>[id,$("#"+id).value]));
+  FILTROS.forEach(id=>$("#"+id).classList.toggle("ativo",!!f[id]));
+  $("#fLimpar").hidden=!FILTROS.some(id=>f[id]);
+  return items.filter(it=>
+    (!f.fNf || (f.fNf==="1")===nfRecebida(it)) &&
+    (!f.fIni || (f.fIni==="1")===!!(it.exec||it.conf)) &&
+    (!f.fPag || (f.fPag==="1")===!!it.conf) &&
+    (!f.fPrest || (it.prestador||"").trim()===f.fPrest) &&
+    (!f.fMes || String(it.data||"").startsWith(f.fMes)) &&
+    (!f.fMoeda || moedaDe(it)===f.fMoeda) &&
     (!q||[it.numero,it.aeroporto,it.prestador,it.obs].join(" ").toLowerCase().includes(q)));
 }
-function renderSheet(){ renderSheet0(); ajustarPlanilha(); }
+function renderSheet(){ opcoesFiltros(); renderSheet0(); ajustarPlanilha(); }
 function renderSheet0(){
   const rows=filtered(), dis=canWrite?"":"disabled";
   $("#sheetCount").textContent=`${rows.length} de ${items.length} serviços`;
@@ -817,7 +864,7 @@ function renderSheet0(){
     <tbody>${rows.map((it,r)=>`<tr><td class="rn">${r+2}</td>${COLS.map(c=>{
       if(c.qtd) return `<td class="qtdcell"><div><input data-id="${esc(it.id)}" data-k="qtd" type="number" min="0" step="any" value="${it.qtd??""}" aria-label="Quantidade ${esc(it.numero)}" ${dis}><select data-id="${esc(it.id)}" data-k="unidade" aria-label="Unidade ${esc(it.numero)}" ${dis}>${unidOpts(it.unidade).replace(/ \(objeto\)| \(líquido\)/g,"").replace("Unidade","un").replace("Litros","L").replace("Quilos","kg")}</select></div></td>`;
       if(c.chk) return `<td class="ck2cell">${checkCell(it,c.chk)}</td>`;
-      if(c.nfst) return `<td class="pcell">${nfChip(it)}</td>`;
+      if(c.nfst) return `<td class="pcell">${nfChip(it,true)}</td>`;
       if(c.ini) return `<td class="pcell">${iniBotao(it)}</td>`;
       if(c.pago) return `<td class="pcell">${pagoBotao(it)}</td>`;
       if(c.moeda) return `<td><select data-id="${esc(it.id)}" data-k="moeda" aria-label="Moeda ${esc(it.numero)}" ${dis}>${moedaOpts(it.moeda).replace("Real (R$)","R$").replace("Dólar (US$)","US$")}</select></td>`;
@@ -871,11 +918,13 @@ $("#sheet").addEventListener("change",e=>{
 $("#sheet").addEventListener("focusout",e=>{ if(!$("#sheet").contains(e.relatedTarget)) setTimeout(()=>{ if(!sheetFocused()) renderSheet(); },0); });
 $("#sheet").addEventListener("click",e=>{
   // Início do processo: liga/desliga (desligar também tira o Pago). Pagamento: liga/desliga (ligar também marca o início).
+  const nr=e.target.closest("[data-nfrec]"); if(nr){ const it=items.find(i=>i.id===nr.dataset.nfrec); if(it) marcarNfRecebida(it); return; }
   const ini=e.target.closest("[data-ini]"); if(ini){ const it=items.find(i=>i.id===ini.dataset.ini); if(it) mudarPagamento(it,it.exec||it.conf?0:1); return; }
   const pg=e.target.closest("[data-pago]"); if(pg){ const it=items.find(i=>i.id===pg.dataset.pago); if(it) mudarPagamento(it,it.conf?1:2); return; }
   const b=e.target.closest("[data-open]"); if(b){ selId=b.dataset.open; setView("fichas"); }});
 $("#fBusca").addEventListener("input",renderSheet);
-$("#fStatus").addEventListener("change",renderSheet);
+FILTROS.forEach(id=>$("#"+id).addEventListener("change",renderSheet));
+$("#fLimpar").addEventListener("click",()=>{ FILTROS.forEach(id=>$("#"+id).value=""); renderSheet(); });
 // --- notas fiscais ---
 const hojeISO=()=>{ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
 function vencPill(v){
@@ -904,7 +953,7 @@ function renderNotas(){
       <span class="confirm" data-delwrap="${esc(a.id)}">${a.anexo?`<button type="button" class="open btn-anexo" data-anexo="${esc(a.anexo.id)}" title="${esc(a.anexo.nome)}">${CLIP}Ver arquivo</button>`:""}<button type="button" class="open" data-edit-nf="${esc(a.id)}" ${dis}>Editar</button><button type="button" class="open so-admin" data-del-nf="${esc(a.id)}" ${dis}>Excluir</button></span></div>
       <details class="hist-nf"><summary>Histórico (${(a.historico||[]).length})</summary>${histHtml(a.historico,"Sem registros ainda.")}</details></article>`})),
     ...rowsOs.map(it=>({ord:it.nf?.data||it.data||"",html:`<article>${nfHtml(it)}
-      <div class="nota-foot"><span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill ${emitida(it)?"done":"pend"}">${emitida(it)?"Emitida":"Aguardando a nota fiscal"}</span>${vencPill(it.nf?.vencimento)}</span>
+      <div class="nota-foot"><span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill ${emitida(it)||it.nfRec?"done":"pend"}">${emitida(it)?"Emitida":it.nfRec?"NF recebida (não lançada)":"Aguardando a nota fiscal"}</span>${vencPill(it.nf?.vencimento)}</span>
       <button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button></div>
       <details class="hist-nf"><summary>Histórico da OS (${(it.historico||[]).length})</summary>${histHtml(it.historico,"Sem registros ainda.")}</details></article>`}))
   ].sort((a,b)=>b.ord.localeCompare(a.ord));
@@ -1112,7 +1161,7 @@ function renderMonitor(){
 $("#monitor").addEventListener("click",e=>{ const b=e.target.closest("[data-open-os]"); if(b && items.some(i=>i.id===b.dataset.openOs)){ selId=b.dataset.openOs; setView("fichas"); } });
 
 function renderKpis(){
-  const semNota=items.filter(it=>!emitida(it)), semInicio=items.filter(it=>pagEstado(it)===0), pendentes=items.filter(it=>pagEstado(it)<2);
+  const semNota=items.filter(it=>!nfRecebida(it)), semInicio=items.filter(it=>pagEstado(it)===0), pendentes=items.filter(it=>pagEstado(it)<2);
   $("#kpis").innerHTML=`<div style="--k:var(--red)"><span>Aguardando a nota fiscal</span><strong>${semNota.length}</strong></div>
     <div style="--k:var(--amber)"><span>Aguardando o início do processo de pagamento</span><strong>${semInicio.length}</strong></div>
     <div style="--k:var(--ok)"><span>Pendente de pagamento</span><strong>${pendentes.length}</strong></div>`;
