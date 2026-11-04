@@ -5,7 +5,7 @@ Página para registrar ordens de serviço em aeroportos.
 - **Planilha**: todas as OS em uma tabela editável (data, aeroporto, discriminação, checklist, status, nota fiscal e valor), com busca, filtro por status e total.
 - **OS**: cada ordem de serviço com data, local, prestador, valor, discriminação e checklist com OK.
 - **Checklist padrão**: Comissaria, Transporte VIP, Reabastecimento, Atendimento VIP, Hangar, Taxa aeroportuária, Locação, Limpeza de QTU, Manutenção, Internet, Suporte técnico, Telefonia e Banco de dados. Itens novos podem ser salvos para as próximas solicitações.
-- **Nº da OS**: digitado na criação (já vem sugerido o próximo número) e editável depois na OS e na planilha; números repetidos são recusados.
+- **Nº da OS**: digitado na criação (já vem sugerido o próximo número) e editável depois na OS e na planilha; o mesmo número pode ser usado em mais de uma OS.
 - **Valor**: moeda Real (R$) ou Dólar (US$) por OS, valor unitário e valor da OS calculado por quantidade × valor unitário (pode ser alterado). Os totais somam cada moeda separadamente.
 - **Contas**: perfis Operador, Administrador e Desenvolvedor. O desenvolvedor tem tudo do administrador e a conta fica protegida: só outro desenvolvedor a altera ou remove. Enquanto não houver nenhum desenvolvedor, um administrador pode criar o primeiro na aba Equipe.
 - **Nova solicitação**: já mostra todos os serviços do checklist para marcar e permite informar a nota fiscal na criação.
