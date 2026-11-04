@@ -649,8 +649,7 @@ function renderPagamentos(){
   const el=$("#pgBoard"); if(!el) return;
   el.innerHTML=[0,1,2].map(s=>{
     const l=items.filter(it=>pagEstado(it)===s).sort((a,b)=>String(b.data||"").localeCompare(String(a.data||"")));
-    return `<div class="pg-col"><div class="pg-col-h"><span class="pchip s${s}"><i></i>${PAG[s]}</span><span>${l.length} OS</span></div>
-      <div class="pg-tot">${l.length?somaMoedas(l,it=>it.valorOs):"—"}</div>
+    return `<div class="pg-col"><div class="pg-col-h">${s?`<span class="pchip s${s}"><i></i>${PAG[s]}</span>`:"<span></span>"}<span>${l.length} OS</span></div>
       <div class="pg-cards">${l.map(it=>`<article class="pg-card" aria-current="${it.id===selId}">
         <div class="t"><button type="button" data-pgopen="${esc(it.id)}" title="Ver detalhes da OS">${esc(it.numero)}</button><span>${fmtMoeda(it.valorOs,moedaDe(it))}</span></div>
         <div class="m">${dataBR(it.data)} · ${esc(it.aeroporto||"—")}${it.prestador?" · "+esc(it.prestador):""}</div>
