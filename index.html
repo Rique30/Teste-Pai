@@ -156,6 +156,10 @@ button.pchip:hover:not(:disabled){border-color:currentColor}
 button.pchip:disabled{cursor:not-allowed;opacity:.7}
 .pwho{display:block;font-size:.7rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sheet td.pcell{padding:6px 8px}
+.acoes-linha{display:flex;gap:2px;align-items:center;white-space:nowrap}
+.open.excluir{color:var(--red)}
+.open.excluir:hover{background:var(--red-bg)}
+.confirma-exc{display:flex;gap:2px;align-items:center;font-size:.78rem;white-space:nowrap}
 .nf-cel{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .arq-btn{display:inline-flex;align-items:center;gap:4px;font:500 .74rem var(--f-body);color:var(--accent);background:none;border:1px dashed var(--line-strong);border-radius:99px;padding:2px 8px;cursor:pointer;white-space:nowrap}
 .arq-btn:hover:not(:disabled){border-color:var(--accent);background:var(--accent-soft)}
@@ -999,7 +1003,7 @@ const COLS=[
   {h:"Recebimento da nota fiscal",nfst:true,w:290},
   {h:"Início do processo",ini:true,w:168},
   {h:"Pagamento",pago:true,w:178},
-  {h:"",ro:true,w:76,v:it=>`<button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button>`,html:true}
+  {h:"",ro:true,w:150,v:it=>`<span class="acoes-linha" data-excwrap="${esc(it.id)}"><button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button><button type="button" class="open excluir so-admin" data-excluir-os="${esc(it.id)}" ${canWrite?"":"disabled"} title="Excluir esta OS">Excluir</button></span>`,html:true}
 ];
 // valor da NF: o mesmo da OS, a não ser que alguém tenha digitado outro valor na NF
 const valorNf=it=>Number(it.nf?.valor)||(it.nfValorManual?0:Number(it.valorOs)||0);
@@ -1093,7 +1097,20 @@ $("#sheet").addEventListener("change",e=>{
   else save(it,{[k]:t.dataset.valor?lerValor(t.value,+t.dataset.valor||2):t.type==="number"?(parseFloat(t.value)||0):t.type==="date"?t.value:t.value.trim()},ac);
 });
 $("#sheet").addEventListener("focusout",e=>{ if(!$("#sheet").contains(e.relatedTarget)) setTimeout(()=>{ if(!sheetFocused()) renderSheet(); },0); });
+// excluir a OS inteira (só administrador); os arquivos anexados nela também são apagados
+function excluirOs(it){
+  items=items.filter(i=>i.id!==it.id); if(selId===it.id) selId=items[0]?.id||null; render();
+  if(modoSite) anexosProprios(it).forEach(a=>api("excluirAnexo",{id:a.id}).catch(()=>{}));
+  if(live) db.collection("solicitacoes").doc(it.id).delete().catch(()=>notice("Não foi possível excluir agora."));
+  notice(`OS ${it.numero} excluída.`);
+}
 $("#sheet").addEventListener("click",e=>{
+  const ex=e.target.closest("[data-excluir-os]");
+  if(ex){ const it=items.find(i=>i.id===ex.dataset.excluirOs); if(!it) return;
+    ex.parentElement.innerHTML=`<span class="confirma-exc">Excluir ${esc(it.numero)}? <button type="button" class="open" data-exc-nao>Não</button><button type="button" class="open excluir" data-exc-sim="${esc(it.id)}">Sim</button></span>`;
+    const w=$(`#sheet [data-excwrap="${it.id}"]`); w?.querySelector("[data-exc-nao]")?.focus(); return; }
+  if(e.target.closest("[data-exc-nao]")){ renderSheet(); return; }
+  const sim=e.target.closest("[data-exc-sim]"); if(sim){ const it=items.find(i=>i.id===sim.dataset.excSim); if(it) excluirOs(it); return; }
   // Início do processo: liga/desliga (desligar também tira o Pago). Pagamento: liga/desliga (ligar também marca o início).
   const nr=e.target.closest("[data-nfrec]"); if(nr){ const it=items.find(i=>i.id===nr.dataset.nfrec); if(it) marcarNfRecebida(it); return; }
   const ini=e.target.closest("[data-ini]"); if(ini){ const it=items.find(i=>i.id===ini.dataset.ini); if(it) mudarPagamento(it,it.exec||it.conf?0:1); return; }
@@ -1382,7 +1399,7 @@ $("#tabNotas").addEventListener("click",()=>setView("notas"));
 $("#tabMonitor").addEventListener("click",()=>setView("monitor"));
 $("#tabEquipe").addEventListener("click",()=>setView("equipe"));
 // --- novidades: lista de atualizações; a bolinha vermelha aparece quando há novidade que a pessoa ainda não viu ---
-const NOVIDADES=[["2026-11-05", ["Discriminação virou uma lista de serviços: escolha um ou vários, e cada um aparece ao lado. Em \"Outro serviço…\" dá para criar um novo.", "Anexe o arquivo da nota fiscal direto na planilha (Anexar NF / Ver NF) e nos detalhes da OS.", "Caixa de Observação que abre e fecha na planilha, na OS e na nota fiscal. A coluna Observação da planilha pode ser ocultada.", "Novidades: esta lista com todas as atualizações do site.", "Aba Nota Fiscal: filtro por Processo de pagamento pendente, Pago e Pagamento pendente, e o status do pagamento em cada nota.", "Os cartões de nota fiscal não mostram mais a lista de serviços.", "No quadro da aba OS, cada cartão mostra Data / Prestador de serviço / Local.", "Saíram as caixas de legenda acima da planilha.", "A coluna Observação da planilha fica logo depois de Valor NF.", "Dá para anexar vários arquivos da nota fiscal na mesma OS, escolhendo vários de uma vez ou anexando mais depois.", "A janela de arquivos ficou mais larga e mostra o nome inteiro de cada arquivo.", "Os cartões da aba Nota Fiscal mostram os arquivos anexados, com o nome inteiro e o botão Ver, e dá para anexar dali.", "Saiu o Total geral da aba Nota Fiscal.", "Nº da OS e da NF começam em 000000 e os números digitados entram pela direita (427 vira 000427).", "O Valor da NF vem igual ao Valor da OS; se for diferente, é só digitar o valor da nota.", "A coluna Observação começa oculta (botão Mostrar observações). Linhas com observação mostram um balão no número da linha.", "A linha da planilha fica mais destacada ao passar o mouse ou editar.", "A discriminação escrita nas OS antigas passou a ser o item da Discriminação, e os 13 serviços que vinham marcados por padrão saíram."]], ["2026-11-04", ["Valores mostram o ,00 enquanto você digita, com o ponto do milhar aparecendo na hora.", "A coluna Data da OS passou a ser a primeira da planilha.", "Números de OS e de nota fiscal sempre com 6 dígitos (011 vira 000011).", "Valor unitário com 6 casas depois da vírgula, quantidade com ponto no milhar e valores zerados como 0,00.", "OS em ordem de data, da mais recente para a mais antiga. O mesmo número de OS pode ser usado mais de uma vez."]], ["2026-11-03", ["Filtros na planilha: Nota fiscal, Início do processo, Pagamento, Prestador, Mês da OS e Moeda.", "Planilha com 3 status (Recebimento da nota fiscal, Início do processo e Pagamento) e legenda das cores.", "Recebimento da nota fiscal pode ser marcado com um clique, mesmo antes de lançar a nota.", "Aba OS com quadro de pagamento e cards do topo: Aguardando a nota fiscal, Aguardando o início do processo de pagamento e Pendente de pagamento.", "Saíram o check Ciente e a linha TOTAL. Confirmado virou Processo de pagamento.", "Notas fiscais passam a ser criadas só pela aba Nota Fiscal, com anexo do arquivo (PDF ou foto).", "Datas aceitam o ano com 2 dígitos (26 vira 2026) e a planilha ficou mais compacta.", "Novas fotos de fundo e no menu das abas.", "Site ligado ao banco de dados: login com senha e as mesmas OS em todos os aparelhos.", "Número da OS editável, valor em real ou dólar, valor unitário e perfil Desenvolvedor."]], ["2026-10-30", ["Foto do jato no fundo da página.", "Planilha: Ajustar à tela, maximizar e esconder as abas.", "Checks de confirmação e pagamento na planilha e na OS.", "Quantidade com unidade (unidade, litros ou quilos).", "Aba Equipe para criar contas, aba Monitor e histórico de ações.", "Login com troca de senha no primeiro acesso e vencimento da nota fiscal."]], ["2026-10-29", ["Primeira versão: planilha de OS, nota fiscal e geração de Excel."]]];
+const NOVIDADES=[["2026-11-05", ["Discriminação virou uma lista de serviços: escolha um ou vários, e cada um aparece ao lado. Em \"Outro serviço…\" dá para criar um novo.", "Anexe o arquivo da nota fiscal direto na planilha (Anexar NF / Ver NF) e nos detalhes da OS.", "Caixa de Observação que abre e fecha na planilha, na OS e na nota fiscal. A coluna Observação da planilha pode ser ocultada.", "Novidades: esta lista com todas as atualizações do site.", "Aba Nota Fiscal: filtro por Processo de pagamento pendente, Pago e Pagamento pendente, e o status do pagamento em cada nota.", "Os cartões de nota fiscal não mostram mais a lista de serviços.", "No quadro da aba OS, cada cartão mostra Data / Prestador de serviço / Local.", "Saíram as caixas de legenda acima da planilha.", "A coluna Observação da planilha fica logo depois de Valor NF.", "Dá para anexar vários arquivos da nota fiscal na mesma OS, escolhendo vários de uma vez ou anexando mais depois.", "A janela de arquivos ficou mais larga e mostra o nome inteiro de cada arquivo.", "Os cartões da aba Nota Fiscal mostram os arquivos anexados, com o nome inteiro e o botão Ver, e dá para anexar dali.", "Saiu o Total geral da aba Nota Fiscal.", "Nº da OS e da NF começam em 000000 e os números digitados entram pela direita (427 vira 000427).", "O Valor da NF vem igual ao Valor da OS; se for diferente, é só digitar o valor da nota.", "A coluna Observação começa oculta (botão Mostrar observações). Linhas com observação mostram um balão no número da linha.", "A linha da planilha fica mais destacada ao passar o mouse ou editar.", "Administradores podem excluir uma OS direto na planilha (botão Excluir na linha, com confirmação).", "A discriminação escrita nas OS antigas passou a ser o item da Discriminação, e os 13 serviços que vinham marcados por padrão saíram."]], ["2026-11-04", ["Valores mostram o ,00 enquanto você digita, com o ponto do milhar aparecendo na hora.", "A coluna Data da OS passou a ser a primeira da planilha.", "Números de OS e de nota fiscal sempre com 6 dígitos (011 vira 000011).", "Valor unitário com 6 casas depois da vírgula, quantidade com ponto no milhar e valores zerados como 0,00.", "OS em ordem de data, da mais recente para a mais antiga. O mesmo número de OS pode ser usado mais de uma vez."]], ["2026-11-03", ["Filtros na planilha: Nota fiscal, Início do processo, Pagamento, Prestador, Mês da OS e Moeda.", "Planilha com 3 status (Recebimento da nota fiscal, Início do processo e Pagamento) e legenda das cores.", "Recebimento da nota fiscal pode ser marcado com um clique, mesmo antes de lançar a nota.", "Aba OS com quadro de pagamento e cards do topo: Aguardando a nota fiscal, Aguardando o início do processo de pagamento e Pendente de pagamento.", "Saíram o check Ciente e a linha TOTAL. Confirmado virou Processo de pagamento.", "Notas fiscais passam a ser criadas só pela aba Nota Fiscal, com anexo do arquivo (PDF ou foto).", "Datas aceitam o ano com 2 dígitos (26 vira 2026) e a planilha ficou mais compacta.", "Novas fotos de fundo e no menu das abas.", "Site ligado ao banco de dados: login com senha e as mesmas OS em todos os aparelhos.", "Número da OS editável, valor em real ou dólar, valor unitário e perfil Desenvolvedor."]], ["2026-10-30", ["Foto do jato no fundo da página.", "Planilha: Ajustar à tela, maximizar e esconder as abas.", "Checks de confirmação e pagamento na planilha e na OS.", "Quantidade com unidade (unidade, litros ou quilos).", "Aba Equipe para criar contas, aba Monitor e histórico de ações.", "Login com troca de senha no primeiro acesso e vencimento da nota fiscal."]], ["2026-10-29", ["Primeira versão: planilha de OS, nota fiscal e geração de Excel."]]];
 const novVista=()=>{ try{ return localStorage.getItem("cs-novidades")||""; }catch(_){ return ""; } };
 const novChave=()=>NOVIDADES[0][0]+"|"+NOVIDADES[0][1].length;
 function marcarNovidades(){ $("#novoBadge").hidden=novVista()===novChave(); }
@@ -1517,10 +1534,7 @@ $("#detail").addEventListener("click",async e=>{
   } else if(id==="btnExcluir"){
     $("#delWrap").innerHTML=`Excluir ${esc(it.numero)}? <button class="btn" type="button" id="btnNao">Não</button><button class="btn primary" type="button" id="btnSim">Sim, excluir</button>`;
   } else if(id==="btnNao"){ renderDetail();
-  } else if(id==="btnSim"){
-    items=items.filter(i=>i.id!==it.id); selId=items[0]?.id||null; render();
-    if(live) db.collection("solicitacoes").doc(it.id).delete().catch(()=>notice("Não foi possível excluir agora."));
-  }
+  } else if(id==="btnSim"){ excluirOs(it); }
 });
 
 // --- nova solicitação ---
