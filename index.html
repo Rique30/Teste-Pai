@@ -163,6 +163,12 @@ button.pchip:disabled{cursor:not-allowed;opacity:.7}
 .nf-os{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;margin-bottom:12px;border:1px dashed var(--line-strong);border-radius:6px;background:var(--head)}
 .nf-os b{font-size:.9rem}
 .nf-os .nome{font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px}
+.arq-lista{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.arq-lista li{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);min-width:0;flex-wrap:wrap}
+.arq-lista li:last-child{border-bottom:0}
+.arq-lista .nome{font-size:.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 160px;min-width:0}
+.arq-lista .acoes{display:flex;gap:6px;align-items:center;margin-left:auto}
+#dlgArquivos{width:min(560px,calc(100% - 32px))}
 .nf-os .acoes{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
 .filtros{display:grid;grid-template-columns:repeat(auto-fill,minmax(225px,1fr));gap:12px 14px;align-items:end;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;box-shadow:var(--shadow)}
 .filtros label{display:flex;flex-direction:column;gap:5px;font:600 .9rem var(--f-body);color:var(--ink);min-width:0}
@@ -580,6 +586,12 @@ body.papel-operador .so-admin{display:none!important}
   </form>
 </dialog>
 
+<dialog id="dlgArquivos">
+  <h2 id="arqTitulo">Arquivos da nota fiscal</h2>
+  <div id="arqLista"></div>
+  <div class="row-actions"><button class="btn" type="button" id="arqMais" data-anexar="">Anexar mais arquivos</button><button class="btn primary" type="button" id="arqFechar">Fechar</button></div>
+</dialog>
+
 <dialog id="dlgNovidades">
   <h2>Novidades</h2>
   <p class="sub" style="margin:-8px 0 14px">Tudo o que mudou no site, da atualização mais recente para a mais antiga.</p>
@@ -700,27 +712,42 @@ function aplicarCheck(it,qual,marcar){
 // --- anexar o arquivo da nota fiscal direto na OS (planilha e detalhes) ---
 const anexosDemo={};
 let anexarOsId=null;
-const campoArquivoOs=Object.assign(document.createElement("input"),{type:"file",accept:"application/pdf,image/jpeg,image/png,image/webp,image/heic,image/*",hidden:true});
+const campoArquivoOs=Object.assign(document.createElement("input"),{type:"file",multiple:true,accept:"application/pdf,image/jpeg,image/png,image/webp,image/heic,image/*",hidden:true});
 document.body.append(campoArquivoOs);
 document.addEventListener("click",e=>{
   const a=e.target.closest?.("[data-anexar]"); if(a && !a.disabled){ anexarOsId=a.dataset.anexar; campoArquivoOs.value=""; campoArquivoOs.click(); return; }
   const v=e.target.closest?.("[data-veranexo]"); if(v){ abrirAnexo(v.dataset.veranexo); return; }
+  const ar=e.target.closest?.("[data-arquivos]"); if(ar){ abrirArquivos(ar.dataset.arquivos); return; }
   const t=e.target.closest?.("[data-tiraranexo]"); if(t && !t.disabled){
-    const it=items.find(i=>i.id===t.dataset.tiraranexo); if(!it?.nfAnexo) return;
-    if(modoSite) api("excluirAnexo",{id:it.nfAnexo.id}).catch(()=>{});
-    save(it,{nfAnexo:null},"Removeu o arquivo da nota fiscal "+it.nfAnexo.nome); renderSheet();
+    const it=items.find(i=>i.id===t.dataset.tiraranexo); if(!it) return;
+    const ax=anexosProprios(it).find(a=>a.id===t.dataset.ax); if(!ax) return;
+    if(modoSite) api("excluirAnexo",{id:ax.id}).catch(()=>{});
+    save(it,{nfAnexos:anexosProprios(it).filter(a=>a.id!==ax.id),nfAnexo:null},"Removeu o arquivo da nota fiscal "+ax.nome); renderSheet(); atualizarArquivos();
   }
 });
+// janela com todos os arquivos de uma OS (aberta pela planilha)
+let arquivosOsId=null;
+function abrirArquivos(id){ arquivosOsId=id; atualizarArquivos(); $("#dlgArquivos").showModal(); }
+function atualizarArquivos(){
+  const it=items.find(i=>i.id===arquivosOsId); if(!it||!$("#dlgArquivos").open&&!arquivosOsId) return;
+  $("#arqTitulo").textContent="Arquivos da nota fiscal · OS "+(it.numero||"");
+  $("#arqLista").innerHTML=listaArquivos(it,canWrite?"":"disabled");
+  $("#arqMais").dataset.anexar=it.id; $("#arqMais").disabled=!canWrite;
+}
 campoArquivoOs.addEventListener("change",async()=>{
-  const arq=campoArquivoOs.files[0], it=items.find(i=>i.id===anexarOsId); if(!arq||!it) return;
-  notice("Enviando o arquivo da nota fiscal…");
-  try{
-    const anexo=await enviarAnexo(arq), antigo=it.nfAnexo;
-    if(antigo && modoSite) api("excluirAnexo",{id:antigo.id}).catch(()=>{});
-    const patch={nfAnexo:anexo};
+  const arqs=[...campoArquivoOs.files], it=items.find(i=>i.id===anexarOsId); if(!arqs.length||!it) return;
+  const novos=[], erros=[];
+  for(const [k,arq] of arqs.entries()){
+    notice(`Enviando ${arqs.length>1?`arquivo ${k+1} de ${arqs.length}`:"o arquivo"} da nota fiscal…`);
+    try{ novos.push(await enviarAnexo(arq)); }catch(err){ erros.push(`${arq.name}: ${err.msg||"não foi possível enviar"}`); }
+  }
+  if(novos.length){
+    const patch={nfAnexos:[...anexosProprios(it),...novos],nfAnexo:null};
     if(!nfRecebida(it)) patch.nfRec={por:quem(),email:euMesmo(),em:new Date().toISOString()};
-    notice(""); save(it,patch,(antigo?"Trocou":"Anexou")+" o arquivo da nota fiscal "+anexo.nome); renderSheet();
-  }catch(err){ notice(err.msg||"Não foi possível enviar o arquivo. Tente de novo."); }
+    save(it,patch,(novos.length>1?`Anexou ${novos.length} arquivos da nota fiscal: `:"Anexou o arquivo da nota fiscal ")+novos.map(a=>a.nome).join(", "));
+    renderSheet(); atualizarArquivos();
+  }
+  notice(erros.length?"Alguns arquivos não foram enviados. "+erros.join(" · "):"");
 });
 
 // --- observação: caixa que abre e fecha; a escolha de cada lugar fica guardada neste navegador ---
@@ -770,7 +797,17 @@ document.addEventListener("keydown",e=>{ if(e.key==="Enter" && e.target.matches?
 // --- estado da nota fiscal e do pagamento de cada OS ---
 const PAG=["A pagar","Em processo de pagamento","Pago"];
 const pagEstado=it=>it.conf?2:it.exec?1:0;
-const anexoDaOs=it=>it.nfAnexo||notas.find(a=>a.osId===it.id&&a.anexo)?.anexo||null;
+// arquivos da nota fiscal de uma OS: os anexados na OS (vários) e os das notas vinculadas na aba Nota Fiscal
+const anexosProprios=it=>[...(it.nfAnexos||[]),...(it.nfAnexo?[it.nfAnexo]:[])];
+const anexosDaOs=it=>[...anexosProprios(it),...notas.filter(a=>a.osId===it.id&&a.anexo).map(a=>({...a.anexo,deNota:true}))];
+const anexoDaOs=it=>anexosDaOs(it)[0]||null;
+// lista de arquivos com Ver e Remover (detalhes da OS e janela de arquivos)
+function listaArquivos(it,dis){
+  const l=anexosDaOs(it);
+  if(!l.length) return `<p class="sub" style="margin:0">Nenhum arquivo anexado.</p>`;
+  return `<ul class="arq-lista">${l.map(a=>`<li>${CLIP}<span class="nome" title="${esc(a.nome)}">${esc(a.nome)}</span><span class="sub" style="margin:0">${tamanhoTxt(a.tamanho||0)}</span>
+    <span class="acoes"><button type="button" class="btn" data-veranexo="${esc(a.id)}">Ver</button>${a.deNota?`<span class="sub" style="margin:0">da aba Nota Fiscal</span>`:`<button type="button" class="btn" data-tiraranexo="${esc(it.id)}" data-ax="${esc(a.id)}" ${dis}>Remover</button>`}</span></li>`).join("")}</ul>`;
+}
 function nfInfo(it){ const v=notas.filter(a=>a.osId===it.id); return {num:it.nf?.numero||v[0]?.numero||"", arq:!!anexoDaOs(it)}; }
 // recebida quando a nota foi lançada na aba Nota Fiscal ou quando alguém marcou o recebimento na planilha
 const nfRecebida=it=>!!nfInfo(it).num || !!it.nfRec;
@@ -780,8 +817,8 @@ function nfChip(it,botao){
   const txt=!rec?"Aguardando a nota fiscal":n.num?`NF recebida · ${esc(n.num)}`:"NF recebida";
   const dica=!rec?"Clique para marcar que a nota fiscal chegou":n.num?(n.arq?"Nota lançada, com arquivo anexado":"Nota lançada na aba Nota Fiscal"):"Clique para desmarcar";
   if(!botao) return `<span class="pchip ${cls}" title="${dica}">${ico}${txt}</span>`;
-  const ax=anexoDaOs(it);
-  const arqBtn=ax?`<button type="button" class="arq-btn" data-veranexo="${esc(ax.id)}" title="Abrir ${esc(ax.nome)}">${CLIP}Ver NF</button>`:`<button type="button" class="arq-btn" data-anexar="${esc(it.id)}" ${dis} title="Anexar o arquivo da nota fiscal (PDF ou foto)">${CLIP}Anexar NF</button>`;
+  const nArq=anexosDaOs(it).length;
+  const arqBtn=nArq?`<button type="button" class="arq-btn" data-arquivos="${esc(it.id)}" title="Ver, anexar ou remover os arquivos da nota fiscal">${CLIP}${nArq===1?"1 arquivo":nArq+" arquivos"}</button>`:`<button type="button" class="arq-btn" data-anexar="${esc(it.id)}" ${dis} title="Anexar os arquivos da nota fiscal (PDF ou foto; pode escolher vários)">${CLIP}Anexar NF</button>`;
   return `<div class="nf-cel"><button type="button" class="pchip ${cls}" data-nfrec="${esc(it.id)}" ${dis} title="${dica}">${ico}${txt}</button>${arqBtn}</div>${it.nfRec?`<span class="pwho">${esc(it.nfRec.por)} · ${curto(it.nfRec.em)}</span>`:""}`;
 }
 function marcarNfRecebida(it){
@@ -911,11 +948,10 @@ function renderDetail(){
 
   <section class="card">
     <h2>Nota fiscal e pagamento</h2>
-    ${(()=>{ const ax=anexoDaOs(it), n=nfInfo(it);
-      return `<div class="nf-os"><b>Arquivo da nota fiscal</b>${nfChip(it)}
-        ${ax?`<span class="nome" title="${esc(ax.nome)}">${esc(ax.nome)} · ${tamanhoTxt(ax.tamanho||0)}</span>`:`<span class="sub" style="margin:0">Nenhum arquivo anexado</span>`}
-        <span class="acoes">${ax?`<button type="button" class="btn" data-veranexo="${esc(ax.id)}">Ver</button>${it.nfAnexo?`<button type="button" class="btn" data-anexar="${esc(it.id)}" ${dis}>Trocar</button><button type="button" class="btn" data-tiraranexo="${esc(it.id)}" ${dis}>Remover</button>`:`<span class="sub" style="margin:0">anexado na aba Nota Fiscal</span>`}`:`<button type="button" class="btn primary" data-anexar="${esc(it.id)}" ${dis}>${CLIP} Anexar arquivo</button>`}</span>
-      </div>`; })()}
+    <div class="nf-os"><b>Arquivos da nota fiscal</b>${nfChip(it)}
+      <span class="acoes"><button type="button" class="btn primary" data-anexar="${esc(it.id)}" ${dis}>${CLIP} Anexar arquivos</button></span>
+      <div style="flex:1 1 100%">${listaArquivos(it,dis)}</div>
+    </div>
     <div class="duplo">
       <div class="status-sq">${checkCell(it,"exec",true)}<span><b>① Processo de pagamento</b> ${it.exec?`Marcado por <strong>${esc(it.exec.por)}</strong> em ${quando(it.exec.em)}`:"Marque quando iniciar o processo de pagamento."}</span></div>
       <div class="status-sq">${checkCell(it,"conf",true)}<span><b>② Pago</b> ${it.conf?`Marcado por <strong>${esc(it.conf.por)}</strong> em ${quando(it.conf.em)}`:"Marque quando o pagamento for concluído."}</span></div>
@@ -1315,7 +1351,7 @@ $("#tabNotas").addEventListener("click",()=>setView("notas"));
 $("#tabMonitor").addEventListener("click",()=>setView("monitor"));
 $("#tabEquipe").addEventListener("click",()=>setView("equipe"));
 // --- novidades: lista de atualizações; a bolinha vermelha aparece quando há novidade que a pessoa ainda não viu ---
-const NOVIDADES=[["2026-11-05", ["Discriminação virou uma lista de serviços: escolha um ou vários, e cada um aparece ao lado. Em \"Outro serviço…\" dá para criar um novo.", "Anexe o arquivo da nota fiscal direto na planilha (Anexar NF / Ver NF) e nos detalhes da OS.", "Caixa de Observação que abre e fecha na planilha, na OS e na nota fiscal. A coluna Observação da planilha pode ser ocultada.", "Novidades: esta lista com todas as atualizações do site.", "Aba Nota Fiscal: filtro por Processo de pagamento pendente, Pago e Pagamento pendente, e o status do pagamento em cada nota.", "Os cartões de nota fiscal não mostram mais a lista de serviços.", "No quadro da aba OS, cada cartão mostra Data / Prestador de serviço / Local.", "Saíram as caixas de legenda acima da planilha.", "A coluna Observação da planilha fica logo depois de Valor NF.", "A discriminação escrita nas OS antigas passou a ser o item da Discriminação, e os 13 serviços que vinham marcados por padrão saíram."]], ["2026-11-04", ["Valores mostram o ,00 enquanto você digita, com o ponto do milhar aparecendo na hora.", "A coluna Data da OS passou a ser a primeira da planilha.", "Números de OS e de nota fiscal sempre com 6 dígitos (011 vira 000011).", "Valor unitário com 6 casas depois da vírgula, quantidade com ponto no milhar e valores zerados como 0,00.", "OS em ordem de data, da mais recente para a mais antiga. O mesmo número de OS pode ser usado mais de uma vez."]], ["2026-11-03", ["Filtros na planilha: Nota fiscal, Início do processo, Pagamento, Prestador, Mês da OS e Moeda.", "Planilha com 3 status (Recebimento da nota fiscal, Início do processo e Pagamento) e legenda das cores.", "Recebimento da nota fiscal pode ser marcado com um clique, mesmo antes de lançar a nota.", "Aba OS com quadro de pagamento e cards do topo: Aguardando a nota fiscal, Aguardando o início do processo de pagamento e Pendente de pagamento.", "Saíram o check Ciente e a linha TOTAL. Confirmado virou Processo de pagamento.", "Notas fiscais passam a ser criadas só pela aba Nota Fiscal, com anexo do arquivo (PDF ou foto).", "Datas aceitam o ano com 2 dígitos (26 vira 2026) e a planilha ficou mais compacta.", "Novas fotos de fundo e no menu das abas.", "Site ligado ao banco de dados: login com senha e as mesmas OS em todos os aparelhos.", "Número da OS editável, valor em real ou dólar, valor unitário e perfil Desenvolvedor."]], ["2026-10-30", ["Foto do jato no fundo da página.", "Planilha: Ajustar à tela, maximizar e esconder as abas.", "Checks de confirmação e pagamento na planilha e na OS.", "Quantidade com unidade (unidade, litros ou quilos).", "Aba Equipe para criar contas, aba Monitor e histórico de ações.", "Login com troca de senha no primeiro acesso e vencimento da nota fiscal."]], ["2026-10-29", ["Primeira versão: planilha de OS, nota fiscal e geração de Excel."]]];
+const NOVIDADES=[["2026-11-05", ["Discriminação virou uma lista de serviços: escolha um ou vários, e cada um aparece ao lado. Em \"Outro serviço…\" dá para criar um novo.", "Anexe o arquivo da nota fiscal direto na planilha (Anexar NF / Ver NF) e nos detalhes da OS.", "Caixa de Observação que abre e fecha na planilha, na OS e na nota fiscal. A coluna Observação da planilha pode ser ocultada.", "Novidades: esta lista com todas as atualizações do site.", "Aba Nota Fiscal: filtro por Processo de pagamento pendente, Pago e Pagamento pendente, e o status do pagamento em cada nota.", "Os cartões de nota fiscal não mostram mais a lista de serviços.", "No quadro da aba OS, cada cartão mostra Data / Prestador de serviço / Local.", "Saíram as caixas de legenda acima da planilha.", "A coluna Observação da planilha fica logo depois de Valor NF.", "Dá para anexar vários arquivos da nota fiscal na mesma OS, escolhendo vários de uma vez ou anexando mais depois.", "A discriminação escrita nas OS antigas passou a ser o item da Discriminação, e os 13 serviços que vinham marcados por padrão saíram."]], ["2026-11-04", ["Valores mostram o ,00 enquanto você digita, com o ponto do milhar aparecendo na hora.", "A coluna Data da OS passou a ser a primeira da planilha.", "Números de OS e de nota fiscal sempre com 6 dígitos (011 vira 000011).", "Valor unitário com 6 casas depois da vírgula, quantidade com ponto no milhar e valores zerados como 0,00.", "OS em ordem de data, da mais recente para a mais antiga. O mesmo número de OS pode ser usado mais de uma vez."]], ["2026-11-03", ["Filtros na planilha: Nota fiscal, Início do processo, Pagamento, Prestador, Mês da OS e Moeda.", "Planilha com 3 status (Recebimento da nota fiscal, Início do processo e Pagamento) e legenda das cores.", "Recebimento da nota fiscal pode ser marcado com um clique, mesmo antes de lançar a nota.", "Aba OS com quadro de pagamento e cards do topo: Aguardando a nota fiscal, Aguardando o início do processo de pagamento e Pendente de pagamento.", "Saíram o check Ciente e a linha TOTAL. Confirmado virou Processo de pagamento.", "Notas fiscais passam a ser criadas só pela aba Nota Fiscal, com anexo do arquivo (PDF ou foto).", "Datas aceitam o ano com 2 dígitos (26 vira 2026) e a planilha ficou mais compacta.", "Novas fotos de fundo e no menu das abas.", "Site ligado ao banco de dados: login com senha e as mesmas OS em todos os aparelhos.", "Número da OS editável, valor em real ou dólar, valor unitário e perfil Desenvolvedor."]], ["2026-10-30", ["Foto do jato no fundo da página.", "Planilha: Ajustar à tela, maximizar e esconder as abas.", "Checks de confirmação e pagamento na planilha e na OS.", "Quantidade com unidade (unidade, litros ou quilos).", "Aba Equipe para criar contas, aba Monitor e histórico de ações.", "Login com troca de senha no primeiro acesso e vencimento da nota fiscal."]], ["2026-10-29", ["Primeira versão: planilha de OS, nota fiscal e geração de Excel."]]];
 const novVista=()=>{ try{ return localStorage.getItem("cs-novidades")||""; }catch(_){ return ""; } };
 const novChave=()=>NOVIDADES[0][0]+"|"+NOVIDADES[0][1].length;
 function marcarNovidades(){ $("#novoBadge").hidden=novVista()===novChave(); }
@@ -1327,6 +1363,7 @@ $("#tabNovidades").addEventListener("click",()=>{
   marcarNovidades();
 });
 $("#novFechar").addEventListener("click",()=>$("#dlgNovidades").close());
+$("#arqFechar").addEventListener("click",()=>{ $("#dlgArquivos").close(); arquivosOsId=null; });
 marcarNovidades();
 
 // --- monitor ---
