@@ -338,6 +338,12 @@ details.obs-box textarea{border:0;border-top:1px solid var(--line);border-radius
 details.obs-box .obs-ler{padding:8px 12px;border-top:1px solid var(--line);font-size:.86rem;white-space:pre-wrap}
 .notas details.obs-box{margin-top:10px}
 #btnObs[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.tabs button .novo{width:8px;height:8px;border-radius:50%;background:#E5484D;margin-left:auto;flex:none}
+#dlgNovidades{width:min(640px,calc(100% - 32px))}
+.nov-lista{display:flex;flex-direction:column;gap:18px;max-height:min(62vh,560px);overflow:auto;padding-right:4px}
+.nov-dia h3{font:600 .86rem var(--f-body);margin:0 0 6px;display:flex;align-items:center;gap:8px}
+.nov-dia h3 .pill{font-size:.68rem}
+.nov-dia ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px;font-size:.88rem}
 .msel{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border:1px solid var(--line-strong);border-radius:6px;padding:8px;background:var(--surface);min-width:0}
 .msel-add{width:auto;flex:0 1 250px;min-width:0}
 .msel-chips{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 200px;min-width:0}
@@ -451,6 +457,7 @@ body.papel-operador .so-admin{display:none!important}
         <button type="button" role="tab" title="OS" id="tabFichas" aria-selected="false"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><span class="lbl">OS</span></button>
         <button type="button" role="tab" title="Nota Fiscal" id="tabNotas" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span class="lbl">Nota Fiscal</span></button>
         <button type="button" role="tab" title="Monitor" id="tabMonitor" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span class="lbl">Monitor</span></button>
+        <button type="button" title="Novidades" id="tabNovidades" aria-haspopup="dialog"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z"/><path d="M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg><span class="lbl">Novidades</span><span class="novo" id="novoBadge" hidden></span></button>
         <button type="button" role="tab" title="Equipe" id="tabEquipe" aria-selected="false" class="so-admin"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.2c3 .2 5.5 2.6 5.5 5.8"/></svg><span class="lbl">Equipe</span></button>
       </div>
     </nav>
@@ -576,6 +583,13 @@ body.papel-operador .so-admin{display:none!important}
       <button class="btn primary" type="submit" id="mSalvar">Criar conta</button>
     </div>
   </form>
+</dialog>
+
+<dialog id="dlgNovidades">
+  <h2>Novidades</h2>
+  <p class="sub" style="margin:-8px 0 14px">Tudo o que mudou no site, da atualização mais recente para a mais antiga.</p>
+  <div class="nov-lista" id="novLista"></div>
+  <div class="row-actions"><button class="btn primary" type="button" id="novFechar">Fechar</button></div>
 </dialog>
 
 <dialog id="dlgNf">
@@ -1304,6 +1318,19 @@ $("#tabFichas").addEventListener("click",()=>setView("fichas"));
 $("#tabNotas").addEventListener("click",()=>setView("notas"));
 $("#tabMonitor").addEventListener("click",()=>setView("monitor"));
 $("#tabEquipe").addEventListener("click",()=>setView("equipe"));
+// --- novidades: lista de atualizações; a bolinha vermelha aparece quando há novidade que a pessoa ainda não viu ---
+const NOVIDADES=[["2026-11-05", ["Discriminação virou uma lista de serviços: escolha um ou vários, e cada um aparece ao lado. Em \"Outro serviço…\" dá para criar um novo.", "Anexe o arquivo da nota fiscal direto na planilha (Anexar NF / Ver NF) e nos detalhes da OS.", "Caixa de Observação que abre e fecha na planilha, na OS e na nota fiscal. A coluna Observação da planilha pode ser ocultada.", "Novidades: esta lista com todas as atualizações do site."]], ["2026-11-04", ["Valores mostram o ,00 enquanto você digita, com o ponto do milhar aparecendo na hora.", "A coluna Data da OS passou a ser a primeira da planilha.", "Números de OS e de nota fiscal sempre com 6 dígitos (011 vira 000011).", "Valor unitário com 6 casas depois da vírgula, quantidade com ponto no milhar e valores zerados como 0,00.", "OS em ordem de data, da mais recente para a mais antiga. O mesmo número de OS pode ser usado mais de uma vez."]], ["2026-11-03", ["Filtros na planilha: Nota fiscal, Início do processo, Pagamento, Prestador, Mês da OS e Moeda.", "Planilha com 3 status (Recebimento da nota fiscal, Início do processo e Pagamento) e legenda das cores.", "Recebimento da nota fiscal pode ser marcado com um clique, mesmo antes de lançar a nota.", "Aba OS com quadro de pagamento e cards do topo: Aguardando a nota fiscal, Aguardando o início do processo de pagamento e Pendente de pagamento.", "Saíram o check Ciente e a linha TOTAL. Confirmado virou Processo de pagamento.", "Notas fiscais passam a ser criadas só pela aba Nota Fiscal, com anexo do arquivo (PDF ou foto).", "Datas aceitam o ano com 2 dígitos (26 vira 2026) e a planilha ficou mais compacta.", "Novas fotos de fundo e no menu das abas.", "Site ligado ao banco de dados: login com senha e as mesmas OS em todos os aparelhos.", "Número da OS editável, valor em real ou dólar, valor unitário e perfil Desenvolvedor."]], ["2026-10-30", ["Foto do jato no fundo da página.", "Planilha: Ajustar à tela, maximizar e esconder as abas.", "Checks de confirmação e pagamento na planilha e na OS.", "Quantidade com unidade (unidade, litros ou quilos).", "Aba Equipe para criar contas, aba Monitor e histórico de ações.", "Login com troca de senha no primeiro acesso e vencimento da nota fiscal."]], ["2026-10-29", ["Primeira versão: planilha de OS, nota fiscal e geração de Excel."]]];
+const novVista=()=>{ try{ return localStorage.getItem("cs-novidades")||""; }catch(_){ return ""; } };
+function marcarNovidades(){ $("#novoBadge").hidden=novVista()>=NOVIDADES[0][0]; }
+$("#tabNovidades").addEventListener("click",()=>{
+  const vista=novVista();
+  $("#novLista").innerHTML=NOVIDADES.map(([d,itens])=>`<section class="nov-dia"><h3>${dataBR(d)}${d>vista?'<span class="pill info">novo</span>':""}</h3><ul>${itens.map(t=>`<li>${esc(t)}</li>`).join("")}</ul></section>`).join("");
+  $("#dlgNovidades").showModal();
+  try{ localStorage.setItem("cs-novidades",NOVIDADES[0][0]); }catch(_){}
+  marcarNovidades();
+});
+$("#novFechar").addEventListener("click",()=>$("#dlgNovidades").close());
+marcarNovidades();
 
 // --- monitor ---
 function barras(mapa,fmt){
