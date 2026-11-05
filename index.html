@@ -1065,20 +1065,57 @@ function anoCompleto(campo){
   if(!m || +m[1]>=100) return false;
   campo.value=`${2000+ +m[1]}-${m[2]}-${m[3]}`; return true;
 }
-// valor unitário (livre): o primeiro caractere digitado substitui o valor antigo
-document.addEventListener("beforeinput",e=>{ const t=e.target; if(t.matches?.('input[data-valor="6"]') && t.dataset.novo==="1" && e.inputType==="insertText"){ delete t.dataset.novo; e.preventDefault(); t.value=e.data||""; t.dispatchEvent(new Event("input",{bubbles:true})); } });
-// valores em dinheiro: digita só números e os dois últimos viram os centavos (123456 -> 1.234,56)
-// ao entrar no campo, o primeiro número digitado começa um valor novo (substitui o antigo)
-document.addEventListener("focusin",e=>{ const t=e.target; if(t.matches?.("input[data-valor]")){ t.dataset.novo="1"; try{ t.select(); }catch(_){} } });
-document.addEventListener("input",e=>{
+// valores em dinheiro: o campo mostra sempre o valor formatado (5.400,00) enquanto se digita.
+// Os números entram antes da vírgula; depois da vírgula (clicando ali ou digitando "," ) escrevem por cima dos zeros.
+function lerCampoValor(t){
+  const v=t.value, ci=v.indexOf(","), pos=t.selectionStart??v.length;
+  let int=(ci<0?v:v.slice(0,ci)).replace(/\D/g,""), dec=(ci<0?"":v.slice(ci+1)).replace(/\D/g,"");
+  dec=(dec+"00").slice(0,2); if(/^0+$/.test(int)) int="";
+  int=int.replace(/^0+(?=\d)/,"");
+  let parte="int", n;
+  if(ci>=0 && pos>ci){ parte="dec"; n=Math.min(2,pos-ci-1); }
+  else { n=(v.slice(0,pos).replace(/\D/g,"").replace(/^0+/,"")).length; n=Math.min(n,int.length); }
+  return {int,dec,parte,n};
+}
+function mostrarCampoValor(t,st){
+  const intTxt=st.int?st.int.replace(/\B(?=(\d{3})+(?!\d))/g,"."):"0";
+  t.value=intTxt+","+st.dec;
+  let pos;
+  if(st.parte==="dec") pos=intTxt.length+1+st.n;
+  else if(!st.int) pos=1;
+  else { pos=0; let k=0; while(pos<intTxt.length && k<st.n){ if(/\d/.test(intTxt[pos])) k++; pos++; } }
+  try{ t.setSelectionRange(pos,pos); }catch(_){}
+  t.dataset.mudou="1";
+}
+document.addEventListener("beforeinput",e=>{
   const t=e.target; if(!t.matches?.('input[data-valor="2"]')) return;
-  let d;
-  if(t.dataset.novo==="1"){ delete t.dataset.novo; d=String(e.data??"").replace(/\D/g,""); }
-  else d=t.value.replace(/\D/g,"");
-  d=d.replace(/^0+(?=\d)/,"").slice(0,15);
-  t.value=d?valorTxt(Number(d)/100):"";
-  try{ t.setSelectionRange(t.value.length,t.value.length); }catch(_){}
+  const tipo=e.inputType, txt=e.data??"";
+  if(!["insertText","deleteContentBackward","deleteContentForward","insertFromPaste"].includes(tipo)) return;
+  e.preventDefault();
+  const tudo=t.value && t.selectionStart===0 && t.selectionEnd===t.value.length;
+  if(tipo==="insertFromPaste"){ const n=lerValor(e.dataTransfer?.getData("text")||txt); const [i,d]=n.toFixed(2).split("."); mostrarCampoValor(t,{int:i==="0"?"":i,dec:d,parte:"int",n:i.length}); return; }
+  const st=tudo?{int:"",dec:"00",parte:"int",n:0}:lerCampoValor(t);
+  if(tipo==="insertText"){
+    for(const ch of txt){
+      if(ch===","||ch==="."){ st.parte="dec"; st.n=0; continue; }
+      if(!/\d/.test(ch)) continue;
+      if(st.parte==="int"){ if(st.int.length>=13) continue; st.int=(st.int.slice(0,st.n)+ch+st.int.slice(st.n)); st.n++; const z=st.int.match(/^0+(?=\d)/); if(z){ st.int=st.int.slice(z[0].length); st.n=Math.max(0,st.n-z[0].length); } if(st.int==="0"){ st.int=""; st.n=0; } }
+      else if(st.n<2){ st.dec=st.dec.slice(0,st.n)+ch+st.dec.slice(st.n+1); st.n++; }
+    }
+  } else if(tipo==="deleteContentBackward"){
+    if(tudo){ t.value=""; t.dataset.mudou="1"; return; }
+    if(st.parte==="int"){ if(st.n>0){ st.int=st.int.slice(0,st.n-1)+st.int.slice(st.n); st.n--; } }
+    else if(st.n>0){ st.dec=st.dec.slice(0,st.n-1)+"0"+st.dec.slice(st.n); st.n--; }
+    else { st.parte="int"; st.n=st.int.length; }
+  } else {
+    if(tudo){ t.value=""; t.dataset.mudou="1"; return; }
+    if(st.parte==="int"){ if(st.n<st.int.length) st.int=st.int.slice(0,st.n)+st.int.slice(st.n+1); }
+    else if(st.n<2) st.dec=st.dec.slice(0,st.n)+"0"+st.dec.slice(st.n+1);
+  }
+  mostrarCampoValor(t,st);
 });
+// como o valor é escrito pela página, avisa a planilha e os formulários ao sair do campo
+document.addEventListener("focusout",e=>{ const t=e.target; if(t.dataset?.mudou){ delete t.dataset.mudou; t.dispatchEvent(new Event("input",{bubbles:true})); t.dispatchEvent(new Event("change",{bubbles:true})); } },true);
 document.addEventListener("focusout",e=>{
   const t=e.target; if(t.matches?.('input[type="date"]') && anoCompleto(t)) t.dispatchEvent(new Event("change",{bubbles:true}));
 },true);
