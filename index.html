@@ -327,6 +327,17 @@ table.sheet{border-collapse:collapse;table-layout:fixed;width:100%;min-width:229
 .open:disabled{opacity:.5;cursor:not-allowed}
 
 /* formulários em janela */
+details.obs-box{border:1px solid var(--line-strong);border-radius:6px;background:var(--surface)}
+details.obs-box>summary{cursor:pointer;padding:8px 12px;font:600 .84rem var(--f-body);color:var(--ink);list-style:none;display:flex;align-items:center;gap:8px}
+details.obs-box>summary::-webkit-details-marker{display:none}
+details.obs-box>summary::before{content:"▸";color:var(--muted);transition:transform .15s}
+details.obs-box[open]>summary::before{transform:rotate(90deg)}
+details.obs-box>summary .tem{font:500 .72rem var(--f-body);color:var(--accent);background:var(--accent-soft);border-radius:99px;padding:1px 8px}
+details.obs-box>summary .dica{font-weight:400;font-size:.76rem;color:var(--muted);margin-left:auto}
+details.obs-box textarea{border:0;border-top:1px solid var(--line);border-radius:0 0 6px 6px;min-height:72px}
+details.obs-box .obs-ler{padding:8px 12px;border-top:1px solid var(--line);font-size:.86rem;white-space:pre-wrap}
+.notas details.obs-box{margin-top:10px}
+#btnObs[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
 .msel{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border:1px solid var(--line-strong);border-radius:6px;padding:8px;background:var(--surface);min-width:0}
 .msel-add{width:auto;flex:0 1 250px;min-width:0}
 .msel-chips{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 200px;min-width:0}
@@ -496,6 +507,7 @@ body.papel-operador .so-admin{display:none!important}
           <div class="sheet-tools">
             <input id="fBusca" placeholder="Buscar por OS, local, prestador ou discriminação">
             <span class="count" id="sheetCount"></span>
+            <button class="btn" type="button" id="btnObs" aria-pressed="true" title="Mostrar ou ocultar a coluna Observação"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg><span id="btnObsTxt">Ocultar observações</span></button>
             <button class="btn" type="button" id="btnFit" aria-pressed="false" title="Diminuir a planilha até caber inteira na largura da tela"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></svg>Ajustar à tela</button>
             <button class="btn" type="button" id="btnMax" title="Usar a tela inteira para a planilha"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" id="maxIcon"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span id="maxTxt">Maximizar planilha</span></button>
           </div>
@@ -540,6 +552,7 @@ body.papel-operador .so-admin{display:none!important}
       <div class="field"><label for="nValorOs">Valor da OS</label><input id="nValorOs" class="mono" type="text" inputmode="decimal" data-valor="2" placeholder="0,00" title="Quantidade × valor unitário (pode ser alterado)"></div>
       <div class="field full"><label for="nPrest">Prestador de serviço</label><input id="nPrest" placeholder="Nome da empresa ou profissional"></div>
       <div class="field full"><label for="nServAdd">Discriminação</label><div class="msel" id="nServ"></div></div>
+      <div class="field full" id="nObsBox"></div>
     </div>
     <div class="row-actions">
       <button class="btn" type="button" id="btnCancelar">Cancelar</button>
@@ -579,6 +592,7 @@ body.papel-operador .so-admin{display:none!important}
       <div class="field" style="grid-column:span 2"><label for="aPrest">Prestador de serviço</label><input id="aPrest" placeholder="Nome da empresa ou profissional"></div>
       <div class="field"><label for="aValor">Valor da NF (R$)</label><input id="aValor" class="mono" type="text" inputmode="decimal" data-valor="2" placeholder="0,00" required></div>
       <div class="field full"><label for="aObs">Discriminação</label><textarea id="aObs" placeholder="Descrição dos serviços cobrados"></textarea></div>
+      <div class="field full" id="aObsBox"></div>
       <div class="field full">
         <label for="aArquivo">Arquivo da nota fiscal (PDF ou foto, até 3 MB)</label>
         <div class="anexo-box">
@@ -699,6 +713,16 @@ campoArquivoOs.addEventListener("change",async()=>{
     notice(""); save(it,patch,(antigo?"Trocou":"Anexou")+" o arquivo da nota fiscal "+anexo.nome); renderSheet();
   }catch(err){ notice(err.msg||"Não foi possível enviar o arquivo. Tente de novo."); }
 });
+
+// --- observação: caixa que abre e fecha; a escolha de cada lugar fica guardada neste navegador ---
+const obsPref=k=>{ try{ return localStorage.getItem("cs-obs-"+k); }catch(_){ return null; } };
+const obsAberta=(k,tem)=>{ const v=obsPref(k); return v==="1"||(v==null&&!!tem); };
+function obsBox(k,id,texto,dis,dica){
+  const tem=!!String(texto||"").trim();
+  return `<details class="obs-box" data-obs="${k}" ${obsAberta(k,tem)?"open":""}><summary>Observação ${tem?'<span class="tem">tem texto</span>':""}<span class="dica">${dica||"clique para abrir ou fechar"}</span></summary>${id?`<textarea id="${id}" placeholder="Escreva uma observação" ${dis||""}>${esc(texto||"")}</textarea>`:`<div class="obs-ler">${esc(texto||"")}</div>`}</details>`;
+}
+document.addEventListener("toggle",e=>{ const d=e.target; if(d.matches?.("details[data-obs]")) try{ localStorage.setItem("cs-obs-"+d.dataset.obs,d.open?"1":"0"); }catch(_){} },true);
+let verObs=(()=>{ try{ return localStorage.getItem("cs-obs-coluna")!=="0"; }catch(_){ return true; } })();
 
 // --- discriminação: serviços escolhidos numa lista (vários por OS) ---
 const discrTxt=it=>(it.checklist||[]).map(c=>c.t).join(", ");
@@ -845,7 +869,7 @@ function nfDoc(n){
 }
 function nfHtml(it){
   const nf=it.nf||{};
-  return nfDoc({numero:nf.numero, ref:"Ref. "+it.numero, data:nf.data, vencimento:nf.vencimento, aeroporto:it.aeroporto, prestador:it.prestador, dataServ:it.data, obs:discrTxt(it)||it.obs, servicos:it.checklist, valor:nf.valor});
+  return nfDoc({numero:nf.numero, ref:"Ref. "+it.numero, data:nf.data, vencimento:nf.vencimento, aeroporto:it.aeroporto, prestador:it.prestador, dataServ:it.data, obs:discrTxt(it), servicos:it.checklist, valor:nf.valor});
 }
 const osDe=a=>a.osId?items.find(i=>i.id===a.osId):null;
 const avulsaDoc=a=>nfDoc({anexo:a.anexo, numero:a.numero, ref:osDe(a)?"Ref. "+osDe(a).numero:"Avulsa", data:a.data, vencimento:a.vencimento, aeroporto:a.aeroporto, prestador:a.prestador, dataServ:a.dataServ, obs:a.obs, servicos:(a.servicos||[]).map(t=>({t})), valor:a.valor});
@@ -870,6 +894,7 @@ function renderDetail(){
       <div class="field"><label for="dValorOs">Valor da OS</label><input id="dValorOs" class="mono" type="text" inputmode="decimal" data-valor="2" placeholder="0,00" value="${valorTxt(it.valorOs)}" title="Quantidade × valor unitário (pode ser alterado)" ${dis}></div>
       <div class="field full"><label for="dPrest">Prestador de serviço</label><input id="dPrest" value="${esc(it.prestador||"")}" ${dis}></div>
       <div class="field full"><label for="dServAdd">Discriminação</label><div class="msel" id="dServ"></div></div>
+      <div class="field full">${obsBox("os","dObs",it.obs,dis)}</div>
     </div>
     <div class="row-actions">
       <span class="confirm" id="delWrap"><button class="btn so-admin" type="button" id="btnExcluir" ${dis}>Excluir</button></span>
@@ -907,6 +932,7 @@ const COLS=[
   {h:"Local",k:"aeroporto",w:130},
   {h:"Prestador",k:"prestador",w:150},
   {h:"Discriminação",discr:true,w:190},
+  {h:"Observação",k:"obs",obsCol:true,w:230},
   {h:"Qtd.",qtd:true,w:108},
   {h:"Moeda",moeda:true,w:68},
   {h:"Valor unit.",k:"valorUnit",type:"number",num:true,casas:6,w:132},
@@ -940,16 +966,18 @@ function filtered(){
     (!f.fPrest || (it.prestador||"").trim()===f.fPrest) &&
     (!f.fMes || String(it.data||"").startsWith(f.fMes)) &&
     (!f.fMoeda || moedaDe(it)===f.fMoeda) &&
-    (!q||[it.numero,it.aeroporto,it.prestador,discrTxt(it)].join(" ").toLowerCase().includes(q))).sort(porData);
+    (!q||[it.numero,it.aeroporto,it.prestador,discrTxt(it),it.obs].join(" ").toLowerCase().includes(q))).sort(porData);
 }
 function renderSheet(){ opcoesFiltros(); renderSheet0(); ajustarPlanilha(); }
 function renderSheet0(){
   const rows=filtered(), dis=canWrite?"":"disabled";
   $("#sheetCount").textContent=`${rows.length} de ${items.length} serviços`;
-  const letters=COLS.map((c,i)=>`<th style="width:${c.w}px">${String.fromCharCode(65+i)}</th>`).join("");
+  const cols=COLS.filter(c=>!c.obsCol||verObs);
+  $("#sheet").style.minWidth=cols.reduce((s,c)=>s+c.w,38)+"px";
+  const letters=cols.map((c,i)=>`<th style="width:${c.w}px">${String.fromCharCode(65+i)}</th>`).join("");
   $("#sheet").innerHTML=`<thead><tr class="letters"><th class="rn"></th>${letters}</tr>
-    <tr><th class="rn">1</th>${COLS.map(c=>`<th>${c.h}</th>`).join("")}</tr></thead>
-    <tbody>${rows.map((it,r)=>`<tr><td class="rn">${r+2}</td>${COLS.map(c=>{
+    <tr><th class="rn">1</th>${cols.map(c=>`<th>${c.h}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map((it,r)=>`<tr><td class="rn">${r+2}</td>${cols.map(c=>{
       if(c.qtd) return `<td class="qtdcell"><div><input data-id="${esc(it.id)}" data-k="qtd" type="text" inputmode="decimal" data-qtd="1" value="${qtdFmt(it.qtd)}" aria-label="Quantidade ${esc(it.numero)}" ${dis}><select data-id="${esc(it.id)}" data-k="unidade" aria-label="Unidade ${esc(it.numero)}" ${dis}>${unidOpts(it.unidade).replace(/ \(objeto\)| \(líquido\)/g,"").replace("Unidade","un").replace("Litros","L").replace("Quilos","kg")}</select></div></td>`;
       if(c.chk) return `<td class="ck2cell">${checkCell(it,c.chk)}</td>`;
       if(c.discr){ const t=discrTxt(it); return `<td class="discr" data-open="${esc(it.id)}" title="${esc(t||"Clique para escolher os serviços")}">${esc(t)||'<span class="sub">—</span>'}</td>`; }
@@ -962,7 +990,7 @@ function renderSheet0(){
       const val=getF(it,c.k)??""; const a=`data-id="${esc(it.id)}" data-k="${c.k}" aria-label="${c.h} ${esc(it.numero)}" ${dis}`;
       return `<td class="${c.num?"num":""}">${c.area?`<textarea ${a} wrap="off" title="${esc(val)}">${esc(val)}</textarea>`:`<input ${a} type="${c.num?"text":c.type||"text"}" ${c.num?`inputmode="decimal" data-valor="${c.casas||2}"`:""} value="${esc(c.num?valorTxt(val,c.casas||2):val)}">`}</td>`;
     }).join("")}</tr>`).join("")}
-    ${rows.length?"":`<tr><td class="rn">2</td><td class="ro" colspan="${COLS.length}">Nenhum serviço encontrado.</td></tr>`}</tbody>`;
+    ${rows.length?"":`<tr><td class="rn">2</td><td class="ro" colspan="${cols.length}">Nenhum serviço encontrado.</td></tr>`}</tbody>`;
 }
 // --- ajustar à tela ---
 let ajustar=false;
@@ -1013,6 +1041,9 @@ $("#sheet").addEventListener("click",e=>{
   const b=e.target.closest("[data-open]"); if(b){ selId=b.dataset.open; setView("fichas"); }});
 $("#fBusca").addEventListener("input",renderSheet);
 FILTROS.forEach(id=>$("#"+id).addEventListener("change",renderSheet));
+function aplicarVerObs(){ $("#btnObs").setAttribute("aria-pressed",String(verObs)); $("#btnObsTxt").textContent=verObs?"Ocultar observações":"Mostrar observações"; }
+$("#btnObs").addEventListener("click",()=>{ verObs=!verObs; try{ localStorage.setItem("cs-obs-coluna",verObs?"1":"0"); }catch(_){} aplicarVerObs(); renderSheet(); });
+aplicarVerObs();
 $("#fLimpar").addEventListener("click",()=>{ FILTROS.forEach(id=>$("#"+id).value=""); renderSheet(); });
 // --- notas fiscais ---
 const hojeISO=()=>{ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
@@ -1037,11 +1068,11 @@ function renderNotas(){
     <div><span>OS sem nota</span><strong>${items.filter(it=>!emitida(it)).length}</strong></div>
     <div><span>Total ${q||f?"filtrado":"geral"}</span><strong>${brl(total)}</strong></div>`;
   const cards=[
-    ...rowsAv.map(a=>({ord:a.data||"",html:`<article>${avulsaDoc(a)}
+    ...rowsAv.map(a=>({ord:a.data||"",html:`<article>${avulsaDoc(a)}${a.observacao?obsBox("nf-cartao","",a.observacao,"",""):""}
       <div class="nota-foot"><span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill done">${osDe(a)?"Vinculada à "+esc(osDe(a).numero):"Avulsa"}${a.exemplo?" · exemplo":""}</span>${vencPill(a.vencimento)}</span>
       <span class="confirm" data-delwrap="${esc(a.id)}">${a.anexo?`<button type="button" class="open btn-anexo" data-anexo="${esc(a.anexo.id)}" title="${esc(a.anexo.nome)}">${CLIP}Ver arquivo</button>`:""}<button type="button" class="open" data-edit-nf="${esc(a.id)}" ${dis}>Editar</button><button type="button" class="open so-admin" data-del-nf="${esc(a.id)}" ${dis}>Excluir</button></span></div>
       <details class="hist-nf"><summary>Histórico (${(a.historico||[]).length})</summary>${histHtml(a.historico,"Sem registros ainda.")}</details></article>`})),
-    ...rowsOs.map(it=>({ord:it.nf?.data||it.data||"",html:`<article>${nfHtml(it)}
+    ...rowsOs.map(it=>({ord:it.nf?.data||it.data||"",html:`<article>${nfHtml(it)}${it.obs?obsBox("nf-cartao","",it.obs,"",""):""}
       <div class="nota-foot"><span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill ${emitida(it)||it.nfRec?"done":"pend"}">${emitida(it)?"Emitida":it.nfRec?"NF recebida (não lançada)":"Aguardando a nota fiscal"}</span>${vencPill(it.nf?.vencimento)}</span>
       <button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button></div>
       <details class="hist-nf"><summary>Histórico da OS (${(it.historico||[]).length})</summary>${histHtml(it.historico,"Sem registros ainda.")}</details></article>`}))
@@ -1075,7 +1106,7 @@ function abrirNf(a,osId){
   $("#dlgNfTitulo").textContent=a?"Editar nota fiscal":"Nova nota fiscal"; $("#aSalvar").textContent=a?"Salvar nota fiscal":"Criar nota fiscal";
   const hoje=new Date().toISOString().slice(0,10);
   $("#aNum").value=a?.numero||""; $("#aData").value=a?.data||hoje; $("#aDataServ").value=a?.dataServ||""; $("#aVenc").value=a?.vencimento||"";
-  $("#aAero").value=a?.aeroporto||""; $("#aPrest").value=a?.prestador||""; $("#aValor").value=valorTxt(a?.valor); $("#aObs").value=a?.obs||"";
+  $("#aAero").value=a?.aeroporto||""; $("#aPrest").value=a?.prestador||""; $("#aValor").value=valorTxt(a?.valor); $("#aObs").value=a?.obs||""; $("#aObsBox").innerHTML=obsBox("nf","aObsNota",a?.observacao||"");
   const sel=a?.servicos||[], lista=[...checkPadrao,...sel.filter(t=>!checkPadrao.includes(t))];
   $("#aPickList").innerHTML=lista.map((t,i)=>`<label for="apk${i}"><input type="checkbox" id="apk${i}" value="${esc(t)}" ${sel.includes(t)?"checked":""}> ${esc(t)}</label>`).join("");
   $("#aOs").innerHTML=`<option value="">Nenhuma (nota avulsa)</option>`+items.map(it=>`<option value="${esc(it.id)}">${esc(it.numero)} · ${dataBR(it.data)} · ${esc(it.aeroporto||"")}${it.prestador?" · "+esc(it.prestador):""}</option>`).join("");
@@ -1087,7 +1118,7 @@ function abrirNf(a,osId){
 $("#aOs").addEventListener("change",()=>{
   const it=items.find(i=>i.id===$("#aOs").value); if(!it) return;
   $("#aDataServ").value=it.data||""; $("#aAero").value=it.aeroporto||""; $("#aPrest").value=it.prestador||"";
-  $("#aObs").value=discrTxt(it)||it.obs||""; if(it.valorOs) $("#aValor").value=valorTxt(it.valorOs);
+  $("#aObs").value=discrTxt(it); if(it.valorOs) $("#aValor").value=valorTxt(it.valorOs);
   const sel=it.checklist.map(c=>c.t);
   [...$("#aPickList").querySelectorAll("input")].forEach(x=>x.checked=sel.includes(x.value));
   const extra=sel.filter(t=>![...$("#aPickList").querySelectorAll("input")].some(x=>x.value===t));
@@ -1116,7 +1147,7 @@ $("#formNf").addEventListener("submit",async e=>{
   const anexoAntigo=antiga?.anexo;
   if(anexoAntigo && anexoAntigo.id!==anexo?.id && modoSite) api("excluirAnexo",{id:anexoAntigo.id}).catch(()=>{});
   const a={numero:num6($("#aNum").value), data:$("#aData").value, vencimento:$("#aVenc").value, dataServ:$("#aDataServ").value, aeroporto:$("#aAero").value.trim(), prestador:$("#aPrest").value.trim(),
-    valor:lerValor($("#aValor").value), obs:$("#aObs").value,
+    valor:lerValor($("#aValor").value), obs:$("#aObs").value, observacao:($("#aObsNota")?.value||"").trim(),
     servicos:[...$("#aPickList").querySelectorAll("input:checked")].map(x=>x.value), osId:$("#aOs").value, criado:antiga?.criado||Date.now()};
   if(antiga?.exemplo) a.exemplo=true;
   if(anexo) a.anexo=anexo;
@@ -1333,7 +1364,7 @@ function histHtml(lista,vazio){
 const UNIDADES={un:"un",L:"L",kg:"kg"};
 const unidOpts=v=>`<option value="un">Unidade (objeto)</option><option value="L">Litros (líquido)</option><option value="kg">Quilos</option>`.replace(`value="${v||"un"}"`,`value="${v||"un"}" selected`);
 const qtdTxt=it=>it.qtd==null||it.qtd===""?"":`${String(it.qtd).replace(".",",")} ${UNIDADES[it.unidade]||"un"}`;
-const CAMPOS={numero:"Nº da OS",valorUnit:"Valor unitário",qtd:"Quantidade",unidade:"Unidade",data:"Data da OS",aeroporto:"Local",prestador:"Prestador de serviço",obs:"Discriminação",valorOs:"Valor da OS","nf.numero":"Nº da NF","nf.data":"Data da NF","nf.vencimento":"Vencimento da NF","nf.valor":"Valor da NF"};
+const CAMPOS={obs:"Observação",numero:"Nº da OS",valorUnit:"Valor unitário",qtd:"Quantidade",unidade:"Unidade",data:"Data da OS",aeroporto:"Local",prestador:"Prestador de serviço",obs:"Discriminação",valorOs:"Valor da OS","nf.numero":"Nº da NF","nf.data":"Data da NF","nf.vencimento":"Vencimento da NF","nf.valor":"Valor da NF"};
 function save(it, patch, acao){
   if(acao) patch={...patch,historico:comHist(it.historico,acao)};
   Object.assign(it, patch); render();
@@ -1373,7 +1404,7 @@ $("#detail").addEventListener("click",async e=>{
     const num=num6($("#dNum").value);
     if(!num){ notice("Informe o número da OS."); $("#dNum").focus(); return; }
     notice("");
-    const ok=await save(it,{numero:num, moeda:$("#dMoeda").value, valorUnit:lerValor($("#dValorUnit").value,6), data:$("#dData").value, aeroporto:$("#dAero").value.trim(), prestador:$("#dPrest").value.trim(), valorOs:lerValor($("#dValorOs").value), qtd:lerQtd($("#dQtd").value), unidade:$("#dUnid").value, checklist:lerMsel($("#dServ")).map(t=>({t,ok:!!it.checklist.find(c=>c.t===t)?.ok}))},"Editou os dados da OS");
+    const ok=await save(it,{numero:num, moeda:$("#dMoeda").value, valorUnit:lerValor($("#dValorUnit").value,6), data:$("#dData").value, aeroporto:$("#dAero").value.trim(), prestador:$("#dPrest").value.trim(), valorOs:lerValor($("#dValorOs").value), qtd:lerQtd($("#dQtd").value), unidade:$("#dUnid").value, obs:($("#dObs")?.value||"").trim(), checklist:lerMsel($("#dServ")).map(t=>({t,ok:!!it.checklist.find(c=>c.t===t)?.ok}))},"Editou os dados da OS");
     if(ok) flash("#savedSol","Solicitação salva");
   } else if(id==="btnSalvarNf"){
     const ok=await save(it,{nf:{numero:$("#fNum").value.trim(), data:$("#fData").value, valor:parseFloat($("#fValor").value)||0}});
@@ -1401,6 +1432,7 @@ $("#btnNova").addEventListener("click",()=>{
   if(!canWrite && live){ notice("Você não tem permissão para criar solicitações."); return; }
   $("#formNova").reset(); $("#nData").value=new Date().toISOString().slice(0,10); $("#nNum").value=proxNumero();
   montarMsel($("#nServ"),[],false,"nServAdd");
+  $("#nObsBox").innerHTML=obsBox("os","nObs","");
   dlg.showModal();
 });
 $("#btnCancelar").addEventListener("click",()=>dlg.close());
@@ -1425,7 +1457,7 @@ $("#formNova").addEventListener("submit",e=>{
   const num=num6($("#nNum").value);
   const id="s"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const it={id, numero:num, data:$("#nData").value, aeroporto:$("#nAero").value.trim(),
-    prestador:$("#nPrest").value.trim(), moeda:$("#nMoeda").value, valorUnit:lerValor($("#nValorUnit").value,6), valorOs:lerValor($("#nValorOs").value), qtd:lerQtd($("#nQtd").value), unidade:$("#nUnid").value, obs:"", criado:Date.now(),
+    prestador:$("#nPrest").value.trim(), moeda:$("#nMoeda").value, valorUnit:lerValor($("#nValorUnit").value,6), valorOs:lerValor($("#nValorOs").value), qtd:lerQtd($("#nQtd").value), unidade:$("#nUnid").value, obs:($("#nObs")?.value||"").trim(), criado:Date.now(),
     checklist:lerMsel($("#nServ")).map(t=>({t,ok:false})),
     nf:{numero:"",data:"",valor:0}};
   items=[it,...items].sort(porData); selId=id; dlg.close(); save(it,{},"Criou a OS");
