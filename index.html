@@ -117,6 +117,7 @@ body.planilha-fit #btnFit{background:var(--accent);border-color:var(--accent);co
 
 /* indicadores */
 .kpis,.resumo{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+#notasResumo{grid-template-columns:repeat(3,minmax(0,1fr))}
 .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
 .kpis>div[style]{border-top:3px solid var(--k)}
 @media (max-width:900px){.kpis,.resumo{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -920,7 +921,7 @@ function nfDoc(n){
 }
 function nfHtml(it){
   const nf=it.nf||{};
-  return nfDoc({numero:nf.numero, ref:"Ref. "+it.numero, data:nf.data, vencimento:nf.vencimento, aeroporto:it.aeroporto, prestador:it.prestador, dataServ:it.data, obs:discrTxt(it), servicos:it.checklist, valor:nf.valor});
+  return nfDoc({numero:nf.numero, ref:"Ref. "+it.numero, data:nf.data, vencimento:nf.vencimento, aeroporto:it.aeroporto, prestador:it.prestador, dataServ:it.data, obs:discrTxt(it), servicos:it.checklist, valor:valorNf(it)});
 }
 const osDe=a=>a.osId?items.find(i=>i.id===a.osId):null;
 const avulsaDoc=a=>nfDoc({anexo:a.anexo, numero:a.numero, ref:osDe(a)?"Ref. "+osDe(a).numero:"Avulsa", data:a.data, vencimento:a.vencimento, aeroporto:a.aeroporto, prestador:a.prestador, dataServ:a.dataServ, obs:a.obs, servicos:(a.servicos||[]).map(t=>({t})), valor:a.valor});
@@ -996,7 +997,9 @@ const COLS=[
   {h:"Pagamento",pago:true,w:178},
   {h:"",ro:true,w:76,v:it=>`<button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button>`,html:true}
 ];
-const getF=(it,k)=>k.startsWith("nf.")?(it.nf||{})[k.slice(3)]:it[k];
+// valor da NF: o mesmo da OS, a não ser que alguém tenha digitado outro valor na NF
+const valorNf=it=>Number(it.nf?.valor)||(it.nfValorManual?0:Number(it.valorOs)||0);
+const getF=(it,k)=>k==="nf.valor"?valorNf(it):k.startsWith("nf.")?(it.nf||{})[k.slice(3)]:it[k];
 const MESES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
 const FILTROS=["fNf","fIni","fPag","fPrest","fMes","fMoeda"];
 // opções de Prestador e Mês vêm das OS cadastradas
@@ -1037,7 +1040,7 @@ function renderSheet0(){
       if(c.moeda) return `<td><select data-id="${esc(it.id)}" data-k="moeda" aria-label="Moeda ${esc(it.numero)}" ${dis}>${moedaOpts(it.moeda).replace("Real (R$)","R$").replace("Dólar (US$)","US$")}</select></td>`;
       if(c.sq) return `<td class="sq"><label><input type="checkbox" data-status="${esc(it.id)}" ${done(it)?"checked":""} ${dis} aria-label="Concluída ${esc(it.numero)}" title="${done(it)?"Concluída":"Pendente"}"></label></td>`;
       if(c.ro) return `<td class="ro">${c.v?(c.html?c.v(it):esc(c.v(it))):esc(getF(it,c.k))}</td>`;
-      const val=getF(it,c.k)??""; const a=`data-id="${esc(it.id)}" data-k="${c.k}" aria-label="${c.h} ${esc(it.numero)}" ${dis}`;
+      const val=getF(it,c.k)??""; const a=`data-id="${esc(it.id)}" data-k="${c.k}" aria-label="${c.h} ${esc(it.numero)}" ${c.k==="numero"||c.k==="nf.numero"?'data-num6="1" inputmode="numeric"':""} ${dis}`;
       return `<td class="${c.num?"num":""}">${c.area?`<textarea ${a} wrap="off" title="${esc(val)}">${esc(val)}</textarea>`:`<input ${a} type="${c.num?"text":c.type||"text"}" ${c.num?`inputmode="decimal" data-valor="${c.casas||2}"`:""} value="${esc(c.num?valorTxt(val,c.casas||2):val)}">`}</td>`;
     }).join("")}</tr>`).join("")}
     ${rows.length?"":`<tr><td class="rn">2</td><td class="ro" colspan="${cols.length}">Nenhum serviço encontrado.</td></tr>`}</tbody>`;
@@ -1067,7 +1070,10 @@ $("#sheet").addEventListener("change",e=>{
   const it=items.find(i=>i.id===t.dataset.id); if(!it||!t.dataset.k) return;
   const k=t.dataset.k;
   const ac="Alterou "+(CAMPOS[k]||k)+" pela planilha";
-  if(k.startsWith("nf.")){ const f=k.slice(3); save(it,{nf:{...it.nf,[f]:f==="valor"?lerValor(t.value):f==="numero"?num6(t.value):t.value.trim()}},ac); }
+  if(k.startsWith("nf.")){ const f=k.slice(3), v=f==="valor"?lerValor(t.value):f==="numero"?num6(t.value):t.value.trim();
+    const patch={nf:{...it.nf,[f]:v}};
+    if(f==="valor") patch.nfValorManual=v!==(Number(it.valorOs)||0); // valor diferente da OS fica como foi digitado
+    save(it,patch,ac); }
   else if(k==="moeda") save(it,{moeda:t.value},"Alterou a moeda para "+MOEDAS[t.value]);
   else if(k==="numero"){
     const num=num6(t.value);
@@ -1116,11 +1122,9 @@ function renderNotas(){
   const rowsOs=items.filter(it=>!(!it.nf?.numero && notas.some(a=>a.osId===it.id)) && passa(pagEstado(it)) && has([it.nf?.numero,it.numero,it.aeroporto,it.prestador,it.obs,...it.checklist.map(c=>c.t)]));
   const rowsAv=notas.filter(a=>passa(estAv(a)) && has([a.numero,a.aeroporto,a.prestador,a.obs,...(a.servicos||[])]));
   const pagPill=e=>`<span class="pchip s${e}"><i></i>${["Processo de pagamento pendente","Em processo de pagamento","Pago"][e]}</span>`;
-  const total=rowsOs.reduce((s,it)=>s+(Number(it.nf?.valor)||0),0)+rowsAv.reduce((s,a)=>s+(Number(a.valor)||0),0);
   $("#notasResumo").innerHTML=`<div><span>OS com nota</span><strong>${items.filter(emitida).length}</strong></div>
     <div><span>Notas criadas na aba</span><strong>${notas.length}</strong></div>
-    <div><span>OS sem nota</span><strong>${items.filter(it=>!emitida(it)).length}</strong></div>
-    <div><span>Total ${q||f?"filtrado":"geral"}</span><strong>${brl(total)}</strong></div>`;
+    <div><span>OS sem nota</span><strong>${items.filter(it=>!emitida(it)).length}</strong></div>`;
   const cards=[
     ...rowsAv.map(a=>({ord:a.data||"",html:`<article>${avulsaDoc(a)}${arquivosCartao(a.anexo?[a.anexo]:[],"",dis)}${a.observacao?obsBox("nf-cartao","",a.observacao,"",""):""}
       <div class="nota-foot"><span style="display:flex;gap:6px;flex-wrap:wrap">${pagPill(estAv(a))}<span class="pill done">${osDe(a)?"Vinculada à "+esc(osDe(a).numero):"Avulsa"}${a.exemplo?" · exemplo":""}</span>${vencPill(a.vencimento)}</span>
@@ -1159,7 +1163,7 @@ function abrirNf(a,osId){
   editNfId=a?a.id:null; $("#formNf").reset();
   $("#dlgNfTitulo").textContent=a?"Editar nota fiscal":"Nova nota fiscal"; $("#aSalvar").textContent=a?"Salvar nota fiscal":"Criar nota fiscal";
   const hoje=new Date().toISOString().slice(0,10);
-  $("#aNum").value=a?.numero||""; $("#aData").value=a?.data||hoje; $("#aDataServ").value=a?.dataServ||""; $("#aVenc").value=a?.vencimento||"";
+  $("#aNum").value=a?.numero||"000000"; $("#aData").value=a?.data||hoje; $("#aDataServ").value=a?.dataServ||""; $("#aVenc").value=a?.vencimento||"";
   $("#aAero").value=a?.aeroporto||""; $("#aPrest").value=a?.prestador||""; $("#aValor").value=valorTxt(a?.valor); $("#aObs").value=a?.obs||""; $("#aObsBox").innerHTML=obsBox("nf","aObsNota",a?.observacao||"");
   const sel=a?.servicos||[], lista=[...checkPadrao,...sel.filter(t=>!checkPadrao.includes(t))];
   $("#aPickList").innerHTML=lista.map((t,i)=>`<label for="apk${i}"><input type="checkbox" id="apk${i}" value="${esc(t)}" ${sel.includes(t)?"checked":""}> ${esc(t)}</label>`).join("");
@@ -1221,6 +1225,20 @@ function anoCompleto(campo){
   if(!m || +m[1]>=100) return false;
   campo.value=`${2000+ +m[1]}-${m[2]}-${m[3]}`; return true;
 }
+// número de OS e de NF: sempre 6 dígitos; o que se digita entra pela direita (000000 → 000004 → 000042 → 000427)
+document.addEventListener("beforeinput",e=>{
+  const t=e.target; if(!t.matches?.("input[data-num6]")) return;
+  const tipo=e.inputType; if(!["insertText","deleteContentBackward","deleteContentForward","insertFromPaste"].includes(tipo)) return;
+  e.preventDefault();
+  const tudo=t.value && t.selectionStart===0 && t.selectionEnd===t.value.length;
+  let d=tudo?"":t.value.replace(/\D/g,"").replace(/^0+/,"");
+  if(tipo==="insertText") d+=String(e.data||"").replace(/\D/g,"");
+  else if(tipo==="insertFromPaste") d=String(e.dataTransfer?.getData("text")||e.data||"").replace(/\D/g,"");
+  else d=d.slice(0,-1);
+  d=d.replace(/^0+/,"").slice(0,12);
+  t.value=d.padStart(6,"0"); t.dataset.mudou="1";
+  try{ t.setSelectionRange(t.value.length,t.value.length); }catch(_){}
+});
 // valores em dinheiro: o campo mostra sempre o valor formatado (5.400,00) enquanto se digita.
 // Os números entram antes da vírgula; depois da vírgula (clicando ali ou digitando "," ) escrevem por cima dos zeros.
 function lerCampoValor(t){
@@ -1359,7 +1377,7 @@ $("#tabNotas").addEventListener("click",()=>setView("notas"));
 $("#tabMonitor").addEventListener("click",()=>setView("monitor"));
 $("#tabEquipe").addEventListener("click",()=>setView("equipe"));
 // --- novidades: lista de atualizações; a bolinha vermelha aparece quando há novidade que a pessoa ainda não viu ---
-const NOVIDADES=[["2026-11-05", ["Discriminação virou uma lista de serviços: escolha um ou vários, e cada um aparece ao lado. Em \"Outro serviço…\" dá para criar um novo.", "Anexe o arquivo da nota fiscal direto na planilha (Anexar NF / Ver NF) e nos detalhes da OS.", "Caixa de Observação que abre e fecha na planilha, na OS e na nota fiscal. A coluna Observação da planilha pode ser ocultada.", "Novidades: esta lista com todas as atualizações do site.", "Aba Nota Fiscal: filtro por Processo de pagamento pendente, Pago e Pagamento pendente, e o status do pagamento em cada nota.", "Os cartões de nota fiscal não mostram mais a lista de serviços.", "No quadro da aba OS, cada cartão mostra Data / Prestador de serviço / Local.", "Saíram as caixas de legenda acima da planilha.", "A coluna Observação da planilha fica logo depois de Valor NF.", "Dá para anexar vários arquivos da nota fiscal na mesma OS, escolhendo vários de uma vez ou anexando mais depois.", "A janela de arquivos ficou mais larga e mostra o nome inteiro de cada arquivo.", "Os cartões da aba Nota Fiscal mostram os arquivos anexados, com o nome inteiro e o botão Ver, e dá para anexar dali.", "A discriminação escrita nas OS antigas passou a ser o item da Discriminação, e os 13 serviços que vinham marcados por padrão saíram."]], ["2026-11-04", ["Valores mostram o ,00 enquanto você digita, com o ponto do milhar aparecendo na hora.", "A coluna Data da OS passou a ser a primeira da planilha.", "Números de OS e de nota fiscal sempre com 6 dígitos (011 vira 000011).", "Valor unitário com 6 casas depois da vírgula, quantidade com ponto no milhar e valores zerados como 0,00.", "OS em ordem de data, da mais recente para a mais antiga. O mesmo número de OS pode ser usado mais de uma vez."]], ["2026-11-03", ["Filtros na planilha: Nota fiscal, Início do processo, Pagamento, Prestador, Mês da OS e Moeda.", "Planilha com 3 status (Recebimento da nota fiscal, Início do processo e Pagamento) e legenda das cores.", "Recebimento da nota fiscal pode ser marcado com um clique, mesmo antes de lançar a nota.", "Aba OS com quadro de pagamento e cards do topo: Aguardando a nota fiscal, Aguardando o início do processo de pagamento e Pendente de pagamento.", "Saíram o check Ciente e a linha TOTAL. Confirmado virou Processo de pagamento.", "Notas fiscais passam a ser criadas só pela aba Nota Fiscal, com anexo do arquivo (PDF ou foto).", "Datas aceitam o ano com 2 dígitos (26 vira 2026) e a planilha ficou mais compacta.", "Novas fotos de fundo e no menu das abas.", "Site ligado ao banco de dados: login com senha e as mesmas OS em todos os aparelhos.", "Número da OS editável, valor em real ou dólar, valor unitário e perfil Desenvolvedor."]], ["2026-10-30", ["Foto do jato no fundo da página.", "Planilha: Ajustar à tela, maximizar e esconder as abas.", "Checks de confirmação e pagamento na planilha e na OS.", "Quantidade com unidade (unidade, litros ou quilos).", "Aba Equipe para criar contas, aba Monitor e histórico de ações.", "Login com troca de senha no primeiro acesso e vencimento da nota fiscal."]], ["2026-10-29", ["Primeira versão: planilha de OS, nota fiscal e geração de Excel."]]];
+const NOVIDADES=[["2026-11-05", ["Discriminação virou uma lista de serviços: escolha um ou vários, e cada um aparece ao lado. Em \"Outro serviço…\" dá para criar um novo.", "Anexe o arquivo da nota fiscal direto na planilha (Anexar NF / Ver NF) e nos detalhes da OS.", "Caixa de Observação que abre e fecha na planilha, na OS e na nota fiscal. A coluna Observação da planilha pode ser ocultada.", "Novidades: esta lista com todas as atualizações do site.", "Aba Nota Fiscal: filtro por Processo de pagamento pendente, Pago e Pagamento pendente, e o status do pagamento em cada nota.", "Os cartões de nota fiscal não mostram mais a lista de serviços.", "No quadro da aba OS, cada cartão mostra Data / Prestador de serviço / Local.", "Saíram as caixas de legenda acima da planilha.", "A coluna Observação da planilha fica logo depois de Valor NF.", "Dá para anexar vários arquivos da nota fiscal na mesma OS, escolhendo vários de uma vez ou anexando mais depois.", "A janela de arquivos ficou mais larga e mostra o nome inteiro de cada arquivo.", "Os cartões da aba Nota Fiscal mostram os arquivos anexados, com o nome inteiro e o botão Ver, e dá para anexar dali.", "Saiu o Total geral da aba Nota Fiscal.", "Nº da OS e da NF começam em 000000 e os números digitados entram pela direita (427 vira 000427).", "O Valor da NF vem igual ao Valor da OS; se for diferente, é só digitar o valor da nota.", "A discriminação escrita nas OS antigas passou a ser o item da Discriminação, e os 13 serviços que vinham marcados por padrão saíram."]], ["2026-11-04", ["Valores mostram o ,00 enquanto você digita, com o ponto do milhar aparecendo na hora.", "A coluna Data da OS passou a ser a primeira da planilha.", "Números de OS e de nota fiscal sempre com 6 dígitos (011 vira 000011).", "Valor unitário com 6 casas depois da vírgula, quantidade com ponto no milhar e valores zerados como 0,00.", "OS em ordem de data, da mais recente para a mais antiga. O mesmo número de OS pode ser usado mais de uma vez."]], ["2026-11-03", ["Filtros na planilha: Nota fiscal, Início do processo, Pagamento, Prestador, Mês da OS e Moeda.", "Planilha com 3 status (Recebimento da nota fiscal, Início do processo e Pagamento) e legenda das cores.", "Recebimento da nota fiscal pode ser marcado com um clique, mesmo antes de lançar a nota.", "Aba OS com quadro de pagamento e cards do topo: Aguardando a nota fiscal, Aguardando o início do processo de pagamento e Pendente de pagamento.", "Saíram o check Ciente e a linha TOTAL. Confirmado virou Processo de pagamento.", "Notas fiscais passam a ser criadas só pela aba Nota Fiscal, com anexo do arquivo (PDF ou foto).", "Datas aceitam o ano com 2 dígitos (26 vira 2026) e a planilha ficou mais compacta.", "Novas fotos de fundo e no menu das abas.", "Site ligado ao banco de dados: login com senha e as mesmas OS em todos os aparelhos.", "Número da OS editável, valor em real ou dólar, valor unitário e perfil Desenvolvedor."]], ["2026-10-30", ["Foto do jato no fundo da página.", "Planilha: Ajustar à tela, maximizar e esconder as abas.", "Checks de confirmação e pagamento na planilha e na OS.", "Quantidade com unidade (unidade, litros ou quilos).", "Aba Equipe para criar contas, aba Monitor e histórico de ações.", "Login com troca de senha no primeiro acesso e vencimento da nota fiscal."]], ["2026-10-29", ["Primeira versão: planilha de OS, nota fiscal e geração de Excel."]]];
 const novVista=()=>{ try{ return localStorage.getItem("cs-novidades")||""; }catch(_){ return ""; } };
 const novChave=()=>NOVIDADES[0][0]+"|"+NOVIDADES[0][1].length;
 function marcarNovidades(){ $("#novoBadge").hidden=novVista()===novChave(); }
@@ -1382,7 +1400,7 @@ function barras(mapa,fmt){
 function renderMonitor(){
   if(view!=="monitor") return;
   const h=hojeISO(), em7=new Date(Date.now()+7*864e5).toISOString().slice(0,10);
-  const todas=[...items.filter(it=>it.nf?.numero).map(it=>({num:it.nf.numero,venc:it.nf.vencimento,valor:Number(it.nf.valor)||0,ref:it.numero,id:it.id,tipo:"os"})),
+  const todas=[...items.filter(it=>it.nf?.numero).map(it=>({num:it.nf.numero,venc:it.nf.vencimento,valor:valorNf(it),ref:it.numero,id:it.id,tipo:"os"})),
     ...notas.map(a=>({num:a.numero,venc:a.vencimento,valor:Number(a.valor)||0,ref:osDe(a)?.numero||"Avulsa",id:a.osId||"",tipo:"nf"}))];
   const venc=todas.filter(n=>n.venc&&n.venc<h), prox=todas.filter(n=>n.venc&&n.venc>=h&&n.venc<=em7);
   const porPrest=new Map(), porLocal=new Map();
@@ -1435,6 +1453,11 @@ const unidOpts=v=>`<option value="un">Unidade (objeto)</option><option value="L"
 const qtdTxt=it=>it.qtd==null||it.qtd===""?"":`${String(it.qtd).replace(".",",")} ${UNIDADES[it.unidade]||"un"}`;
 const CAMPOS={obs:"Observação",numero:"Nº da OS",valorUnit:"Valor unitário",qtd:"Quantidade",unidade:"Unidade",data:"Data da OS",aeroporto:"Local",prestador:"Prestador de serviço",obs:"Discriminação",valorOs:"Valor da OS","nf.numero":"Nº da NF","nf.data":"Data da NF","nf.vencimento":"Vencimento da NF","nf.valor":"Valor da NF"};
 function save(it, patch, acao){
+  // valor da OS mudou e o valor da NF acompanhava a OS: a NF passa a ter o mesmo valor
+  if(patch.valorOs!==undefined && !it.nfValorManual && !patch.nf){
+    const nfv=Number(it.nf?.valor)||0;
+    if(!nfv || nfv===(Number(it.valorOs)||0)) patch={...patch,nf:{...(it.nf||{}),valor:Number(patch.valorOs)||0}};
+  }
   if(acao) patch={...patch,historico:comHist(it.historico,acao)};
   Object.assign(it, patch); render();
   if(!live) return Promise.resolve(true);
@@ -1499,7 +1522,7 @@ $("#detail").addEventListener("click",async e=>{
 const dlg=$("#dlgNova");
 $("#btnNova").addEventListener("click",()=>{
   if(!canWrite && live){ notice("Você não tem permissão para criar solicitações."); return; }
-  $("#formNova").reset(); $("#nData").value=new Date().toISOString().slice(0,10); $("#nNum").value=proxNumero();
+  $("#formNova").reset(); $("#nData").value=new Date().toISOString().slice(0,10); $("#nNum").value="000000";
   montarMsel($("#nServ"),[],false,"nServAdd");
   $("#nObsBox").innerHTML=obsBox("os","nObs","");
   dlg.showModal();
@@ -1541,7 +1564,7 @@ function gerarPlanilha(){
       "Prestador de serviço":it.prestador||"",
       "Discriminação":discrTxt(it), "Qtd.":it.qtd==null?"":Number(it.qtd), "Unidade":it.qtd==null?"":(UNIDADES[it.unidade]||"un"), "Moeda":MOEDAS[moedaDe(it)], "Valor unitário":Number(it.valorUnit)||0, "Valor da OS":Number(it.valorOs)||0,
       "Status":done(it)?"Paga":it.exec?"Em processo de pagamento":"Pendente", "Processo de pagamento por":it.exec?`${it.exec.por} (${dataBR(it.exec.em.slice(0,10))})`:"", "Pago por":it.conf?`${it.conf.por} (${dataBR(it.conf.em.slice(0,10))})`:"",
-      "NF nº":it.nf?.numero||"", "Data da NF":it.nf?.data?dataBR(it.nf.data):"", "Vencimento NF":it.nf?.vencimento?dataBR(it.nf.vencimento):"", "Valor da NF (R$)":Number(it.nf?.valor)||0
+      "NF nº":it.nf?.numero||"", "Data da NF":it.nf?.data?dataBR(it.nf.data):"", "Vencimento NF":it.nf?.vencimento?dataBR(it.nf.vencimento):"", "Valor da NF (R$)":valorNf(it)
     };
   });
   const ws=XLSX.utils.json_to_sheet(linhas);
@@ -1556,7 +1579,7 @@ function gerarPlanilha(){
   XLSX.utils.book_append_sheet(wb,ws,"Serviços");
   XLSX.utils.book_append_sheet(wb,ws2,"Discriminação");
   const nfs=[
-    ...items.filter(it=>it.nf?.numero).map(it=>({"NF nº":it.nf.numero,"Tipo":"OS "+it.numero,"Data da NF":dataBR(it.nf.data),"Vencimento":it.nf.vencimento?dataBR(it.nf.vencimento):"","Local":it.aeroporto,"Prestador de serviço":it.prestador||"","Discriminação":discrTxt(it),"Serviços":it.checklist.map(c=>c.t).join("; "),"Valor (R$)":Number(it.nf.valor)||0})),
+    ...items.filter(it=>it.nf?.numero).map(it=>({"NF nº":it.nf.numero,"Tipo":"OS "+it.numero,"Data da NF":dataBR(it.nf.data),"Vencimento":it.nf.vencimento?dataBR(it.nf.vencimento):"","Local":it.aeroporto,"Prestador de serviço":it.prestador||"","Discriminação":discrTxt(it),"Serviços":it.checklist.map(c=>c.t).join("; "),"Valor (R$)":valorNf(it)})),
     ...notas.map(a=>({"NF nº":a.numero,"Tipo":osDe(a)?"OS "+osDe(a).numero:"Avulsa","Data da NF":dataBR(a.data),"Vencimento":a.vencimento?dataBR(a.vencimento):"","Local":a.aeroporto||"","Prestador de serviço":a.prestador||"","Discriminação":a.obs||"","Serviços":(a.servicos||[]).join("; "),"Valor (R$)":Number(a.valor)||0}))
   ];
   nfs.push({"NF nº":"TOTAL","Valor (R$)":nfs.reduce((s,l)=>s+l["Valor (R$)"],0)});
