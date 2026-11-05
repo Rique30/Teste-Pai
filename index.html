@@ -516,7 +516,7 @@ body.papel-operador .so-admin{display:none!important}
       <div class="field"><label for="nUnid">Unidade</label><select id="nUnid"><option value="un">Unidade (objeto)</option><option value="L">Litros (líquido)</option><option value="kg">Quilos</option></select></div>
       <div class="field"><label for="nMoeda">Moeda</label><select id="nMoeda"><option value="BRL">Real (R$)</option><option value="USD">Dólar (US$)</option></select></div>
       <div class="field"><label for="nValorUnit">Valor unitário</label><input id="nValorUnit" class="mono" type="text" inputmode="decimal" data-valor="6" placeholder="0,000000"></div>
-      <div class="field"><label for="nValorOs">Valor da OS</label><input id="nValorOs" class="mono" type="text" inputmode="decimal" data-valor="1" placeholder="0,00" title="Quantidade × valor unitário (pode ser alterado)"></div>
+      <div class="field"><label for="nValorOs">Valor da OS</label><input id="nValorOs" class="mono" type="text" inputmode="decimal" data-valor="2" placeholder="0,00" title="Quantidade × valor unitário (pode ser alterado)"></div>
       <div class="field full"><label for="nPrest">Prestador de serviço</label><input id="nPrest" placeholder="Nome da empresa ou profissional"></div>
       <div class="field full"><label for="nObs">Discriminação</label><textarea id="nObs" placeholder="Descrição dos serviços a realizar"></textarea></div>
       <div class="field full">
@@ -563,7 +563,7 @@ body.papel-operador .so-admin{display:none!important}
       <div class="field"><label for="aDataServ">Data da OS / serviço</label><input id="aDataServ" type="date"></div>
       <div class="field" style="grid-column:span 2"><label for="aAero">Local</label><input id="aAero" placeholder="SBGR · Guarulhos"></div>
       <div class="field" style="grid-column:span 2"><label for="aPrest">Prestador de serviço</label><input id="aPrest" placeholder="Nome da empresa ou profissional"></div>
-      <div class="field"><label for="aValor">Valor da NF (R$)</label><input id="aValor" class="mono" type="text" inputmode="decimal" data-valor="1" placeholder="0,00" required></div>
+      <div class="field"><label for="aValor">Valor da NF (R$)</label><input id="aValor" class="mono" type="text" inputmode="decimal" data-valor="2" placeholder="0,00" required></div>
       <div class="field full"><label for="aObs">Discriminação</label><textarea id="aObs" placeholder="Descrição dos serviços cobrados"></textarea></div>
       <div class="field full">
         <label for="aArquivo">Arquivo da nota fiscal (PDF ou foto, até 3 MB)</label>
@@ -790,7 +790,7 @@ function renderDetail(){
       <div class="field"><label for="dUnid">Unidade</label><select id="dUnid" ${dis}>${unidOpts(it.unidade)}</select></div>
       <div class="field"><label for="dMoeda">Moeda</label><select id="dMoeda" ${dis}>${moedaOpts(it.moeda)}</select></div>
       <div class="field"><label for="dValorUnit">Valor unitário</label><input id="dValorUnit" class="mono" type="text" inputmode="decimal" data-valor="6" placeholder="0,000000" value="${valorTxt(it.valorUnit,6)}" ${dis}></div>
-      <div class="field"><label for="dValorOs">Valor da OS</label><input id="dValorOs" class="mono" type="text" inputmode="decimal" data-valor="1" placeholder="0,00" value="${valorTxt(it.valorOs)}" title="Quantidade × valor unitário (pode ser alterado)" ${dis}></div>
+      <div class="field"><label for="dValorOs">Valor da OS</label><input id="dValorOs" class="mono" type="text" inputmode="decimal" data-valor="2" placeholder="0,00" value="${valorTxt(it.valorOs)}" title="Quantidade × valor unitário (pode ser alterado)" ${dis}></div>
       <div class="field full"><label for="dPrest">Prestador de serviço</label><input id="dPrest" value="${esc(it.prestador||"")}" ${dis}></div>
       <div class="field full"><label for="dObs">Discriminação</label><textarea id="dObs" ${dis}>${esc(it.obs)}</textarea></div>
     </div>
@@ -1065,6 +1065,20 @@ function anoCompleto(campo){
   if(!m || +m[1]>=100) return false;
   campo.value=`${2000+ +m[1]}-${m[2]}-${m[3]}`; return true;
 }
+// valor unitário (livre): o primeiro caractere digitado substitui o valor antigo
+document.addEventListener("beforeinput",e=>{ const t=e.target; if(t.matches?.('input[data-valor="6"]') && t.dataset.novo==="1" && e.inputType==="insertText"){ delete t.dataset.novo; e.preventDefault(); t.value=e.data||""; t.dispatchEvent(new Event("input",{bubbles:true})); } });
+// valores em dinheiro: digita só números e os dois últimos viram os centavos (123456 -> 1.234,56)
+// ao entrar no campo, o primeiro número digitado começa um valor novo (substitui o antigo)
+document.addEventListener("focusin",e=>{ const t=e.target; if(t.matches?.("input[data-valor]")){ t.dataset.novo="1"; try{ t.select(); }catch(_){} } });
+document.addEventListener("input",e=>{
+  const t=e.target; if(!t.matches?.('input[data-valor="2"]')) return;
+  let d;
+  if(t.dataset.novo==="1"){ delete t.dataset.novo; d=String(e.data??"").replace(/\D/g,""); }
+  else d=t.value.replace(/\D/g,"");
+  d=d.replace(/^0+(?=\d)/,"").slice(0,15);
+  t.value=d?valorTxt(Number(d)/100):"";
+  try{ t.setSelectionRange(t.value.length,t.value.length); }catch(_){}
+});
 document.addEventListener("focusout",e=>{
   const t=e.target; if(t.matches?.('input[type="date"]') && anoCompleto(t)) t.dispatchEvent(new Event("change",{bubbles:true}));
 },true);
