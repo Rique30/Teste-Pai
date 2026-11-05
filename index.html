@@ -1099,21 +1099,30 @@ document.addEventListener("beforeinput",e=>{
     for(const ch of txt){
       if(ch===","||ch==="."){ st.parte="dec"; st.n=0; continue; }
       if(!/\d/.test(ch)) continue;
+      // cursor no fim (depois dos centavos): o número entra antes da vírgula e o ,00 fica
+      if(st.parte==="dec" && st.n>=2){ st.parte="int"; st.n=st.int.length; }
       if(st.parte==="int"){ if(st.int.length>=13) continue; st.int=(st.int.slice(0,st.n)+ch+st.int.slice(st.n)); st.n++; const z=st.int.match(/^0+(?=\d)/); if(z){ st.int=st.int.slice(z[0].length); st.n=Math.max(0,st.n-z[0].length); } if(st.int==="0"){ st.int=""; st.n=0; } }
       else if(st.n<2){ st.dec=st.dec.slice(0,st.n)+ch+st.dec.slice(st.n+1); st.n++; }
     }
   } else if(tipo==="deleteContentBackward"){
-    if(tudo){ t.value=""; t.dataset.mudou="1"; return; }
+    if(tudo){ mostrarCampoValor(t,{int:"",dec:"00",parte:"int",n:0}); return; }
     if(st.parte==="int"){ if(st.n>0){ st.int=st.int.slice(0,st.n-1)+st.int.slice(st.n); st.n--; } }
     else if(st.n>0){ st.dec=st.dec.slice(0,st.n-1)+"0"+st.dec.slice(st.n); st.n--; }
     else { st.parte="int"; st.n=st.int.length; }
   } else {
-    if(tudo){ t.value=""; t.dataset.mudou="1"; return; }
+    if(tudo){ mostrarCampoValor(t,{int:"",dec:"00",parte:"int",n:0}); return; }
     if(st.parte==="int"){ if(st.n<st.int.length) st.int=st.int.slice(0,st.n)+st.int.slice(st.n+1); }
     else if(st.n<2) st.dec=st.dec.slice(0,st.n)+"0"+st.dec.slice(st.n+1);
   }
   mostrarCampoValor(t,st);
 });
+// teclados que não passam pelo beforeinput (alguns celulares): refaz o campo no formato com ,00 depois de digitar
+document.addEventListener("input",e=>{
+  const t=e.target; if(!e.isTrusted || !t.matches?.('input[data-valor="2"]')) return;
+  const st=lerCampoValor(t); mostrarCampoValor(t,st);
+});
+// campo de valor vazio mostra 0,00 ao clicar
+document.addEventListener("focusin",e=>{ const t=e.target; if(t.matches?.('input[data-valor="2"]') && !t.value.trim() && !t.disabled){ t.value="0,00"; try{ t.setSelectionRange(1,1); }catch(_){} } });
 // como o valor é escrito pela página, avisa a planilha e os formulários ao sair do campo
 document.addEventListener("focusout",e=>{ const t=e.target; if(t.dataset?.mudou){ delete t.dataset.mudou; t.dispatchEvent(new Event("input",{bubbles:true})); t.dispatchEvent(new Event("change",{bubbles:true})); } },true);
 document.addEventListener("focusout",e=>{
