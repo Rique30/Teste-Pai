@@ -502,7 +502,7 @@ body.papel-operador .so-admin{display:none!important}
           <div class="resumo" id="notasResumo"></div>
           <div class="sheet-tools">
             <input id="nfBusca" placeholder="Buscar por nota, OS, local, prestador ou serviço">
-            <select id="nfFiltro"><option value="">Todas</option><option value="emitida">Emitidas</option><option value="sem">Aguardando a nota fiscal</option><option value="avulsa">Notas criadas na aba</option><option value="vencida">Vencidas</option></select>
+            <select id="nfFiltro" aria-label="Status do pagamento"><option value="">Todas</option><option value="proc">Processo de pagamento pendente</option><option value="pago">Pago</option><option value="pend">Pagamento pendente</option></select>
             <button class="btn primary" id="btnNovaNf" type="button" style="margin-left:auto">+ Nova nota fiscal</button>
           </div>
           <div class="notas" id="notasList"></div>
@@ -526,11 +526,6 @@ body.papel-operador .so-admin{display:none!important}
             <label for="fMes">Mês da OS<select id="fMes"><option value="">Todos</option></select></label>
             <label for="fMoeda">Moeda<select id="fMoeda"><option value="">Todas</option><option value="BRL">Real (R$)</option><option value="USD">Dólar (US$)</option></select></label>
             <button type="button" class="linkbtn" id="fLimpar" hidden>Limpar filtros</button>
-          </div>
-          <div class="legenda" aria-label="Legenda dos status">
-            <div><b>Recebimento da nota fiscal</b><span class="pchip nf0"><i></i>Aguardando a nota fiscal</span><span class="pchip nf1"><i></i>NF recebida</span><span class="pchip nf2"><svg class="clip" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l8.6-8.6a3.3 3.3 0 0 1 4.7 4.7l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9"/></svg>NF com arquivo anexado</span><em>Clique para marcar quando a nota chegar. Muda sozinho quando a nota é lançada na aba Nota Fiscal.</em></div>
-            <div><b>Início do processo</b><span class="pchip s0"><i></i>Aguardando início</span><span class="pchip s1"><i></i>Processo iniciado</span><em>Clique para marcar ou desmarcar.</em></div>
-            <div><b>Pagamento</b><span class="pchip s0"><i></i>Pendente de pagamento</span><span class="pchip s2"><i></i>Pago</span><em>Clique para marcar ou desmarcar. Marcar como pago também marca o início do processo.</em></div>
           </div>
           <div class="sheet-scroll"><table class="sheet" id="sheet"></table></div>
         </div>
@@ -831,7 +826,7 @@ function renderPagamentos(){
     return `<div class="pg-col"><div class="pg-col-h">${s?`<span class="pchip s${s}"><i></i>${PAG[s]}</span>`:"<span></span>"}<span>${l.length} OS</span></div>
       <div class="pg-cards">${l.map(it=>`<article class="pg-card" aria-current="${it.id===selId}">
         <div class="t"><button type="button" data-pgopen="${esc(it.id)}" title="Ver detalhes da OS">${esc(it.numero)}</button><span>${fmtMoeda(it.valorOs,moedaDe(it))}</span></div>
-        <div class="m">${dataBR(it.data)} · ${esc(it.aeroporto||"—")}${it.prestador?" · "+esc(it.prestador):""}</div>
+        <div class="m">${dataBR(it.data)} / ${esc(it.prestador||"—")} / ${esc(it.aeroporto||"—")}</div>
         <div>${nfChip(it)}</div>
         <div class="a">${s?quemPag(it):`<span class="pwho">desde ${dataBR(it.data)}</span>`}</div>
       </article>`).join("")||`<div class="pg-vazio">Nenhuma OS aqui</div>`}</div></div>`;
@@ -875,9 +870,6 @@ function nfDoc(n){
       <div class="nf-cell"><span>Local</span>${esc(n.aeroporto||"—")}</div>
       <div class="nf-cell"><span>Prestador de serviço</span>${esc(n.prestador||"—")}</div>
       <div class="nf-cell"><span>Discriminação dos serviços</span><div style="white-space:pre-wrap">${esc(n.obs||"—")}</div></div>
-      <div class="nf-cell"><span>Serviços (${n.servicos.length})</span>
-        ${n.servicos.length?`<ul class="nf-serv">${n.servicos.map(c=>`<li>${esc(c.t)}${c.ok===undefined?"":c.ok?"<b>OK</b>":"<i>pendente</i>"}</li>`).join("")}</ul>`:"—"}
-      </div>
       <div class="nf-total"><span>VALOR TOTAL DO SERVIÇO</span><strong>${brl(n.valor)}</strong></div>
     </div>`;
 }
@@ -1074,8 +1066,12 @@ function renderNotas(){
   const q=$("#nfBusca").value.trim().toLowerCase(), f=$("#nfFiltro").value;
   const dis=canWrite?"":"disabled";
   const has=arr=>!q||arr.join(" ").toLowerCase().includes(q);
-  const rowsOs=f==="avulsa"?[]:f==="vencida"?items.filter(it=>vencida(it.nf?.vencimento)):items.filter(it=>!(!it.nf?.numero && notas.some(a=>a.osId===it.id)) && (!f||(f==="emitida")===emitida(it)) && has([it.nf?.numero,it.numero,it.aeroporto,it.prestador,it.obs,...it.checklist.map(c=>c.t)]));
-  const rowsAv=f==="sem"?[]:notas.filter(a=>(f!=="vencida"||vencida(a.vencimento)) && has([a.numero,a.aeroporto,a.prestador,a.obs,...(a.servicos||[])]));
+  // status do pagamento: da própria OS; nota sem OS vinculada conta como pagamento não iniciado
+  const estAv=a=>osDe(a)?pagEstado(osDe(a)):0;
+  const passa=e=>!f||(f==="proc"&&e===0)||(f==="pago"&&e===2)||(f==="pend"&&e<2);
+  const rowsOs=items.filter(it=>!(!it.nf?.numero && notas.some(a=>a.osId===it.id)) && passa(pagEstado(it)) && has([it.nf?.numero,it.numero,it.aeroporto,it.prestador,it.obs,...it.checklist.map(c=>c.t)]));
+  const rowsAv=notas.filter(a=>passa(estAv(a)) && has([a.numero,a.aeroporto,a.prestador,a.obs,...(a.servicos||[])]));
+  const pagPill=e=>`<span class="pchip s${e}"><i></i>${["Processo de pagamento pendente","Em processo de pagamento","Pago"][e]}</span>`;
   const total=rowsOs.reduce((s,it)=>s+(Number(it.nf?.valor)||0),0)+rowsAv.reduce((s,a)=>s+(Number(a.valor)||0),0);
   $("#notasResumo").innerHTML=`<div><span>OS com nota</span><strong>${items.filter(emitida).length}</strong></div>
     <div><span>Notas criadas na aba</span><strong>${notas.length}</strong></div>
@@ -1083,11 +1079,11 @@ function renderNotas(){
     <div><span>Total ${q||f?"filtrado":"geral"}</span><strong>${brl(total)}</strong></div>`;
   const cards=[
     ...rowsAv.map(a=>({ord:a.data||"",html:`<article>${avulsaDoc(a)}${a.observacao?obsBox("nf-cartao","",a.observacao,"",""):""}
-      <div class="nota-foot"><span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill done">${osDe(a)?"Vinculada à "+esc(osDe(a).numero):"Avulsa"}${a.exemplo?" · exemplo":""}</span>${vencPill(a.vencimento)}</span>
+      <div class="nota-foot"><span style="display:flex;gap:6px;flex-wrap:wrap">${pagPill(estAv(a))}<span class="pill done">${osDe(a)?"Vinculada à "+esc(osDe(a).numero):"Avulsa"}${a.exemplo?" · exemplo":""}</span>${vencPill(a.vencimento)}</span>
       <span class="confirm" data-delwrap="${esc(a.id)}">${a.anexo?`<button type="button" class="open btn-anexo" data-anexo="${esc(a.anexo.id)}" title="${esc(a.anexo.nome)}">${CLIP}Ver arquivo</button>`:""}<button type="button" class="open" data-edit-nf="${esc(a.id)}" ${dis}>Editar</button><button type="button" class="open so-admin" data-del-nf="${esc(a.id)}" ${dis}>Excluir</button></span></div>
       <details class="hist-nf"><summary>Histórico (${(a.historico||[]).length})</summary>${histHtml(a.historico,"Sem registros ainda.")}</details></article>`})),
     ...rowsOs.map(it=>({ord:it.nf?.data||it.data||"",html:`<article>${nfHtml(it)}${it.obs?obsBox("nf-cartao","",it.obs,"",""):""}
-      <div class="nota-foot"><span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill ${emitida(it)||it.nfRec?"done":"pend"}">${emitida(it)?"Emitida":it.nfRec?"NF recebida (não lançada)":"Aguardando a nota fiscal"}</span>${vencPill(it.nf?.vencimento)}</span>
+      <div class="nota-foot"><span style="display:flex;gap:6px;flex-wrap:wrap">${pagPill(pagEstado(it))}<span class="pill ${emitida(it)||it.nfRec?"done":"pend"}">${emitida(it)?"Emitida":it.nfRec?"NF recebida (não lançada)":"Aguardando a nota fiscal"}</span>${vencPill(it.nf?.vencimento)}</span>
       <button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button></div>
       <details class="hist-nf"><summary>Histórico da OS (${(it.historico||[]).length})</summary>${histHtml(it.historico,"Sem registros ainda.")}</details></article>`}))
   ].sort((a,b)=>b.ord.localeCompare(a.ord));
@@ -1319,14 +1315,15 @@ $("#tabNotas").addEventListener("click",()=>setView("notas"));
 $("#tabMonitor").addEventListener("click",()=>setView("monitor"));
 $("#tabEquipe").addEventListener("click",()=>setView("equipe"));
 // --- novidades: lista de atualizações; a bolinha vermelha aparece quando há novidade que a pessoa ainda não viu ---
-const NOVIDADES=[["2026-11-05", ["Discriminação virou uma lista de serviços: escolha um ou vários, e cada um aparece ao lado. Em \"Outro serviço…\" dá para criar um novo.", "Anexe o arquivo da nota fiscal direto na planilha (Anexar NF / Ver NF) e nos detalhes da OS.", "Caixa de Observação que abre e fecha na planilha, na OS e na nota fiscal. A coluna Observação da planilha pode ser ocultada.", "Novidades: esta lista com todas as atualizações do site."]], ["2026-11-04", ["Valores mostram o ,00 enquanto você digita, com o ponto do milhar aparecendo na hora.", "A coluna Data da OS passou a ser a primeira da planilha.", "Números de OS e de nota fiscal sempre com 6 dígitos (011 vira 000011).", "Valor unitário com 6 casas depois da vírgula, quantidade com ponto no milhar e valores zerados como 0,00.", "OS em ordem de data, da mais recente para a mais antiga. O mesmo número de OS pode ser usado mais de uma vez."]], ["2026-11-03", ["Filtros na planilha: Nota fiscal, Início do processo, Pagamento, Prestador, Mês da OS e Moeda.", "Planilha com 3 status (Recebimento da nota fiscal, Início do processo e Pagamento) e legenda das cores.", "Recebimento da nota fiscal pode ser marcado com um clique, mesmo antes de lançar a nota.", "Aba OS com quadro de pagamento e cards do topo: Aguardando a nota fiscal, Aguardando o início do processo de pagamento e Pendente de pagamento.", "Saíram o check Ciente e a linha TOTAL. Confirmado virou Processo de pagamento.", "Notas fiscais passam a ser criadas só pela aba Nota Fiscal, com anexo do arquivo (PDF ou foto).", "Datas aceitam o ano com 2 dígitos (26 vira 2026) e a planilha ficou mais compacta.", "Novas fotos de fundo e no menu das abas.", "Site ligado ao banco de dados: login com senha e as mesmas OS em todos os aparelhos.", "Número da OS editável, valor em real ou dólar, valor unitário e perfil Desenvolvedor."]], ["2026-10-30", ["Foto do jato no fundo da página.", "Planilha: Ajustar à tela, maximizar e esconder as abas.", "Checks de confirmação e pagamento na planilha e na OS.", "Quantidade com unidade (unidade, litros ou quilos).", "Aba Equipe para criar contas, aba Monitor e histórico de ações.", "Login com troca de senha no primeiro acesso e vencimento da nota fiscal."]], ["2026-10-29", ["Primeira versão: planilha de OS, nota fiscal e geração de Excel."]]];
+const NOVIDADES=[["2026-11-05", ["Discriminação virou uma lista de serviços: escolha um ou vários, e cada um aparece ao lado. Em \"Outro serviço…\" dá para criar um novo.", "Anexe o arquivo da nota fiscal direto na planilha (Anexar NF / Ver NF) e nos detalhes da OS.", "Caixa de Observação que abre e fecha na planilha, na OS e na nota fiscal. A coluna Observação da planilha pode ser ocultada.", "Novidades: esta lista com todas as atualizações do site.", "Aba Nota Fiscal: filtro por Processo de pagamento pendente, Pago e Pagamento pendente, e o status do pagamento em cada nota.", "Os cartões de nota fiscal não mostram mais a lista de serviços.", "No quadro da aba OS, cada cartão mostra Data / Prestador de serviço / Local.", "Saíram as caixas de legenda acima da planilha.", "A discriminação escrita nas OS antigas passou a ser o item da Discriminação, e os 13 serviços que vinham marcados por padrão saíram."]], ["2026-11-04", ["Valores mostram o ,00 enquanto você digita, com o ponto do milhar aparecendo na hora.", "A coluna Data da OS passou a ser a primeira da planilha.", "Números de OS e de nota fiscal sempre com 6 dígitos (011 vira 000011).", "Valor unitário com 6 casas depois da vírgula, quantidade com ponto no milhar e valores zerados como 0,00.", "OS em ordem de data, da mais recente para a mais antiga. O mesmo número de OS pode ser usado mais de uma vez."]], ["2026-11-03", ["Filtros na planilha: Nota fiscal, Início do processo, Pagamento, Prestador, Mês da OS e Moeda.", "Planilha com 3 status (Recebimento da nota fiscal, Início do processo e Pagamento) e legenda das cores.", "Recebimento da nota fiscal pode ser marcado com um clique, mesmo antes de lançar a nota.", "Aba OS com quadro de pagamento e cards do topo: Aguardando a nota fiscal, Aguardando o início do processo de pagamento e Pendente de pagamento.", "Saíram o check Ciente e a linha TOTAL. Confirmado virou Processo de pagamento.", "Notas fiscais passam a ser criadas só pela aba Nota Fiscal, com anexo do arquivo (PDF ou foto).", "Datas aceitam o ano com 2 dígitos (26 vira 2026) e a planilha ficou mais compacta.", "Novas fotos de fundo e no menu das abas.", "Site ligado ao banco de dados: login com senha e as mesmas OS em todos os aparelhos.", "Número da OS editável, valor em real ou dólar, valor unitário e perfil Desenvolvedor."]], ["2026-10-30", ["Foto do jato no fundo da página.", "Planilha: Ajustar à tela, maximizar e esconder as abas.", "Checks de confirmação e pagamento na planilha e na OS.", "Quantidade com unidade (unidade, litros ou quilos).", "Aba Equipe para criar contas, aba Monitor e histórico de ações.", "Login com troca de senha no primeiro acesso e vencimento da nota fiscal."]], ["2026-10-29", ["Primeira versão: planilha de OS, nota fiscal e geração de Excel."]]];
 const novVista=()=>{ try{ return localStorage.getItem("cs-novidades")||""; }catch(_){ return ""; } };
-function marcarNovidades(){ $("#novoBadge").hidden=novVista()>=NOVIDADES[0][0]; }
+const novChave=()=>NOVIDADES[0][0]+"|"+NOVIDADES[0][1].length;
+function marcarNovidades(){ $("#novoBadge").hidden=novVista()===novChave(); }
 $("#tabNovidades").addEventListener("click",()=>{
   const vista=novVista();
-  $("#novLista").innerHTML=NOVIDADES.map(([d,itens])=>`<section class="nov-dia"><h3>${dataBR(d)}${d>vista?'<span class="pill info">novo</span>':""}</h3><ul>${itens.map(t=>`<li>${esc(t)}</li>`).join("")}</ul></section>`).join("");
+  $("#novLista").innerHTML=NOVIDADES.map(([d,itens])=>`<section class="nov-dia"><h3>${dataBR(d)}${(d>vista.slice(0,10)||(d===vista.slice(0,10)&&vista!==novChave()&&d===NOVIDADES[0][0]))?'<span class="pill info">novo</span>':""}</h3><ul>${itens.map(t=>`<li>${esc(t)}</li>`).join("")}</ul></section>`).join("");
   $("#dlgNovidades").showModal();
-  try{ localStorage.setItem("cs-novidades",NOVIDADES[0][0]); }catch(_){}
+  try{ localStorage.setItem("cs-novidades",novChave()); }catch(_){}
   marcarNovidades();
 });
 $("#novFechar").addEventListener("click",()=>$("#dlgNovidades").close());
