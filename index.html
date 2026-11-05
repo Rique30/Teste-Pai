@@ -155,6 +155,15 @@ button.pchip:hover:not(:disabled){border-color:currentColor}
 button.pchip:disabled{cursor:not-allowed;opacity:.7}
 .pwho{display:block;font-size:.7rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sheet td.pcell{padding:6px 8px}
+.nf-cel{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.arq-btn{display:inline-flex;align-items:center;gap:4px;font:500 .74rem var(--f-body);color:var(--accent);background:none;border:1px dashed var(--line-strong);border-radius:99px;padding:2px 8px;cursor:pointer;white-space:nowrap}
+.arq-btn:hover:not(:disabled){border-color:var(--accent);background:var(--accent-soft)}
+.arq-btn:disabled{opacity:.5;cursor:not-allowed}
+.arq-btn .clip{width:12px;height:12px}
+.nf-os{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;margin-bottom:12px;border:1px dashed var(--line-strong);border-radius:6px;background:var(--head)}
+.nf-os b{font-size:.9rem}
+.nf-os .nome{font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px}
+.nf-os .acoes{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
 .filtros{display:grid;grid-template-columns:repeat(auto-fill,minmax(225px,1fr));gap:12px 14px;align-items:end;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;box-shadow:var(--shadow)}
 .filtros label{display:flex;flex-direction:column;gap:5px;font:600 .9rem var(--f-body);color:var(--ink);min-width:0}
 .filtros select{padding:9px 10px;font-size:.95rem;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong)}
@@ -271,7 +280,7 @@ input.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .sheet-tools input,.sheet-tools select{width:auto;flex:1 1 200px;max-width:320px}
 .sheet-tools .count{color:var(--muted);font-size:.82rem;margin-left:auto}
 .sheet-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);box-shadow:var(--shadow)}
-table.sheet{border-collapse:collapse;table-layout:fixed;width:100%;min-width:2214px;font-size:.86rem;font-variant-numeric:tabular-nums}
+table.sheet{border-collapse:collapse;table-layout:fixed;width:100%;min-width:2298px;font-size:.86rem;font-variant-numeric:tabular-nums}
 .sheet th,.sheet td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:0;vertical-align:middle}
 .sheet thead th{position:sticky;top:0;background:var(--head);font:600 .75rem var(--f-body);color:var(--muted);text-align:left;padding:8px;z-index:1}
 .sheet thead tr.letters th{text-align:center;font:500 .66rem var(--f-mono);padding:3px;background:var(--bg)}
@@ -665,6 +674,32 @@ function aplicarCheck(it,qual,marcar){
   save(it,{[qual]:marcar?assin:null},(marcar?"Marcou ":"Retirou o ")+CHK[qual]);
   renderSheet();
 }
+// --- anexar o arquivo da nota fiscal direto na OS (planilha e detalhes) ---
+const anexosDemo={};
+let anexarOsId=null;
+const campoArquivoOs=Object.assign(document.createElement("input"),{type:"file",accept:"application/pdf,image/jpeg,image/png,image/webp,image/heic,image/*",hidden:true});
+document.body.append(campoArquivoOs);
+document.addEventListener("click",e=>{
+  const a=e.target.closest?.("[data-anexar]"); if(a && !a.disabled){ anexarOsId=a.dataset.anexar; campoArquivoOs.value=""; campoArquivoOs.click(); return; }
+  const v=e.target.closest?.("[data-veranexo]"); if(v){ abrirAnexo(v.dataset.veranexo); return; }
+  const t=e.target.closest?.("[data-tiraranexo]"); if(t && !t.disabled){
+    const it=items.find(i=>i.id===t.dataset.tiraranexo); if(!it?.nfAnexo) return;
+    if(modoSite) api("excluirAnexo",{id:it.nfAnexo.id}).catch(()=>{});
+    save(it,{nfAnexo:null},"Removeu o arquivo da nota fiscal "+it.nfAnexo.nome); renderSheet();
+  }
+});
+campoArquivoOs.addEventListener("change",async()=>{
+  const arq=campoArquivoOs.files[0], it=items.find(i=>i.id===anexarOsId); if(!arq||!it) return;
+  notice("Enviando o arquivo da nota fiscal…");
+  try{
+    const anexo=await enviarAnexo(arq), antigo=it.nfAnexo;
+    if(antigo && modoSite) api("excluirAnexo",{id:antigo.id}).catch(()=>{});
+    const patch={nfAnexo:anexo};
+    if(!nfRecebida(it)) patch.nfRec={por:quem(),email:euMesmo(),em:new Date().toISOString()};
+    notice(""); save(it,patch,(antigo?"Trocou":"Anexou")+" o arquivo da nota fiscal "+anexo.nome); renderSheet();
+  }catch(err){ notice(err.msg||"Não foi possível enviar o arquivo. Tente de novo."); }
+});
+
 // --- discriminação: serviços escolhidos numa lista (vários por OS) ---
 const discrTxt=it=>(it.checklist||[]).map(c=>c.t).join(", ");
 const lerMsel=el=>el?[...el.querySelectorAll(".msel-chip")].map(c=>c.dataset.v):[];
@@ -702,7 +737,8 @@ document.addEventListener("keydown",e=>{ if(e.key==="Enter" && e.target.matches?
 // --- estado da nota fiscal e do pagamento de cada OS ---
 const PAG=["A pagar","Em processo de pagamento","Pago"];
 const pagEstado=it=>it.conf?2:it.exec?1:0;
-function nfInfo(it){ const v=notas.filter(a=>a.osId===it.id); return {num:it.nf?.numero||v[0]?.numero||"", arq:v.some(a=>a.anexo)}; }
+const anexoDaOs=it=>it.nfAnexo||notas.find(a=>a.osId===it.id&&a.anexo)?.anexo||null;
+function nfInfo(it){ const v=notas.filter(a=>a.osId===it.id); return {num:it.nf?.numero||v[0]?.numero||"", arq:!!anexoDaOs(it)}; }
 // recebida quando a nota foi lançada na aba Nota Fiscal ou quando alguém marcou o recebimento na planilha
 const nfRecebida=it=>!!nfInfo(it).num || !!it.nfRec;
 function nfChip(it,botao){
@@ -711,7 +747,9 @@ function nfChip(it,botao){
   const txt=!rec?"Aguardando a nota fiscal":n.num?`NF recebida · ${esc(n.num)}`:"NF recebida";
   const dica=!rec?"Clique para marcar que a nota fiscal chegou":n.num?(n.arq?"Nota lançada, com arquivo anexado":"Nota lançada na aba Nota Fiscal"):"Clique para desmarcar";
   if(!botao) return `<span class="pchip ${cls}" title="${dica}">${ico}${txt}</span>`;
-  return `<button type="button" class="pchip ${cls}" data-nfrec="${esc(it.id)}" ${dis} title="${dica}">${ico}${txt}</button>${it.nfRec?`<span class="pwho">${esc(it.nfRec.por)} · ${curto(it.nfRec.em)}</span>`:""}`;
+  const ax=anexoDaOs(it);
+  const arqBtn=ax?`<button type="button" class="arq-btn" data-veranexo="${esc(ax.id)}" title="Abrir ${esc(ax.nome)}">${CLIP}Ver NF</button>`:`<button type="button" class="arq-btn" data-anexar="${esc(it.id)}" ${dis} title="Anexar o arquivo da nota fiscal (PDF ou foto)">${CLIP}Anexar NF</button>`;
+  return `<div class="nf-cel"><button type="button" class="pchip ${cls}" data-nfrec="${esc(it.id)}" ${dis} title="${dica}">${ico}${txt}</button>${arqBtn}</div>${it.nfRec?`<span class="pwho">${esc(it.nfRec.por)} · ${curto(it.nfRec.em)}</span>`:""}`;
 }
 function marcarNfRecebida(it){
   if(it.nfRec){
@@ -841,7 +879,12 @@ function renderDetail(){
   </section>
 
   <section class="card">
-    <h2>Pagamento</h2>
+    <h2>Nota fiscal e pagamento</h2>
+    ${(()=>{ const ax=anexoDaOs(it), n=nfInfo(it);
+      return `<div class="nf-os"><b>Arquivo da nota fiscal</b>${nfChip(it)}
+        ${ax?`<span class="nome" title="${esc(ax.nome)}">${esc(ax.nome)} · ${tamanhoTxt(ax.tamanho||0)}</span>`:`<span class="sub" style="margin:0">Nenhum arquivo anexado</span>`}
+        <span class="acoes">${ax?`<button type="button" class="btn" data-veranexo="${esc(ax.id)}">Ver</button>${it.nfAnexo?`<button type="button" class="btn" data-anexar="${esc(it.id)}" ${dis}>Trocar</button><button type="button" class="btn" data-tiraranexo="${esc(it.id)}" ${dis}>Remover</button>`:`<span class="sub" style="margin:0">anexado na aba Nota Fiscal</span>`}`:`<button type="button" class="btn primary" data-anexar="${esc(it.id)}" ${dis}>${CLIP} Anexar arquivo</button>`}</span>
+      </div>`; })()}
     <div class="duplo">
       <div class="status-sq">${checkCell(it,"exec",true)}<span><b>① Processo de pagamento</b> ${it.exec?`Marcado por <strong>${esc(it.exec.por)}</strong> em ${quando(it.exec.em)}`:"Marque quando iniciar o processo de pagamento."}</span></div>
       <div class="status-sq">${checkCell(it,"conf",true)}<span><b>② Pago</b> ${it.conf?`Marcado por <strong>${esc(it.conf.por)}</strong> em ${quando(it.conf.em)}`:"Marque quando o pagamento for concluído."}</span></div>
@@ -872,7 +915,7 @@ const COLS=[
   {h:"Data da NF",k:"nf.data",type:"date",w:118},
   {h:"Venc. NF",k:"nf.vencimento",type:"date",w:118},
   {h:"Valor NF (R$)",k:"nf.valor",type:"number",num:true,w:112,sum:true},
-  {h:"Recebimento da nota fiscal",nfst:true,w:206},
+  {h:"Recebimento da nota fiscal",nfst:true,w:290},
   {h:"Início do processo",ini:true,w:168},
   {h:"Pagamento",pago:true,w:178},
   {h:"",ro:true,w:76,v:it=>`<button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button>`,html:true}
@@ -1195,9 +1238,11 @@ async function enviarAnexo(arq){
   }
   if(!["application/pdf","image/jpeg","image/png","image/webp"].includes(tipo)) throw Object.assign(new Error(),{msg:"Envie um PDF ou uma foto (JPG, PNG ou WEBP)."});
   if(blob.size>3*1024*1024) throw Object.assign(new Error(),{msg:`O arquivo tem ${tamanhoTxt(blob.size)}. O limite é 3 MB.`});
+  if(!modoSite){ const id="demo-"+Date.now().toString(36); anexosDemo[id]=URL.createObjectURL(blob); return {id,nome,tipo,tamanho:blob.size}; }
   return (await api("anexar",{nome,tipo,dados:await lerBase64(blob)})).anexo;
 }
 async function abrirAnexo(id){
+  if(anexosDemo[id]){ const j=window.open(anexosDemo[id],"_blank"); if(!j) notice("O navegador bloqueou a nova aba."); return; }
   if(!modoSite){ notice("Os arquivos das notas ficam no site (hangar-os-six.vercel.app)."); return; }
   const janela=window.open("","_blank");
   try{
