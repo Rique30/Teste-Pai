@@ -318,6 +318,18 @@ table.sheet{border-collapse:collapse;table-layout:fixed;width:100%;min-width:221
 .open:disabled{opacity:.5;cursor:not-allowed}
 
 /* formulários em janela */
+.msel{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border:1px solid var(--line-strong);border-radius:6px;padding:8px;background:var(--surface);min-width:0}
+.msel-add{width:auto;flex:0 1 250px;min-width:0}
+.msel-chips{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 200px;min-width:0}
+.msel-chips:empty::before{content:"Nenhum serviço selecionado";font-size:.82rem;color:var(--muted)}
+.msel-chip{display:inline-flex;align-items:center;gap:4px;background:var(--accent-soft);color:var(--accent);border-radius:99px;padding:3px 4px 3px 11px;font:500 .82rem var(--f-body);max-width:100%}
+.msel-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.msel-chip button{border:0;background:none;color:inherit;cursor:pointer;width:22px;height:22px;border-radius:50%;font-size:1rem;line-height:1;display:grid;place-items:center;flex:none}
+.msel-chip button:hover{background:color-mix(in srgb,var(--accent) 18%,transparent)}
+.msel-outro{display:flex;gap:6px;flex:1 1 100%;align-items:center}
+.msel-outro input{flex:1;min-width:0}
+.sheet td.discr{padding:6px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.sheet td.discr:hover{color:var(--accent)}
 .pick{border:1px solid var(--line-strong);border-radius:6px;padding:10px 12px}
 .pick-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--line)}
 .pick-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 16px}
@@ -518,14 +530,7 @@ body.papel-operador .so-admin{display:none!important}
       <div class="field"><label for="nValorUnit">Valor unitário</label><input id="nValorUnit" class="mono" type="text" inputmode="decimal" data-valor="6" placeholder="0,000000"></div>
       <div class="field"><label for="nValorOs">Valor da OS</label><input id="nValorOs" class="mono" type="text" inputmode="decimal" data-valor="2" placeholder="0,00" title="Quantidade × valor unitário (pode ser alterado)"></div>
       <div class="field full"><label for="nPrest">Prestador de serviço</label><input id="nPrest" placeholder="Nome da empresa ou profissional"></div>
-      <div class="field full"><label for="nObs">Discriminação</label><textarea id="nObs" placeholder="Descrição dos serviços a realizar"></textarea></div>
-      <div class="field full">
-        <label>Serviços solicitados (checklist)</label>
-        <div class="pick">
-          <div class="pick-head"><span class="sub" id="pickCount" style="margin:0"></span><button type="button" class="linkbtn" id="pickAll">Marcar todos</button></div>
-          <div class="pick-list" id="pickList"></div>
-        </div>
-      </div>
+      <div class="field full"><label for="nServAdd">Discriminação</label><div class="msel" id="nServ"></div></div>
     </div>
     <div class="row-actions">
       <button class="btn" type="button" id="btnCancelar">Cancelar</button>
@@ -660,6 +665,40 @@ function aplicarCheck(it,qual,marcar){
   save(it,{[qual]:marcar?assin:null},(marcar?"Marcou ":"Retirou o ")+CHK[qual]);
   renderSheet();
 }
+// --- discriminação: serviços escolhidos numa lista (vários por OS) ---
+const discrTxt=it=>(it.checklist||[]).map(c=>c.t).join(", ");
+const lerMsel=el=>el?[...el.querySelectorAll(".msel-chip")].map(c=>c.dataset.v):[];
+function montarMsel(el,sel,dis,idSelect){
+  if(!el) return;
+  const d=dis?"disabled":"", livres=[...checkPadrao,...sel.filter(t=>!checkPadrao.includes(t))].filter(t=>!sel.includes(t));
+  el.dataset.dis=dis?"1":""; el.dataset.idsel=idSelect||"";
+  el.innerHTML=`<select class="msel-add" id="${idSelect||""}" ${d} aria-label="Adicionar serviço"><option value="">+ Selecionar serviço…</option>${livres.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join("")}<option value="__outro">Outro serviço…</option></select>
+    <div class="msel-chips">${sel.map(t=>`<span class="msel-chip" data-v="${esc(t)}"><span>${esc(t)}</span>${dis?"":`<button type="button" data-tirar aria-label="Tirar ${esc(t)}">×</button>`}</span>`).join("")}</div>
+    <div class="msel-outro" hidden><input placeholder="Nome do novo serviço" aria-label="Nome do novo serviço"><button type="button" class="btn" data-outro-ok>Adicionar</button><button type="button" class="linkbtn" data-outro-nao>Cancelar</button></div>`;
+}
+function remontarMsel(el,sel){ montarMsel(el,sel,el.dataset.dis==="1",el.dataset.idsel); const s=el.querySelector(".msel-add"); if(s) s.focus(); }
+document.addEventListener("change",e=>{
+  const s=e.target; if(!s.matches?.(".msel-add")) return;
+  const el=s.closest(".msel"), v=s.value; if(!v) return;
+  if(v==="__outro"){ s.value=""; const o=el.querySelector(".msel-outro"); o.hidden=false; o.querySelector("input").focus(); return; }
+  remontarMsel(el,[...lerMsel(el),v]);
+});
+function adicionarOutro(el){
+  const inp=el.querySelector(".msel-outro input"), t=inp.value.trim(); if(!t) return;
+  if(!checkPadrao.some(x=>x.toLowerCase()===t.toLowerCase())){
+    checkPadrao=[...checkPadrao,t];
+    if(live) db.doc("config/checklist").set({itens:checkPadrao}).catch(()=>notice("O serviço foi adicionado, mas não ficou salvo na lista para as próximas OS."));
+  }
+  const sel=lerMsel(el); remontarMsel(el,sel.includes(t)?sel:[...sel,t]);
+}
+document.addEventListener("click",e=>{
+  const el=e.target.closest?.(".msel"); if(!el) return;
+  if(e.target.closest("[data-tirar]")){ const v=e.target.closest(".msel-chip").dataset.v; remontarMsel(el,lerMsel(el).filter(x=>x!==v)); return; }
+  if(e.target.closest("[data-outro-ok]")) adicionarOutro(el);
+  if(e.target.closest("[data-outro-nao]")){ el.querySelector(".msel-outro").hidden=true; }
+});
+document.addEventListener("keydown",e=>{ if(e.key==="Enter" && e.target.matches?.(".msel-outro input")){ e.preventDefault(); adicionarOutro(e.target.closest(".msel")); } });
+
 // --- estado da nota fiscal e do pagamento de cada OS ---
 const PAG=["A pagar","Em processo de pagamento","Pago"];
 const pagEstado=it=>it.conf?2:it.exec?1:0;
@@ -768,7 +807,7 @@ function nfDoc(n){
 }
 function nfHtml(it){
   const nf=it.nf||{};
-  return nfDoc({numero:nf.numero, ref:"Ref. "+it.numero, data:nf.data, vencimento:nf.vencimento, aeroporto:it.aeroporto, prestador:it.prestador, dataServ:it.data, obs:it.obs, servicos:it.checklist, valor:nf.valor});
+  return nfDoc({numero:nf.numero, ref:"Ref. "+it.numero, data:nf.data, vencimento:nf.vencimento, aeroporto:it.aeroporto, prestador:it.prestador, dataServ:it.data, obs:discrTxt(it)||it.obs, servicos:it.checklist, valor:nf.valor});
 }
 const osDe=a=>a.osId?items.find(i=>i.id===a.osId):null;
 const avulsaDoc=a=>nfDoc({anexo:a.anexo, numero:a.numero, ref:osDe(a)?"Ref. "+osDe(a).numero:"Avulsa", data:a.data, vencimento:a.vencimento, aeroporto:a.aeroporto, prestador:a.prestador, dataServ:a.dataServ, obs:a.obs, servicos:(a.servicos||[]).map(t=>({t})), valor:a.valor});
@@ -792,7 +831,7 @@ function renderDetail(){
       <div class="field"><label for="dValorUnit">Valor unitário</label><input id="dValorUnit" class="mono" type="text" inputmode="decimal" data-valor="6" placeholder="0,000000" value="${valorTxt(it.valorUnit,6)}" ${dis}></div>
       <div class="field"><label for="dValorOs">Valor da OS</label><input id="dValorOs" class="mono" type="text" inputmode="decimal" data-valor="2" placeholder="0,00" value="${valorTxt(it.valorOs)}" title="Quantidade × valor unitário (pode ser alterado)" ${dis}></div>
       <div class="field full"><label for="dPrest">Prestador de serviço</label><input id="dPrest" value="${esc(it.prestador||"")}" ${dis}></div>
-      <div class="field full"><label for="dObs">Discriminação</label><textarea id="dObs" ${dis}>${esc(it.obs)}</textarea></div>
+      <div class="field full"><label for="dServAdd">Discriminação</label><div class="msel" id="dServ"></div></div>
     </div>
     <div class="row-actions">
       <span class="confirm" id="delWrap"><button class="btn so-admin" type="button" id="btnExcluir" ${dis}>Excluir</button></span>
@@ -802,30 +841,18 @@ function renderDetail(){
   </section>
 
   <section class="card">
-    <h2>Checklist <small>${n} de ${it.checklist.length} ok · ${pct}%</small></h2>
+    <h2>Pagamento</h2>
     <div class="duplo">
       <div class="status-sq">${checkCell(it,"exec",true)}<span><b>① Processo de pagamento</b> ${it.exec?`Marcado por <strong>${esc(it.exec.por)}</strong> em ${quando(it.exec.em)}`:"Marque quando iniciar o processo de pagamento."}</span></div>
       <div class="status-sq">${checkCell(it,"conf",true)}<span><b>② Pago</b> ${it.conf?`Marcado por <strong>${esc(it.conf.por)}</strong> em ${quando(it.conf.em)}`:"Marque quando o pagamento for concluído."}</span></div>
     </div>
-    <div class="progress"><i style="width:${pct}%"></i></div>
-    <ul class="checks">
-      ${it.checklist.map((c,i)=>`<li class="${c.ok?"ok":""}">
-        <input type="checkbox" id="ck${i}" data-i="${i}" ${c.ok?"checked":""} ${dis}>
-        <label class="txt" for="ck${i}" style="font:inherit;text-transform:none;letter-spacing:0;color:inherit">${esc(c.t)}</label>
-        ${c.ok?`<span class="okmark">OK</span>`:""}
-      </li>`).join("")}
-    </ul>
-    <div class="addcheck">
-      <input id="novoItem" placeholder="Adicionar item ao checklist" ${dis}>
-      <button class="btn" type="button" id="btnAddItem" ${dis}>Adicionar</button>
-    </div>
-    <label class="keep" for="salvarPadrao"><input type="checkbox" id="salvarPadrao" ${keepPadrao?"checked":""} ${dis}> Salvar este item para as próximas solicitações</label>
   </section>
 
   <section class="card">
     <h2>Histórico <small>${(it.historico||[]).length} ${(it.historico||[]).length===1?"registro":"registros"}</small></h2>
     ${histHtml(it.historico,"Nenhuma ação registrada ainda. A partir de agora, cada alteração nesta OS aparece aqui com data, hora e quem fez.")}
   </section>`;
+  montarMsel($("#dServ"),(it.checklist||[]).map(c=>c.t),!canWrite,"dServAdd");
   reporAvisos();
 }
 
@@ -836,7 +863,7 @@ const COLS=[
   {h:"OS",k:"numero",w:90},
   {h:"Local",k:"aeroporto",w:130},
   {h:"Prestador",k:"prestador",w:150},
-  {h:"Discriminação",k:"obs",area:true,w:190},
+  {h:"Discriminação",discr:true,w:190},
   {h:"Qtd.",qtd:true,w:108},
   {h:"Moeda",moeda:true,w:68},
   {h:"Valor unit.",k:"valorUnit",type:"number",num:true,casas:6,w:132},
@@ -870,7 +897,7 @@ function filtered(){
     (!f.fPrest || (it.prestador||"").trim()===f.fPrest) &&
     (!f.fMes || String(it.data||"").startsWith(f.fMes)) &&
     (!f.fMoeda || moedaDe(it)===f.fMoeda) &&
-    (!q||[it.numero,it.aeroporto,it.prestador,it.obs].join(" ").toLowerCase().includes(q))).sort(porData);
+    (!q||[it.numero,it.aeroporto,it.prestador,discrTxt(it)].join(" ").toLowerCase().includes(q))).sort(porData);
 }
 function renderSheet(){ opcoesFiltros(); renderSheet0(); ajustarPlanilha(); }
 function renderSheet0(){
@@ -882,6 +909,7 @@ function renderSheet0(){
     <tbody>${rows.map((it,r)=>`<tr><td class="rn">${r+2}</td>${COLS.map(c=>{
       if(c.qtd) return `<td class="qtdcell"><div><input data-id="${esc(it.id)}" data-k="qtd" type="text" inputmode="decimal" data-qtd="1" value="${qtdFmt(it.qtd)}" aria-label="Quantidade ${esc(it.numero)}" ${dis}><select data-id="${esc(it.id)}" data-k="unidade" aria-label="Unidade ${esc(it.numero)}" ${dis}>${unidOpts(it.unidade).replace(/ \(objeto\)| \(líquido\)/g,"").replace("Unidade","un").replace("Litros","L").replace("Quilos","kg")}</select></div></td>`;
       if(c.chk) return `<td class="ck2cell">${checkCell(it,c.chk)}</td>`;
+      if(c.discr){ const t=discrTxt(it); return `<td class="discr" data-open="${esc(it.id)}" title="${esc(t||"Clique para escolher os serviços")}">${esc(t)||'<span class="sub">—</span>'}</td>`; }
       if(c.nfst) return `<td class="pcell">${nfChip(it,true)}</td>`;
       if(c.ini) return `<td class="pcell">${iniBotao(it)}</td>`;
       if(c.pago) return `<td class="pcell">${pagoBotao(it)}</td>`;
@@ -1016,7 +1044,7 @@ function abrirNf(a,osId){
 $("#aOs").addEventListener("change",()=>{
   const it=items.find(i=>i.id===$("#aOs").value); if(!it) return;
   $("#aDataServ").value=it.data||""; $("#aAero").value=it.aeroporto||""; $("#aPrest").value=it.prestador||"";
-  $("#aObs").value=it.obs||""; if(it.valorOs) $("#aValor").value=valorTxt(it.valorOs);
+  $("#aObs").value=discrTxt(it)||it.obs||""; if(it.valorOs) $("#aValor").value=valorTxt(it.valorOs);
   const sel=it.checklist.map(c=>c.t);
   [...$("#aPickList").querySelectorAll("input")].forEach(x=>x.checked=sel.includes(x.value));
   const extra=sel.filter(t=>![...$("#aPickList").querySelectorAll("input")].some(x=>x.value===t));
@@ -1300,7 +1328,7 @@ $("#detail").addEventListener("click",async e=>{
     const num=num6($("#dNum").value);
     if(!num){ notice("Informe o número da OS."); $("#dNum").focus(); return; }
     notice("");
-    const ok=await save(it,{numero:num, moeda:$("#dMoeda").value, valorUnit:lerValor($("#dValorUnit").value,6), data:$("#dData").value, aeroporto:$("#dAero").value.trim(), prestador:$("#dPrest").value.trim(), valorOs:lerValor($("#dValorOs").value), qtd:lerQtd($("#dQtd").value), unidade:$("#dUnid").value, obs:$("#dObs").value},"Editou os dados da OS");
+    const ok=await save(it,{numero:num, moeda:$("#dMoeda").value, valorUnit:lerValor($("#dValorUnit").value,6), data:$("#dData").value, aeroporto:$("#dAero").value.trim(), prestador:$("#dPrest").value.trim(), valorOs:lerValor($("#dValorOs").value), qtd:lerQtd($("#dQtd").value), unidade:$("#dUnid").value, checklist:lerMsel($("#dServ")).map(t=>({t,ok:!!it.checklist.find(c=>c.t===t)?.ok}))},"Editou os dados da OS");
     if(ok) flash("#savedSol","Solicitação salva");
   } else if(id==="btnSalvarNf"){
     const ok=await save(it,{nf:{numero:$("#fNum").value.trim(), data:$("#fData").value, valor:parseFloat($("#fValor").value)||0}});
@@ -1327,18 +1355,8 @@ const dlg=$("#dlgNova");
 $("#btnNova").addEventListener("click",()=>{
   if(!canWrite && live){ notice("Você não tem permissão para criar solicitações."); return; }
   $("#formNova").reset(); $("#nData").value=new Date().toISOString().slice(0,10); $("#nNum").value=proxNumero();
-  $("#pickList").innerHTML=checkPadrao.map((t,i)=>`<label for="pk${i}"><input type="checkbox" id="pk${i}" value="${esc(t)}" checked> ${esc(t)}</label>`).join("");
-  pickUpdate(); dlg.showModal();
-});
-function pickUpdate(){
-  const all=[...$("#pickList").querySelectorAll("input")], n=all.filter(x=>x.checked).length;
-  $("#pickCount").textContent=`${n} de ${all.length} serviços marcados`;
-  $("#pickAll").textContent=n===all.length?"Desmarcar todos":"Marcar todos";
-}
-$("#pickList").addEventListener("change",pickUpdate);
-$("#pickAll").addEventListener("click",()=>{
-  const all=[...$("#pickList").querySelectorAll("input")], on=!all.every(x=>x.checked);
-  all.forEach(x=>x.checked=on); pickUpdate();
+  montarMsel($("#nServ"),[],false,"nServAdd");
+  dlg.showModal();
 });
 $("#btnCancelar").addEventListener("click",()=>dlg.close());
 function proxNumero(){
@@ -1362,40 +1380,37 @@ $("#formNova").addEventListener("submit",e=>{
   const num=num6($("#nNum").value);
   const id="s"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const it={id, numero:num, data:$("#nData").value, aeroporto:$("#nAero").value.trim(),
-    prestador:$("#nPrest").value.trim(), moeda:$("#nMoeda").value, valorUnit:lerValor($("#nValorUnit").value,6), valorOs:lerValor($("#nValorOs").value), qtd:lerQtd($("#nQtd").value), unidade:$("#nUnid").value, obs:$("#nObs").value, criado:Date.now(),
-    checklist:[...$("#pickList").querySelectorAll("input:checked")].map(x=>({t:x.value,ok:false})),
+    prestador:$("#nPrest").value.trim(), moeda:$("#nMoeda").value, valorUnit:lerValor($("#nValorUnit").value,6), valorOs:lerValor($("#nValorOs").value), qtd:lerQtd($("#nQtd").value), unidade:$("#nUnid").value, obs:"", criado:Date.now(),
+    checklist:lerMsel($("#nServ")).map(t=>({t,ok:false})),
     nf:{numero:"",data:"",valor:0}};
   items=[it,...items].sort(porData); selId=id; dlg.close(); save(it,{},"Criou a OS");
-  if(view==="planilha") setTimeout(()=>{ const f=$(`#sheet [data-id="${id}"][data-k="obs"]`); if(f) f.focus(); },0);
 });
 
 // --- Excel ---
 let downloads=null;
 function gerarPlanilha(){
   const linhas=items.map(it=>{
-    const n=it.checklist.filter(c=>c.ok).length;
     return {
       "OS":it.numero, "Data da OS":dataBR(it.data), "Local":it.aeroporto,
       "Prestador de serviço":it.prestador||"",
-      "Discriminação":it.obs||"", "Qtd.":it.qtd==null?"":Number(it.qtd), "Unidade":it.qtd==null?"":(UNIDADES[it.unidade]||"un"), "Moeda":MOEDAS[moedaDe(it)], "Valor unitário":Number(it.valorUnit)||0, "Valor da OS":Number(it.valorOs)||0,
-      "Checklist OK":`${n}/${it.checklist.length}`, "Status":done(it)?"Paga":it.exec?"Em processo de pagamento":"Pendente", "Processo de pagamento por":it.exec?`${it.exec.por} (${dataBR(it.exec.em.slice(0,10))})`:"", "Pago por":it.conf?`${it.conf.por} (${dataBR(it.conf.em.slice(0,10))})`:"",
-      "Itens pendentes":it.checklist.filter(c=>!c.ok).map(c=>c.t).join("; "),
+      "Discriminação":discrTxt(it), "Qtd.":it.qtd==null?"":Number(it.qtd), "Unidade":it.qtd==null?"":(UNIDADES[it.unidade]||"un"), "Moeda":MOEDAS[moedaDe(it)], "Valor unitário":Number(it.valorUnit)||0, "Valor da OS":Number(it.valorOs)||0,
+      "Status":done(it)?"Paga":it.exec?"Em processo de pagamento":"Pendente", "Processo de pagamento por":it.exec?`${it.exec.por} (${dataBR(it.exec.em.slice(0,10))})`:"", "Pago por":it.conf?`${it.conf.por} (${dataBR(it.conf.em.slice(0,10))})`:"",
       "NF nº":it.nf?.numero||"", "Data da NF":it.nf?.data?dataBR(it.nf.data):"", "Vencimento NF":it.nf?.vencimento?dataBR(it.nf.vencimento):"", "Valor da NF (R$)":Number(it.nf?.valor)||0
     };
   });
   const ws=XLSX.utils.json_to_sheet(linhas);
-  ws["!cols"]=[10,12,22,30,50,10,8,16,12,11,44,12,12,14,16].map(w=>({wch:w}));
+  ws["!cols"]=[10,12,22,30,50,10,8,8,16,16,24,24,24,10,12,13,16].map(w=>({wch:w}));
   const range=XLSX.utils.decode_range(ws["!ref"]);
-  for(let r=1;r<=range.e.r;r++){ for(const col of [7,14]){ const c=ws[XLSX.utils.encode_cell({r,c:col})]; if(c) c.z='"R$" #,##0.00'; } }
+  for(let r=1;r<=range.e.r;r++){ for(const [col,z] of [[8,"#,##0.000000"],[9,"#,##0.00"],[16,'"R$" #,##0.00']]){ const c=ws[XLSX.utils.encode_cell({r,c:col})]; if(c) c.z=z; } }
   const det=[];
-  items.forEach(it=>it.checklist.forEach(c=>det.push({"OS":it.numero,"Local":it.aeroporto,"Item":c.t,"OK":c.ok?"Sim":"Não"})));
-  const ws2=XLSX.utils.json_to_sheet(det.length?det:[{"OS":"","Local":"","Item":"","OK":""}]);
-  ws2["!cols"]=[10,22,40,6].map(w=>({wch:w}));
+  items.forEach(it=>it.checklist.forEach(c=>det.push({"OS":it.numero,"Data da OS":dataBR(it.data),"Local":it.aeroporto,"Serviço":c.t})));
+  const ws2=XLSX.utils.json_to_sheet(det.length?det:[{"OS":"","Data da OS":"","Local":"","Serviço":""}]);
+  ws2["!cols"]=[10,12,22,40].map(w=>({wch:w}));
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,"Serviços");
-  XLSX.utils.book_append_sheet(wb,ws2,"Checklist");
+  XLSX.utils.book_append_sheet(wb,ws2,"Discriminação");
   const nfs=[
-    ...items.filter(it=>it.nf?.numero).map(it=>({"NF nº":it.nf.numero,"Tipo":"OS "+it.numero,"Data da NF":dataBR(it.nf.data),"Vencimento":it.nf.vencimento?dataBR(it.nf.vencimento):"","Local":it.aeroporto,"Prestador de serviço":it.prestador||"","Discriminação":it.obs||"","Serviços":it.checklist.map(c=>c.t).join("; "),"Valor (R$)":Number(it.nf.valor)||0})),
+    ...items.filter(it=>it.nf?.numero).map(it=>({"NF nº":it.nf.numero,"Tipo":"OS "+it.numero,"Data da NF":dataBR(it.nf.data),"Vencimento":it.nf.vencimento?dataBR(it.nf.vencimento):"","Local":it.aeroporto,"Prestador de serviço":it.prestador||"","Discriminação":discrTxt(it),"Serviços":it.checklist.map(c=>c.t).join("; "),"Valor (R$)":Number(it.nf.valor)||0})),
     ...notas.map(a=>({"NF nº":a.numero,"Tipo":osDe(a)?"OS "+osDe(a).numero:"Avulsa","Data da NF":dataBR(a.data),"Vencimento":a.vencimento?dataBR(a.vencimento):"","Local":a.aeroporto||"","Prestador de serviço":a.prestador||"","Discriminação":a.obs||"","Serviços":(a.servicos||[]).join("; "),"Valor (R$)":Number(a.valor)||0}))
   ];
   nfs.push({"NF nº":"TOTAL","Valor (R$)":nfs.reduce((s,l)=>s+l["Valor (R$)"],0)});
