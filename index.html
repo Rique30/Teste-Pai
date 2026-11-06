@@ -332,6 +332,17 @@ table.sheet{border-collapse:collapse;table-layout:fixed;width:100%;min-width:229
 .sheet td.fixa{position:sticky;z-index:2;background:var(--surface)}
 .sheet thead th.fixa{z-index:4}
 .sheet .fixa-ult{box-shadow:inset -2px 0 0 var(--line-strong)}
+/* no celular só o cabeçalho fica congelado; as colunas rolam junto */
+@media (max-width:820px){.sheet td.fixa,.sheet td.rn{position:static}.sheet th.fixa,.sheet th.rn{left:auto!important}.sheet .fixa-ult{box-shadow:none}}
+.sheet td>textarea.cresce{white-space:pre-wrap;overflow:hidden;resize:none;min-height:34px;height:auto;line-height:1.4}
+.sheet td.discr{text-overflow:clip}
+/* confirmação com SIM vermelho e VOLTAR verde */
+.bt-sim,.bt-voltar{border:0;color:#fff;font:700 .78rem var(--f-body);letter-spacing:.04em;padding:6px 14px;cursor:pointer;border-radius:4px}
+.bt-sim{background:#D92D20}.bt-sim:hover{background:#B42318}
+.bt-voltar{background:#12A150}.bt-voltar:hover{background:#0E7F40}
+.conf-sv{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:.76rem;line-height:1.25;white-space:normal}
+.conf-sv b{width:100%;color:var(--red)}
+.conf-sv small{width:100%;color:var(--muted)}
 .sheet td.qtdcell input{border:0;background:transparent;padding:7px 4px;width:100%;text-align:right;font-family:var(--f-mono);font-size:.86rem;min-width:0}
 .sheet td.qtdcell select{border:0;background:transparent;padding:7px 2px;width:auto;font-size:.82rem;color:var(--muted);flex:none}
 .sheet td.qtdcell input:focus,.sheet td.qtdcell select:focus{outline:2px solid var(--accent);outline-offset:-2px;background:var(--surface)}
@@ -720,7 +731,17 @@ function somaMoedas(lista,val){
   const t={BRL:0,USD:0}; lista.forEach(it=>t[moedaDe(it)]+=Number(val(it))||0);
   return t.USD?(t.BRL?fmtMoeda(t.BRL,"BRL")+" · ":"")+fmtMoeda(t.USD,"USD"):fmtMoeda(t.BRL,"BRL");
 }
-const dataBR=d=>{ if(!d) return "—"; const [y,m,dd]=d.split("-"); return `${dd}/${m}/${y}`; };
+const dataBR=d=>{ if(!d) return "—"; const [y,m,dd]=d.split("-"); return `${dd}/${m}/${String(y).slice(-2)}`; };
+// datas só com números e ano de 2 dígitos: 05/11/26
+const dataCurta=d=>{ if(!d) return ""; const [y,m,dd]=String(d).split("-"); return dd&&m?`${dd}/${m}/${String(y).slice(-2)}`:""; };
+// lê "051126" ou "05/11/26" → "2026-11-05"; vazio → ""; inválida → null
+function lerDataCurta(t){
+  const x=String(t||"").replace(/\D/g,""); if(!x) return "";
+  if(x.length!==6&&x.length!==8) return null;
+  const dd=+x.slice(0,2), mm=+x.slice(2,4), yy=x.length===8?x.slice(4):"20"+x.slice(4);
+  if(mm<1||mm>12||dd<1||dd>new Date(+yy,mm,0).getDate()) return null;
+  return `${yy}-${String(mm).padStart(2,"0")}-${String(dd).padStart(2,"0")}`;
+}
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const done=it=>!!it.conf; // concluída quando está paga
 const curto=iso=>{ if(!iso) return ""; const d=new Date(iso); return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"}); };
@@ -749,7 +770,14 @@ document.addEventListener("click",e=>{
   const a=e.target.closest?.("[data-anexar]"); if(a && !a.disabled){ anexarOsId=a.dataset.anexar; campoArquivoOs.value=""; campoArquivoOs.click(); return; }
   const v=e.target.closest?.("[data-veranexo]"); if(v){ abrirAnexo(v.dataset.veranexo); return; }
   const ar=e.target.closest?.("[data-arquivos]"); if(ar){ abrirArquivos(ar.dataset.arquivos); return; }
-  const t=e.target.closest?.("[data-tiraranexo]"); if(t && !t.disabled){
+  const pede=e.target.closest?.("[data-tiraranexo]"); if(pede && !pede.disabled){
+    const box=pede.closest(".acoes"), nome=pede.closest("li")?.querySelector(".nome")?.textContent||"este arquivo";
+    box.innerHTML=`<span class="conf-sv"><b>Remover ${esc(nome)}?</b><button type="button" class="bt-sim" data-arq-sim="${esc(pede.dataset.tiraranexo)}" data-ax="${esc(pede.dataset.ax)}">SIM</button><button type="button" class="bt-voltar" data-arq-nao>VOLTAR</button></span>`;
+    return;
+  }
+  if(e.target.closest?.("[data-arq-nao]")){ atualizarArquivos(); renderDetail(); return; }
+  const t=e.target.closest?.("[data-arq-sim]"); if(t){
+    t.dataset.tiraranexo=t.dataset.arqSim;
     const it=items.find(i=>i.id===t.dataset.tiraranexo); if(!it) return;
     const ax=anexosProprios(it).find(a=>a.id===t.dataset.ax); if(!ax) return;
     if(modoSite) api("excluirAnexo",{id:ax.id}).catch(()=>{});
@@ -1009,9 +1037,9 @@ let view="planilha";
 const COLS=[
   {h:"Data da OS",k:"data",type:"date",w:118},
   {h:"OS",k:"numero",w:90},
-  {h:"Local",k:"aeroporto",w:130},
-  {h:"Prestador",k:"prestador",w:150},
-  {h:"Discriminação",discr:true,w:190},
+  {h:"Local",k:"aeroporto",w:130,auto:360},
+  {h:"Prestador",k:"prestador",w:150,auto:360},
+  {h:"Discriminação",discr:true,w:190,auto:420},
   {h:"Qtd.",qtd:true,w:108},
   {h:"Moeda",moeda:true,w:68},
   {h:"Valor unit.",k:"valorUnit",type:"number",num:true,casas:6,w:132},
@@ -1020,11 +1048,11 @@ const COLS=[
   {h:"Data da NF",k:"nf.data",type:"date",w:118},
   {h:"Venc. NF",k:"nf.vencimento",type:"date",w:118},
   {h:"Valor NF (R$)",k:"nf.valor",type:"number",num:true,w:112,sum:true},
-  {h:"Observação",k:"obs",obsCol:true,w:230},
+  {h:"Observação",k:"obs",obsCol:true,area:true,cresce:true,w:230,auto:420},
   {h:"Recebimento da nota fiscal",nfst:true,w:290},
   {h:"Início do processo",ini:true,w:168},
   {h:"Pagamento",pago:true,w:178},
-  {h:"",ro:true,w:150,v:it=>`<span class="acoes-linha" data-excwrap="${esc(it.id)}"><button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button><button type="button" class="open excluir so-admin" data-excluir-os="${esc(it.id)}" ${canWrite?"":"disabled"} title="Excluir esta OS">Excluir</button></span>`,html:true}
+  {h:"",ro:true,w:170,v:it=>`<span class="acoes-linha" data-excwrap="${esc(it.id)}"><button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button><button type="button" class="open excluir so-admin" data-excluir-os="${esc(it.id)}" ${canWrite?"":"disabled"} title="Excluir esta OS">Excluir</button></span>`,html:true}
 ];
 // valor da NF: o mesmo da OS, a não ser que alguém tenha digitado outro valor na NF
 const valorNf=it=>Number(it.nf?.valor)||(it.nfValorManual?0:Number(it.valorOs)||0);
@@ -1054,7 +1082,10 @@ function renderSheet(){ opcoesFiltros(); renderSheet0(); ajustarPlanilha(); }
 function renderSheet0(){
   const rows=filtered(), dis=canWrite?"":"disabled";
   $("#sheetCount").textContent=`${rows.length} de ${items.length} serviços`;
-  const cols=COLS.filter(c=>!c.obsCol||verObs);
+  // colunas de texto ficam da largura do maior nome (até um limite; a Observação quebra linha depois disso)
+  const med=document.createElement("canvas").getContext("2d"); med.font="400 13.8px 'IBM Plex Sans', system-ui, sans-serif";
+  const textoCol=(c,it)=>c.discr?discrTxt(it):String(getF(it,c.k)||"");
+  const cols=COLS.filter(c=>!c.obsCol||verObs).map(c=>c.auto?{...c,w:Math.round(Math.min(c.auto,Math.max(c.w,...rows.map(it=>med.measureText(textoCol(c,it)).width+30))))}:c);
   $("#sheet").style.minWidth=cols.reduce((s,c)=>s+c.w,38)+"px";
   const letters=cols.map((c,i)=>`<th style="width:${c.w}px">${String.fromCharCode(65+i)}</th>`).join("");
   $("#sheet").innerHTML=`<thead><tr class="letters"><th class="rn"></th>${letters}</tr>
@@ -1070,13 +1101,31 @@ function renderSheet0(){
       if(c.sq) return `<td class="sq"><label><input type="checkbox" data-status="${esc(it.id)}" ${done(it)?"checked":""} ${dis} aria-label="Concluída ${esc(it.numero)}" title="${done(it)?"Concluída":"Pendente"}"></label></td>`;
       if(c.ro) return `<td class="ro">${c.v?(c.html?c.v(it):esc(c.v(it))):esc(getF(it,c.k))}</td>`;
       const val=getF(it,c.k)??""; const a=`data-id="${esc(it.id)}" data-k="${c.k}" aria-label="${c.h} ${esc(it.numero)}" ${c.k==="numero"||c.k==="nf.numero"?'data-num6="1" inputmode="numeric"':""} ${dis}`;
-      return `<td class="${c.num?"num":""}">${c.area?`<textarea ${a} wrap="off" title="${esc(val)}">${esc(val)}</textarea>`:`<input ${a} type="${c.num?"text":c.type||"text"}" ${c.num?`inputmode="decimal" data-valor="${c.casas||2}"`:""} value="${esc(c.num?valorTxt(val,c.casas||2):val)}">`}</td>`;
+      if(c.type==="date") return `<td><input ${a} type="text" inputmode="numeric" data-data="1" placeholder="dd/mm/aa" value="${esc(dataCurta(val))}"></td>`;
+      return `<td class="${c.num?"num":""}">${c.area?`<textarea ${a} ${c.cresce?'class="cresce" rows="1"':'wrap="off"'} title="${esc(val)}">${esc(val)}</textarea>`:`<input ${a} type="${c.num?"text":c.type||"text"}" ${c.num?`inputmode="decimal" data-valor="${c.casas||2}"`:""} value="${esc(c.num?valorTxt(val,c.casas||2):val)}">`}</td>`;
     }).join("")}</tr>`).join("")}
     ${rows.length?"":`<tr><td class="rn">2</td><td class="ro" colspan="${cols.length}">Nenhum serviço encontrado.</td></tr>`}</tbody>`;
+  $("#sheet").querySelectorAll("textarea.cresce").forEach(crescer);
   // colunas congeladas: Data da OS e OS ficam paradas ao rolar para o lado
   const L=[38,38+cols[0].w];
   $("#sheet").querySelectorAll("tr").forEach(tr=>[1,2].forEach((k,j)=>{ const c=tr.children[k]; if(!c||c.colSpan>1) return; c.classList.add("fixa"); if(j===1) c.classList.add("fixa-ult"); c.style.left=L[j]+"px"; }));
 }
+function crescer(t){ t.style.height="auto"; t.style.height=Math.max(34,t.scrollHeight)+"px"; }
+document.addEventListener("input",e=>{ if(e.target.matches?.("textarea.cresce")) crescer(e.target); });
+// data na planilha: digita só os números (051126) e as barras entram sozinhas → 05/11/26
+document.addEventListener("beforeinput",e=>{
+  const t=e.target; if(!t.matches?.("input[data-data]")) return;
+  const tipo=e.inputType; if(!["insertText","deleteContentBackward","deleteContentForward","insertFromPaste"].includes(tipo)) return;
+  e.preventDefault();
+  const tudo=t.value && t.selectionStart===0 && t.selectionEnd===t.value.length;
+  let d=tudo?"":t.value.replace(/\D/g,"");
+  if(tipo==="insertText") d+=String(e.data||"").replace(/\D/g,"");
+  else if(tipo==="insertFromPaste") d=String(e.dataTransfer?.getData("text")||e.data||"").replace(/\D/g,"");
+  else d=d.slice(0,-1);
+  d=d.slice(0,6);
+  t.value=[d.slice(0,2),d.slice(2,4),d.slice(4,6)].filter(Boolean).join("/"); t.dataset.mudou="1";
+  try{ t.setSelectionRange(t.value.length,t.value.length); }catch(_){}
+});
 // --- ajustar à tela ---
 let ajustar=false;
 function ajustarPlanilha(){
@@ -1102,7 +1151,9 @@ $("#sheet").addEventListener("change",e=>{
   const it=items.find(i=>i.id===t.dataset.id); if(!it||!t.dataset.k) return;
   const k=t.dataset.k;
   const ac="Alterou "+(CAMPOS[k]||k)+" pela planilha";
-  if(k.startsWith("nf.")){ const f=k.slice(3), v=f==="valor"?lerValor(t.value):f==="numero"?numNf(num6(t.value)):t.value.trim();
+  let dataLida;
+  if(t.dataset.data){ dataLida=lerDataCurta(t.value); if(dataLida===null){ notice("Data inválida. Digite dia, mês e ano com 2 dígitos, por exemplo 051126 para 05/11/26."); renderSheet(); return; } notice(""); }
+  if(k.startsWith("nf.")){ const f=k.slice(3), v=t.dataset.data?dataLida:f==="valor"?lerValor(t.value):f==="numero"?numNf(num6(t.value)):t.value.trim();
     const patch={nf:{...it.nf,[f]:v}};
     if(f==="valor") patch.nfValorManual=v!==(Number(it.valorOs)||0); // valor diferente da OS fica como foi digitado
     save(it,patch,ac); }
@@ -1118,7 +1169,7 @@ $("#sheet").addEventListener("change",e=>{
     if(q>0&&u>0) patch.valorOs=Math.round(q*u*100)/100;
     save(it,patch,ac);
   }
-  else save(it,{[k]:t.dataset.valor?lerValor(t.value,+t.dataset.valor||2):t.type==="number"?(parseFloat(t.value)||0):t.type==="date"?t.value:t.value.trim()},ac);
+  else save(it,{[k]:t.dataset.valor?lerValor(t.value,+t.dataset.valor||2):t.type==="number"?(parseFloat(t.value)||0):t.dataset.data?dataLida:t.type==="date"?t.value:t.value.trim()},ac);
 });
 $("#sheet").addEventListener("focusout",e=>{ if(!$("#sheet").contains(e.relatedTarget)) setTimeout(()=>{ if(!sheetFocused()) renderSheet(); },0); });
 // discriminação pela planilha: abre a seleção de serviços numa janela, sem sair da planilha
@@ -1148,7 +1199,7 @@ function excluirOs(it){
 $("#sheet").addEventListener("click",e=>{
   const ex=e.target.closest("[data-excluir-os]");
   if(ex){ const it=items.find(i=>i.id===ex.dataset.excluirOs); if(!it) return;
-    ex.parentElement.innerHTML=`<span class="confirma-exc"><b>Excluir ${esc(it.numero)}?</b><button type="button" class="open" data-exc-nao>Não</button><button type="button" class="open excluir" data-exc-sim="${esc(it.id)}">Sim, excluir</button></span>`;
+    ex.parentElement.innerHTML=`<span class="conf-sv"><b>Excluir esta OS?</b><small>${esc(it.numero)} · ${dataCurta(it.data)}${it.prestador?" · "+esc(it.prestador):""}</small><button type="button" class="bt-sim" data-exc-sim="${esc(it.id)}">SIM</button><button type="button" class="bt-voltar" data-exc-nao>VOLTAR</button></span>`;
     const w=$(`#sheet [data-excwrap="${it.id}"]`); w?.querySelector("[data-exc-nao]")?.focus(); return; }
   if(e.target.closest("[data-exc-nao]")){ renderSheet(); return; }
   const dc=e.target.closest("[data-discr]"); if(dc){ abrirDiscr(dc.dataset.discr); return; }
@@ -1207,7 +1258,7 @@ $("#notasList").addEventListener("click",e=>{
   const ed=e.target.closest("[data-edit-nf]"); if(ed){ abrirNf(notas.find(a=>a.id===ed.dataset.editNf)); return; }
   const dl=e.target.closest("[data-del-nf]");
   if(dl){ const a=notas.find(x=>x.id===dl.dataset.delNf);
-    dl.parentElement.innerHTML=`Excluir nota ${esc(a.numero)}? <button class="btn" type="button" data-nao>Não</button><button class="btn primary" type="button" data-sim-nf="${esc(a.id)}">Sim, excluir</button>`; return; }
+    dl.parentElement.innerHTML=`<span class="conf-sv"><b>Excluir a nota ${esc(a.numero)}?</b><button type="button" class="bt-sim" data-sim-nf="${esc(a.id)}">SIM</button><button type="button" class="bt-voltar" data-nao>VOLTAR</button></span>`; return; }
   if(e.target.closest("[data-nao]")){ renderNotas(); return; }
   const sim=e.target.closest("[data-sim-nf]");
   if(sim){ const id=sim.dataset.simNf, anexo=notas.find(a=>a.id===id)?.anexo; notas=notas.filter(a=>a.id!==id); renderNotas();
@@ -1441,7 +1492,7 @@ $("#tabNotas").addEventListener("click",()=>setView("notas"));
 $("#tabMonitor").addEventListener("click",()=>setView("monitor"));
 $("#tabEquipe").addEventListener("click",()=>setView("equipe"));
 // --- novidades: lista de atualizações; a bolinha vermelha aparece quando há novidade que a pessoa ainda não viu ---
-const NOVIDADES=[["2026-11-05", ["Discriminação virou uma lista de serviços: escolha um ou vários, e cada um aparece ao lado. Em \"Outro serviço…\" dá para criar um novo.", "Anexe o arquivo da nota fiscal direto na planilha (Anexar NF / Ver NF) e nos detalhes da OS.", "Caixa de Observação que abre e fecha na planilha, na OS e na nota fiscal. A coluna Observação da planilha pode ser ocultada.", "Novidades: esta lista com todas as atualizações do site.", "Aba Nota Fiscal: filtro por Processo de pagamento pendente, Pago e Pagamento pendente, e o status do pagamento em cada nota.", "Os cartões de nota fiscal não mostram mais a lista de serviços.", "No quadro da aba OS, cada cartão mostra Data / Prestador de serviço / Local.", "Saíram as caixas de legenda acima da planilha.", "A coluna Observação da planilha fica logo depois de Valor NF.", "Dá para anexar vários arquivos da nota fiscal na mesma OS, escolhendo vários de uma vez ou anexando mais depois.", "A janela de arquivos ficou mais larga e mostra o nome inteiro de cada arquivo.", "Os cartões da aba Nota Fiscal mostram os arquivos anexados, com o nome inteiro e o botão Ver, e dá para anexar dali.", "Saiu o Total geral da aba Nota Fiscal.", "Nº da OS e da NF começam em 000000 e os números digitados entram pela direita (427 vira 000427).", "O Valor da NF vem igual ao Valor da OS; se for diferente, é só digitar o valor da nota.", "A coluna Observação começa oculta (botão Mostrar observações). Linhas com observação mostram um balão no número da linha.", "A linha da planilha fica mais destacada ao passar o mouse ou editar.", "Administradores podem excluir uma OS direto na planilha (botão Excluir na linha, com confirmação).", "Clicar na Discriminação da planilha abre a lista de serviços numa janela para mudar ali mesmo.", "A coluna Observação volta a começar oculta para todos.", "Anexar arquivo não marca mais a NF como recebida: ela fica recebida quando o número da NF é preenchido ou quando alguém marca.", "Planilha com painéis congelados, como no Excel: o cabeçalho fica fixo ao rolar para baixo e as colunas Data da OS e OS ficam fixas ao rolar para o lado.", "Apagar o número da NF (deixando 000000) volta o status para Aguardando a nota fiscal.", "A discriminação escrita nas OS antigas passou a ser o item da Discriminação, e os 13 serviços que vinham marcados por padrão saíram."]], ["2026-11-04", ["Valores mostram o ,00 enquanto você digita, com o ponto do milhar aparecendo na hora.", "A coluna Data da OS passou a ser a primeira da planilha.", "Números de OS e de nota fiscal sempre com 6 dígitos (011 vira 000011).", "Valor unitário com 6 casas depois da vírgula, quantidade com ponto no milhar e valores zerados como 0,00.", "OS em ordem de data, da mais recente para a mais antiga. O mesmo número de OS pode ser usado mais de uma vez."]], ["2026-11-03", ["Filtros na planilha: Nota fiscal, Início do processo, Pagamento, Prestador, Mês da OS e Moeda.", "Planilha com 3 status (Recebimento da nota fiscal, Início do processo e Pagamento) e legenda das cores.", "Recebimento da nota fiscal pode ser marcado com um clique, mesmo antes de lançar a nota.", "Aba OS com quadro de pagamento e cards do topo: Aguardando a nota fiscal, Aguardando o início do processo de pagamento e Pendente de pagamento.", "Saíram o check Ciente e a linha TOTAL. Confirmado virou Processo de pagamento.", "Notas fiscais passam a ser criadas só pela aba Nota Fiscal, com anexo do arquivo (PDF ou foto).", "Datas aceitam o ano com 2 dígitos (26 vira 2026) e a planilha ficou mais compacta.", "Novas fotos de fundo e no menu das abas.", "Site ligado ao banco de dados: login com senha e as mesmas OS em todos os aparelhos.", "Número da OS editável, valor em real ou dólar, valor unitário e perfil Desenvolvedor."]], ["2026-10-30", ["Foto do jato no fundo da página.", "Planilha: Ajustar à tela, maximizar e esconder as abas.", "Checks de confirmação e pagamento na planilha e na OS.", "Quantidade com unidade (unidade, litros ou quilos).", "Aba Equipe para criar contas, aba Monitor e histórico de ações.", "Login com troca de senha no primeiro acesso e vencimento da nota fiscal."]], ["2026-10-29", ["Primeira versão: planilha de OS, nota fiscal e geração de Excel."]]];
+const NOVIDADES=[["2026-11-05", ["Discriminação virou uma lista de serviços: escolha um ou vários, e cada um aparece ao lado. Em \"Outro serviço…\" dá para criar um novo.", "Anexe o arquivo da nota fiscal direto na planilha (Anexar NF / Ver NF) e nos detalhes da OS.", "Caixa de Observação que abre e fecha na planilha, na OS e na nota fiscal. A coluna Observação da planilha pode ser ocultada.", "Novidades: esta lista com todas as atualizações do site.", "Aba Nota Fiscal: filtro por Processo de pagamento pendente, Pago e Pagamento pendente, e o status do pagamento em cada nota.", "Os cartões de nota fiscal não mostram mais a lista de serviços.", "No quadro da aba OS, cada cartão mostra Data / Prestador de serviço / Local.", "Saíram as caixas de legenda acima da planilha.", "A coluna Observação da planilha fica logo depois de Valor NF.", "Dá para anexar vários arquivos da nota fiscal na mesma OS, escolhendo vários de uma vez ou anexando mais depois.", "A janela de arquivos ficou mais larga e mostra o nome inteiro de cada arquivo.", "Os cartões da aba Nota Fiscal mostram os arquivos anexados, com o nome inteiro e o botão Ver, e dá para anexar dali.", "Saiu o Total geral da aba Nota Fiscal.", "Nº da OS e da NF começam em 000000 e os números digitados entram pela direita (427 vira 000427).", "O Valor da NF vem igual ao Valor da OS; se for diferente, é só digitar o valor da nota.", "A coluna Observação começa oculta (botão Mostrar observações). Linhas com observação mostram um balão no número da linha.", "A linha da planilha fica mais destacada ao passar o mouse ou editar.", "Administradores podem excluir uma OS direto na planilha (botão Excluir na linha, com confirmação).", "Clicar na Discriminação da planilha abre a lista de serviços numa janela para mudar ali mesmo.", "A coluna Observação volta a começar oculta para todos.", "Anexar arquivo não marca mais a NF como recebida: ela fica recebida quando o número da NF é preenchido ou quando alguém marca.", "Planilha com painéis congelados, como no Excel: o cabeçalho fica fixo ao rolar para baixo e as colunas Data da OS e OS ficam fixas ao rolar para o lado.", "Apagar o número da NF (deixando 000000) volta o status para Aguardando a nota fiscal.", "Datas da planilha só com números e ano de 2 dígitos (05/11/26); para digitar, 051126.", "Local, Prestador e Discriminação ficam da largura do nome; a Observação cresce para mostrar o texto todo.", "No celular só o cabeçalho fica congelado.", "Excluir OS e Remover arquivo pedem confirmação com SIM e VOLTAR.", "A OS excluída some da planilha na hora, sem precisar atualizar a página.", "A discriminação escrita nas OS antigas passou a ser o item da Discriminação, e os 13 serviços que vinham marcados por padrão saíram."]], ["2026-11-04", ["Valores mostram o ,00 enquanto você digita, com o ponto do milhar aparecendo na hora.", "A coluna Data da OS passou a ser a primeira da planilha.", "Números de OS e de nota fiscal sempre com 6 dígitos (011 vira 000011).", "Valor unitário com 6 casas depois da vírgula, quantidade com ponto no milhar e valores zerados como 0,00.", "OS em ordem de data, da mais recente para a mais antiga. O mesmo número de OS pode ser usado mais de uma vez."]], ["2026-11-03", ["Filtros na planilha: Nota fiscal, Início do processo, Pagamento, Prestador, Mês da OS e Moeda.", "Planilha com 3 status (Recebimento da nota fiscal, Início do processo e Pagamento) e legenda das cores.", "Recebimento da nota fiscal pode ser marcado com um clique, mesmo antes de lançar a nota.", "Aba OS com quadro de pagamento e cards do topo: Aguardando a nota fiscal, Aguardando o início do processo de pagamento e Pendente de pagamento.", "Saíram o check Ciente e a linha TOTAL. Confirmado virou Processo de pagamento.", "Notas fiscais passam a ser criadas só pela aba Nota Fiscal, com anexo do arquivo (PDF ou foto).", "Datas aceitam o ano com 2 dígitos (26 vira 2026) e a planilha ficou mais compacta.", "Novas fotos de fundo e no menu das abas.", "Site ligado ao banco de dados: login com senha e as mesmas OS em todos os aparelhos.", "Número da OS editável, valor em real ou dólar, valor unitário e perfil Desenvolvedor."]], ["2026-10-30", ["Foto do jato no fundo da página.", "Planilha: Ajustar à tela, maximizar e esconder as abas.", "Checks de confirmação e pagamento na planilha e na OS.", "Quantidade com unidade (unidade, litros ou quilos).", "Aba Equipe para criar contas, aba Monitor e histórico de ações.", "Login com troca de senha no primeiro acesso e vencimento da nota fiscal."]], ["2026-10-29", ["Primeira versão: planilha de OS, nota fiscal e geração de Excel."]]];
 const novVista=()=>{ try{ return localStorage.getItem("cs-novidades")||""; }catch(_){ return ""; } };
 const novChave=()=>NOVIDADES[0][0]+"|"+NOVIDADES[0][1].length;
 function marcarNovidades(){ $("#novoBadge").hidden=novVista()===novChave(); }
@@ -1574,7 +1625,7 @@ $("#detail").addEventListener("click",async e=>{
     }
     save(it,{checklist:[...it.checklist,{t,ok:false}]},"Adicionou o item "+t+" ao checklist");
   } else if(id==="btnExcluir"){
-    $("#delWrap").innerHTML=`Excluir ${esc(it.numero)}? <button class="btn" type="button" id="btnNao">Não</button><button class="btn primary" type="button" id="btnSim">Sim, excluir</button>`;
+    $("#delWrap").innerHTML=`<span class="conf-sv"><b>Excluir esta OS (${esc(it.numero)} · ${dataCurta(it.data)})?</b><button type="button" class="bt-sim" id="btnSim">SIM</button><button type="button" class="bt-voltar" id="btnNao">VOLTAR</button></span>`;
   } else if(id==="btnNao"){ renderDetail();
   } else if(id==="btnSim"){ excluirOs(it); }
 });
@@ -1702,11 +1753,14 @@ function criarDbSite(){
   });
   function vigiar(buscar,cb,erro){
     let ultimo=null, rodando=false;
+    let pendente=false;
     const v=async()=>{
-      if(!siteToken||rodando) return; rodando=true;
+      if(!siteToken) return;
+      if(rodando){ pendente=true; return; } // uma leitura já estava em andamento: lê de novo ao terminar (ex.: logo depois de excluir)
+      rodando=true;
       try{ const {cru,snap}=await buscar(); const k=JSON.stringify(cru); if(k!==ultimo){ ultimo=k; cb(snap); } }
       catch(e){ if(e.code===401){ sessaoExpirada(); } else if(erro) erro(e); }
-      finally{ rodando=false; }
+      finally{ rodando=false; if(pendente){ pendente=false; v(); } }
     };
     vigias.add(v); v(); return ()=>vigias.delete(v);
   }
@@ -1839,7 +1893,7 @@ $("#equipeTabela").addEventListener("click",async e=>{
   const box=b.closest("[data-u]"), email=box.dataset.u, u=equipe.find(x=>x.email===email); if(!u) return;
   const ac=b.dataset.acao;
   if(u.papel==="dev" && !ehDev()){ avisoEquipe("Esta conta é de desenvolvedor e só outro desenvolvedor pode alterá-la."); return; }
-  if(ac==="remover"){ box.innerHTML=`<span class="confirm">Remover ${esc(u.nome||u.email)}? <button class="btn" type="button" data-acao="nao">Não</button><button class="btn primary" type="button" data-acao="sim">Sim, remover</button></span>`; return; }
+  if(ac==="remover"){ box.innerHTML=`<span class="conf-sv"><b>Remover ${esc(u.nome||u.email)}?</b><button type="button" class="bt-sim" data-acao="sim">SIM</button><button type="button" class="bt-voltar" data-acao="nao">VOLTAR</button></span>`; return; }
   if(ac==="nao"){ renderEquipe(); return; }
   try{
     if(ac==="sim"){
