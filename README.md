@@ -18,6 +18,20 @@ No site da Vercel, a página usa a API `api/db.js`, que guarda tudo no Postgres 
 
 A API lê a conexão da variável `DATABASE_URL` (criada pela integração Neon da Vercel), `POSTGRES_URL` ou `HANGAR_DB_URL`. Sem ela, o site mostra o aviso de que o banco não está ligado.
 
+## Segurança
+
+- **Senhas**: só o servidor transforma a senha em hash (PBKDF2-SHA256 com 600.000 iterações). Senhas antigas, mais fracas, são reforçadas no próximo login.
+- **Tentativas de login**: depois de 5 senhas erradas no mesmo e-mail, ou 30 no mesmo IP, o login fica bloqueado por 15 minutos. Quando o e-mail não existe, a resposta demora o mesmo que uma senha errada, para não revelar quem tem conta.
+- **Senha provisória**: 10 caracteres sorteados com o gerador seguro do navegador. Enquanto a pessoa não troca a provisória, a conta só consegue trocar a senha. A nova senha precisa ter pelo menos 8 caracteres e a troca exige a senha atual.
+- **Sessões**: trocar ou resetar a senha derruba as sessões abertas daquela conta, e remover a conta derruba todas.
+- **Cabeçalhos de segurança** (`vercel.json`): CSP, proteção contra o site ser aberto dentro de outro (clickjacking), HSTS, `nosniff` e Permissions-Policy.
+
+### Variáveis da Vercel
+
+- `DATABASE_URL`: conexão com o banco Neon. Já configurada pela integração Neon da Vercel.
+- `SESSION_SECRET`: um texto aleatório longo, que assina os tokens de sessão. Defina sempre.
+- `HANGAR_ADMIN_EMAIL` e `HANGAR_ADMIN_SENHA`: usados só no **primeiro acesso**, quando o banco ainda não tem nenhuma conta. Neste site, que já tem contas, não são necessárias. Entrar com eles cria um administrador, que troca a senha na hora. A senha precisa ter pelo menos 10 caracteres. Depois de criar a conta, pode apagar as duas variáveis.
+
 ## Como usar
 
 Abra o `index.html` no navegador.

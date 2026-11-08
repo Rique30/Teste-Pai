@@ -613,7 +613,7 @@ body.papel-operador .so-admin{display:none!important}
       <div class="field" style="grid-column:span 2"><label for="mNome">Nome</label><input id="mNome" required placeholder="Nome e sobrenome"></div>
       <div class="field"><label for="mPapel">Perfil</label><select id="mPapel"><option value="operador">Operador</option><option value="admin">Administrador</option><option value="dev" id="mPapelDev">Desenvolvedor</option></select></div>
       <div class="field" style="grid-column:span 2"><label for="mEmail">E-mail</label><input id="mEmail" type="email" required placeholder="pessoa@empresa.com.br"></div>
-      <div class="field"><label for="mSenha">Senha provisória</label><input id="mSenha" class="mono" required minlength="4"></div>
+      <div class="field"><label for="mSenha">Senha provisória</label><input id="mSenha" class="mono" required minlength="10"></div>
     </div>
     <div class="login-err" id="mErro" hidden style="margin-top:12px"></div>
     <div class="row-actions">
@@ -1829,7 +1829,7 @@ $("#formLogin").addEventListener("submit",async e=>{
     if(modoSite){
       // no site a senha é conferida no servidor
       try{ const j=await api("login",{email,senha}); siteToken=j.token; u=j.user; }
-      catch(e){ if(e.code===401){ erroLogin("#lErro","E-mail ou senha incorretos."); return; } throw e; }
+      catch(e){ if(e.code===401||e.code===429){ erroLogin("#lErro",e.code===429?e.msg:"E-mail ou senha incorretos."); return; } throw e; }
     } else {
       if(live){ const snap=await db.collection("usuarios").doc(email).get(); u=snap.exists?snap.data():null; }
       else u=equipe.find(x=>x.email===email)||null;
@@ -1848,13 +1848,19 @@ async function trocarSenha(){
   if(n===$("#lSenha").value) return erroLogin("#tErro","Escolha uma senha diferente da provisória.");
   erroLogin("#tErro",""); $("#tBtn").disabled=true; $("#tBtn").textContent="Salvando…";
   try{
-    const salt=b64(crypto.getRandomValues(new Uint8Array(16))), iter=120000;
-    const novo={salt,iter,hash:await hashSenha(n,salt,iter),trocarSenha:false,senhaTrocadaEm:new Date().toISOString()};
-    if(live) await db.collection("usuarios").doc(usuarioAtual.email).update(novo);
-    else { const x=equipe.find(y=>y.email===usuarioAtual.email); if(x) Object.assign(x,novo); }
-    Object.assign(usuarioAtual,novo);
-    gravarSessao(usuarioAtual.email); mostrarApp(usuarioAtual.email);
-  }catch(_){ erroLogin("#tErro","Não foi possível salvar a nova senha. Tente de novo."); }
+    if(modoSite){
+      // no site a nova senha vai para o servidor, que confere a senha provisória e faz o hash
+      const j=await api("definirSenha",{senhaAtual:$("#lSenha").value,senha:n});
+      siteToken=j.token; Object.assign(usuarioAtual,j.user);
+    } else {
+      const salt=b64(crypto.getRandomValues(new Uint8Array(16))), iter=120000;
+      const novo={salt,iter,hash:await hashSenha(n,salt,iter),trocarSenha:false,senhaTrocadaEm:new Date().toISOString()};
+      if(live) await db.collection("usuarios").doc(usuarioAtual.email).update(novo);
+      else { const x=equipe.find(y=>y.email===usuarioAtual.email); if(x) Object.assign(x,novo); }
+      Object.assign(usuarioAtual,novo);
+    }
+    gravarSessao(usuarioAtual.email); mostrarApp(usuarioAtual.email); db?.atualizar?.();
+  }catch(e){ erroLogin("#tErro",e.msg||"Não foi possível salvar a nova senha. Tente de novo."); }
   finally{ $("#tBtn").disabled=false; $("#tBtn").textContent="Salvar senha e entrar"; }
 }
 $("#btnSair").addEventListener("click",()=>{ limparSessao(); usuarioAtual=null; siteToken=null; $("#who").hidden=true; mostrarLogin(); });
@@ -1886,7 +1892,15 @@ function renderEquipe(){
         ${souEu||ultimoAdmin||protegido?"":`<button type="button" class="open" data-acao="papel">${u.papel==="operador"||!u.papel?"Tornar administrador":"Tornar operador"}</button>${ehDev()&&u.papel!=="dev"?`<button type="button" class="open" data-acao="dev">Tornar desenvolvedor</button>`:""}<button type="button" class="open" data-acao="remover">Remover</button>`}
       </div></td></tr>`;}).join("")||`<tr><td colspan="5" class="sub">Ninguém cadastrado ainda.</td></tr>`}</tbody>`;
 }
-const senhaAleatoria=()=>String(Math.floor(100000+Math.random()*900000));
+// senha provisória: 10 caracteres sorteados com o gerador seguro do navegador, sem letras que se confundem (0/O, 1/l/I)
+const senhaAleatoria=()=>{ const A="abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789", out=[];
+  while(out.length<10){ const x=crypto.getRandomValues(new Uint8Array(1))[0]; if(x<A.length*4) out.push(A[x%A.length]); } return out.join(""); };
+// dados de senha de uma conta: no site o servidor faz o hash; na demonstração, aqui mesmo
+async function dadosSenha(senha){
+  if(modoSite) return {senhaProvisoria:senha};
+  const salt=b64(crypto.getRandomValues(new Uint8Array(16))), iter=120000;
+  return {salt,iter,hash:await hashSenha(senha,salt,iter),trocarSenha:true};
+}
 function avisoEquipe(html){ const a=$("#equipeAviso"); a.innerHTML=html; a.hidden=!html; }
 async function gravarMembro(email,dados){
   if(live) await db.collection("usuarios").doc(email).set(dados);
@@ -1904,11 +1918,11 @@ $("#formMembro").addEventListener("submit",async e=>{
   if(papel==="dev" && !ehDev() && equipe.some(u=>u.papel==="dev")) return erroLogin("#mErro","Só um desenvolvedor pode criar outra conta de desenvolvedor.");
   $("#mSalvar").disabled=true;
   try{
-    const salt=b64(crypto.getRandomValues(new Uint8Array(16))), iter=120000;
-    await gravarMembro(email,{email,nome,papel,salt,iter,hash:await hashSenha(senha,salt,iter),trocarSenha:true,criadoEm:new Date().toISOString(),criadoPor:quem()});
+    if(senha.length<10) throw {msg:"A senha provisória precisa ter pelo menos 10 caracteres."};
+    await gravarMembro(email,{email,nome,papel,...await dadosSenha(senha),trocarSenha:true,criadoEm:new Date().toISOString(),criadoPor:quem()});
     dlgM.close();
     avisoEquipe(`Conta criada para <b>${esc(nome)}</b>. Passe para a pessoa: e-mail <span class="cred">${esc(email)}</span> e senha provisória <span class="cred">${esc(senha)}</span>. No primeiro acesso ela cria a própria senha.`);
-  }catch(_){ erroLogin("#mErro","Não foi possível criar a conta agora. Tente de novo."); }
+  }catch(e){ erroLogin("#mErro",e.msg||"Não foi possível criar a conta agora. Tente de novo."); }
   finally{ $("#mSalvar").disabled=false; }
 });
 $("#equipeTabela").addEventListener("click",async e=>{
@@ -1927,8 +1941,8 @@ $("#equipeTabela").addEventListener("click",async e=>{
       await gravarMembro(email,{...u,papel});
       avisoEquipe(`${esc(u.nome||email)} agora é <b>${PAPEL[papel]}</b>.`);
     } else if(ac==="senha"){
-      const senha=senhaAleatoria(), salt=b64(crypto.getRandomValues(new Uint8Array(16))), iter=120000;
-      await gravarMembro(email,{...u,salt,iter,hash:await hashSenha(senha,salt,iter),trocarSenha:true});
+      const senha=senhaAleatoria();
+      await gravarMembro(email,{...u,...await dadosSenha(senha),trocarSenha:true});
       avisoEquipe(`Nova senha provisória de <b>${esc(u.nome||email)}</b>: <span class="cred">${esc(senha)}</span>. No próximo acesso a pessoa cria uma senha própria.`);
     }
   }catch(_){ avisoEquipe("Não foi possível concluir agora. Tente de novo."); }
