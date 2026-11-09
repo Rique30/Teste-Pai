@@ -17,7 +17,7 @@
   --bg:#F3F5F8; --surface:#FFFFFF; --ink:#16202B; --muted:#5E6B78; --line:#E1E6EC; --line-strong:#CDD5DE;
   --accent:#1F5FAD; --accent-ink:#FFFFFF; --accent-soft:#E8F0FA;
   --side:#0F2236; --side-ink:#AFC0D2; --side-strong:#FFFFFF; --side-active:#1B3957; --side-line:#1E3650;
-  --amber:#9A6508; --amber-bg:#FBF0D9; --ok:#1D7348; --ok-bg:#E1F2E8; --red:#B42318; --red-bg:#FDE8E6; --paper:#FFFFFF; --head:#F7F9FB;
+  --amber:#9A6508; --amber-bg:#FBF0D9; --ok:#1D7348; --ok-bg:#E1F2E8; --red:#B42318; --red-bg:#FDE8E6; --roxo:#6B3FA0; --roxo-bg:#F0E8FA; --paper:#FFFFFF; --head:#F7F9FB;
   --shadow:0 1px 2px rgb(16 34 54 / .06),0 1px 1px rgb(16 34 54 / .04);
   --f-display:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -27,13 +27,13 @@
   --bg:#0C1218; --surface:#141C25; --ink:#E3E9EF; --muted:#8FA0B1; --line:#222E3B; --line-strong:#2E3D4D;
   --accent:#6EA2E4; --accent-ink:#0A1420; --accent-soft:#16283D;
   --side:#08111A; --side-ink:#8FA3B8; --side-strong:#FFFFFF; --side-active:#15283C; --side-line:#152433;
-  --amber:#E2AE4A; --amber-bg:#2E240F; --ok:#5CC48E; --ok-bg:#122B1D; --red:#F28B82; --red-bg:#3A1714; --paper:#18212B; --head:#18212B;
+  --amber:#E2AE4A; --amber-bg:#2E240F; --ok:#5CC48E; --ok-bg:#122B1D; --red:#F28B82; --red-bg:#3A1714; --roxo:#C3A2F0; --roxo-bg:#2A1D3D; --paper:#18212B; --head:#18212B;
   --shadow:0 1px 2px rgb(0 0 0 / .3); color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0C1218; --surface:#141C25; --ink:#E3E9EF; --muted:#8FA0B1; --line:#222E3B; --line-strong:#2E3D4D;
   --accent:#6EA2E4; --accent-ink:#0A1420; --accent-soft:#16283D;
   --side:#08111A; --side-ink:#8FA3B8; --side-strong:#FFFFFF; --side-active:#15283C; --side-line:#152433;
-  --amber:#E2AE4A; --amber-bg:#2E240F; --ok:#5CC48E; --ok-bg:#122B1D; --red:#F28B82; --red-bg:#3A1714; --paper:#18212B; --head:#18212B;
+  --amber:#E2AE4A; --amber-bg:#2E240F; --ok:#5CC48E; --ok-bg:#122B1D; --red:#F28B82; --red-bg:#3A1714; --roxo:#C3A2F0; --roxo-bg:#2A1D3D; --paper:#18212B; --head:#18212B;
   --shadow:0 1px 2px rgb(0 0 0 / .3); color-scheme:dark}
 
 *{box-sizing:border-box}
@@ -148,6 +148,7 @@ body.planilha-fit #btnFit{background:var(--accent);border-color:var(--accent);co
 .pchip.s0{background:var(--line);color:var(--muted)}
 .pchip.s1{background:var(--amber-bg);color:var(--amber)}
 .pchip.s2{background:var(--ok-bg);color:var(--ok)}
+.pchip.sv{background:var(--roxo-bg);color:var(--roxo);border-color:color-mix(in srgb,var(--roxo) 35%,transparent)}
 .pchip.nf0{background:var(--red-bg);color:var(--red)}
 .pchip.nf1,.pchip.nf2{background:var(--accent-soft);color:var(--accent)}
 .pchip.nf2{border-color:color-mix(in srgb,var(--accent) 35%,transparent)}
@@ -747,7 +748,7 @@ const done=it=>!!it.conf; // concluída quando está paga
 const curto=iso=>{ if(!iso) return ""; const d=new Date(iso); return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"}); };
 const euMesmo=()=>usuarioAtual?.email||"demo";
 // Regras dos dois checks: retorna {ok:boolean, motivo:string} para cada ação
-const CHK={exec:"① Processo de pagamento",conf:"② Pago",nfRec:"• Recebimento da nota fiscal"};
+const CHK={exec:"① Processo de pagamento",conf:"② Pago",nfRec:"• Recebimento da nota fiscal",servConf:"• Confirmação do serviço"};
 function podeCheck(it,qual,marcar){
   if(!canWrite) return {ok:false,motivo:"Sem permissão para alterar."};
   if(!marcar && live && it[qual]?.email!==euMesmo() && !ehAdmin()) return {ok:false,motivo:`Só quem marcou o ${CHK[qual].slice(2)} ou um administrador pode retirar este check.`};
@@ -899,6 +900,23 @@ function marcarNfRecebida(it){
   }
   renderSheet();
 }
+// confirmação do serviço: Pendente ou Confirmado, com o nome de quem confirmou
+function confBotao(it,botao=true){
+  const a=it.servConf, dis=canWrite?"":"disabled", txt=a?"Confirmado":"Pendente", cls=a?"sv":"s0";
+  const quemFoi=a?`<span class="pwho">${esc(a.por)} · ${curto(a.em)}</span>`:"";
+  if(!botao) return `<span class="pchip ${cls}" title="Confirmação do serviço"><i></i>${txt}</span>`;
+  return `<button type="button" class="pchip ${cls}" data-servconf="${esc(it.id)}" ${dis} title="Clique para ${a?"retirar a confirmação do serviço":"confirmar o serviço"}"><i></i>${txt}</button>${quemFoi}`;
+}
+function marcarConfServico(it){
+  if(it.servConf){
+    const r=podeCheck(it,"servConf",false); if(!r.ok){ notice(r.motivo); return; }
+    notice(""); save(it,{servConf:null},"Retirou a confirmação do serviço");
+  } else {
+    if(!canWrite){ notice("Sem permissão para alterar."); return; }
+    notice(""); save(it,{servConf:{por:quem(),email:euMesmo(),em:new Date().toISOString()}},"Confirmou o serviço");
+  }
+  render(); renderSheet();
+}
 const quemPag=it=>{ const a=it.conf||it.exec; return a?`<span class="pwho">${esc(a.por)} · ${curto(a.em)}</span>`:""; };
 function iniBotao(it){
   const on=!!(it.exec||it.conf), dis=canWrite?"":"disabled", a=it.exec||it.conf;
@@ -930,7 +948,7 @@ function renderPagamentos(){
       <div class="pg-cards">${l.map(it=>`<article class="pg-card" aria-current="${it.id===selId}">
         <div class="t"><button type="button" data-pgopen="${esc(it.id)}" title="Ver detalhes da OS">${esc(it.numero)}</button><span>${fmtMoeda(it.valorOs,moedaDe(it))}</span></div>
         <div class="m">${dataBR(it.data)} / ${esc(it.prestador||"—")} / ${esc(it.aeroporto||"—")}</div>
-        <div>${nfChip(it)}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${nfChip(it)}${confBotao(it,false)}</div>
         <div class="a">${s?quemPag(it):`<span class="pwho">desde ${dataBR(it.data)}</span>`}</div>
       </article>`).join("")||`<div class="pg-vazio">Nenhuma OS aqui</div>`}</div></div>`;
   }).join("");
@@ -1014,6 +1032,7 @@ function renderDetail(){
 
   <section class="card">
     <h2>Nota fiscal e pagamento</h2>
+    <div class="nf-os"><b>Confirmação do serviço</b><span>${confBotao(it)}</span></div>
     <div class="nf-os"><b>Arquivos da nota fiscal</b>${nfChip(it)}
       <span class="acoes"><button type="button" class="btn primary" data-anexar="${esc(it.id)}" ${dis}>${CLIP} Anexar arquivos</button></span>
       <div style="flex:1 1 100%">${listaArquivos(it,dis)}</div>
@@ -1050,6 +1069,7 @@ const COLS=[
   {h:"Valor NF (R$)",k:"nf.valor",type:"number",num:true,w:112,sum:true},
   {h:"Observação",k:"obs",obsCol:true,area:true,cresce:true,w:230,auto:420},
   {h:"Recebimento da nota fiscal",nfst:true,w:290},
+  {h:"Confirmação do serviço",servconf:true,w:230},
   {h:"Início do processo",ini:true,w:168},
   {h:"Pagamento",pago:true,w:178},
   {h:"",ro:true,w:170,v:it=>`<span class="acoes-linha" data-excwrap="${esc(it.id)}"><button type="button" class="open" data-open="${esc(it.id)}">Abrir OS</button><button type="button" class="open excluir so-admin" data-excluir-os="${esc(it.id)}" ${canWrite?"":"disabled"} title="Excluir esta OS">Excluir</button></span>`,html:true}
@@ -1095,6 +1115,7 @@ function renderSheet0(){
       if(c.chk) return `<td class="ck2cell">${checkCell(it,c.chk)}</td>`;
       if(c.discr){ const t=discrTxt(it); return `<td class="discr" data-discr="${esc(it.id)}" title="${esc((t?t+" · ":"")+"Clique para mudar os serviços")}">${esc(t)||'<span class="sub">Clique para escolher</span>'}</td>`; }
       if(c.nfst) return `<td class="pcell">${nfChip(it,true)}</td>`;
+      if(c.servconf) return `<td class="pcell">${confBotao(it)}</td>`;
       if(c.ini) return `<td class="pcell">${iniBotao(it)}</td>`;
       if(c.pago) return `<td class="pcell">${pagoBotao(it)}</td>`;
       if(c.moeda) return `<td><select data-id="${esc(it.id)}" data-k="moeda" aria-label="Moeda ${esc(it.numero)}" ${dis}>${moedaOpts(it.moeda).replace("Real (R$)","R$").replace("Dólar (US$)","US$")}</select></td>`;
@@ -1205,6 +1226,7 @@ $("#sheet").addEventListener("click",e=>{
   const dc=e.target.closest("[data-discr]"); if(dc){ abrirDiscr(dc.dataset.discr); return; }
   const sim=e.target.closest("[data-exc-sim]"); if(sim){ const it=items.find(i=>i.id===sim.dataset.excSim); if(it) excluirOs(it); return; }
   // Início do processo: liga/desliga (desligar também tira o Pago). Pagamento: liga/desliga (ligar também marca o início).
+  const sc=e.target.closest("[data-servconf]"); if(sc){ const it=items.find(i=>i.id===sc.dataset.servconf); if(it) marcarConfServico(it); return; }
   const nr=e.target.closest("[data-nfrec]"); if(nr){ const it=items.find(i=>i.id===nr.dataset.nfrec); if(it) marcarNfRecebida(it); return; }
   const ini=e.target.closest("[data-ini]"); if(ini){ const it=items.find(i=>i.id===ini.dataset.ini); if(it) mudarPagamento(it,it.exec||it.conf?0:1); return; }
   const pg=e.target.closest("[data-pago]"); if(pg){ const it=items.find(i=>i.id===pg.dataset.pago); if(it) mudarPagamento(it,it.conf?1:2); return; }
@@ -1492,7 +1514,7 @@ $("#tabNotas").addEventListener("click",()=>setView("notas"));
 $("#tabMonitor").addEventListener("click",()=>setView("monitor"));
 $("#tabEquipe").addEventListener("click",()=>setView("equipe"));
 // --- novidades: lista de atualizações; a bolinha vermelha aparece quando há novidade que a pessoa ainda não viu ---
-const NOVIDADES=[["2026-11-05", ["Discriminação virou uma lista de serviços: escolha um ou vários, e cada um aparece ao lado. Em \"Outro serviço…\" dá para criar um novo.", "Anexe o arquivo da nota fiscal direto na planilha (Anexar NF / Ver NF) e nos detalhes da OS.", "Caixa de Observação que abre e fecha na planilha, na OS e na nota fiscal. A coluna Observação da planilha pode ser ocultada.", "Novidades: esta lista com todas as atualizações do site.", "Aba Nota Fiscal: filtro por Processo de pagamento pendente, Pago e Pagamento pendente, e o status do pagamento em cada nota.", "Os cartões de nota fiscal não mostram mais a lista de serviços.", "No quadro da aba OS, cada cartão mostra Data / Prestador de serviço / Local.", "Saíram as caixas de legenda acima da planilha.", "A coluna Observação da planilha fica logo depois de Valor NF.", "Dá para anexar vários arquivos da nota fiscal na mesma OS, escolhendo vários de uma vez ou anexando mais depois.", "A janela de arquivos ficou mais larga e mostra o nome inteiro de cada arquivo.", "Os cartões da aba Nota Fiscal mostram os arquivos anexados, com o nome inteiro e o botão Ver, e dá para anexar dali.", "Saiu o Total geral da aba Nota Fiscal.", "Nº da OS e da NF começam em 000000 e os números digitados entram pela direita (427 vira 000427).", "O Valor da NF vem igual ao Valor da OS; se for diferente, é só digitar o valor da nota.", "A coluna Observação começa oculta (botão Mostrar observações). Linhas com observação mostram um balão no número da linha.", "A linha da planilha fica mais destacada ao passar o mouse ou editar.", "Administradores podem excluir uma OS direto na planilha (botão Excluir na linha, com confirmação).", "Clicar na Discriminação da planilha abre a lista de serviços numa janela para mudar ali mesmo.", "A coluna Observação volta a começar oculta para todos.", "Anexar arquivo não marca mais a NF como recebida: ela fica recebida quando o número da NF é preenchido ou quando alguém marca.", "Planilha com painéis congelados, como no Excel: o cabeçalho fica fixo ao rolar para baixo e as colunas Data da OS e OS ficam fixas ao rolar para o lado.", "Apagar o número da NF (deixando 000000) volta o status para Aguardando a nota fiscal.", "Datas da planilha só com números e ano de 2 dígitos (05/11/26); para digitar, 051126.", "Local, Prestador e Discriminação ficam da largura do nome; a Observação cresce para mostrar o texto todo.", "No celular só o cabeçalho fica congelado.", "Excluir OS e Remover arquivo pedem confirmação com SIM e VOLTAR.", "A OS excluída some da planilha na hora, sem precisar atualizar a página.", "A discriminação escrita nas OS antigas passou a ser o item da Discriminação, e os 13 serviços que vinham marcados por padrão saíram."]], ["2026-11-04", ["Valores mostram o ,00 enquanto você digita, com o ponto do milhar aparecendo na hora.", "A coluna Data da OS passou a ser a primeira da planilha.", "Números de OS e de nota fiscal sempre com 6 dígitos (011 vira 000011).", "Valor unitário com 6 casas depois da vírgula, quantidade com ponto no milhar e valores zerados como 0,00.", "OS em ordem de data, da mais recente para a mais antiga. O mesmo número de OS pode ser usado mais de uma vez."]], ["2026-11-03", ["Filtros na planilha: Nota fiscal, Início do processo, Pagamento, Prestador, Mês da OS e Moeda.", "Planilha com 3 status (Recebimento da nota fiscal, Início do processo e Pagamento) e legenda das cores.", "Recebimento da nota fiscal pode ser marcado com um clique, mesmo antes de lançar a nota.", "Aba OS com quadro de pagamento e cards do topo: Aguardando a nota fiscal, Aguardando o início do processo de pagamento e Pendente de pagamento.", "Saíram o check Ciente e a linha TOTAL. Confirmado virou Processo de pagamento.", "Notas fiscais passam a ser criadas só pela aba Nota Fiscal, com anexo do arquivo (PDF ou foto).", "Datas aceitam o ano com 2 dígitos (26 vira 2026) e a planilha ficou mais compacta.", "Novas fotos de fundo e no menu das abas.", "Site ligado ao banco de dados: login com senha e as mesmas OS em todos os aparelhos.", "Número da OS editável, valor em real ou dólar, valor unitário e perfil Desenvolvedor."]], ["2026-10-30", ["Foto do jato no fundo da página.", "Planilha: Ajustar à tela, maximizar e esconder as abas.", "Checks de confirmação e pagamento na planilha e na OS.", "Quantidade com unidade (unidade, litros ou quilos).", "Aba Equipe para criar contas, aba Monitor e histórico de ações.", "Login com troca de senha no primeiro acesso e vencimento da nota fiscal."]], ["2026-10-29", ["Primeira versão: planilha de OS, nota fiscal e geração de Excel."]]];
+const NOVIDADES=[["2026-11-09", ["Nova coluna Confirmação do serviço na planilha, logo depois do Recebimento da nota fiscal: Pendente ou Confirmado (em roxo), com o nome de quem confirmou e a data. Também aparece na OS e no Excel."]], ["2026-11-05", ["Discriminação virou uma lista de serviços: escolha um ou vários, e cada um aparece ao lado. Em \"Outro serviço…\" dá para criar um novo.", "Anexe o arquivo da nota fiscal direto na planilha (Anexar NF / Ver NF) e nos detalhes da OS.", "Caixa de Observação que abre e fecha na planilha, na OS e na nota fiscal. A coluna Observação da planilha pode ser ocultada.", "Novidades: esta lista com todas as atualizações do site.", "Aba Nota Fiscal: filtro por Processo de pagamento pendente, Pago e Pagamento pendente, e o status do pagamento em cada nota.", "Os cartões de nota fiscal não mostram mais a lista de serviços.", "No quadro da aba OS, cada cartão mostra Data / Prestador de serviço / Local.", "Saíram as caixas de legenda acima da planilha.", "A coluna Observação da planilha fica logo depois de Valor NF.", "Dá para anexar vários arquivos da nota fiscal na mesma OS, escolhendo vários de uma vez ou anexando mais depois.", "A janela de arquivos ficou mais larga e mostra o nome inteiro de cada arquivo.", "Os cartões da aba Nota Fiscal mostram os arquivos anexados, com o nome inteiro e o botão Ver, e dá para anexar dali.", "Saiu o Total geral da aba Nota Fiscal.", "Nº da OS e da NF começam em 000000 e os números digitados entram pela direita (427 vira 000427).", "O Valor da NF vem igual ao Valor da OS; se for diferente, é só digitar o valor da nota.", "A coluna Observação começa oculta (botão Mostrar observações). Linhas com observação mostram um balão no número da linha.", "A linha da planilha fica mais destacada ao passar o mouse ou editar.", "Administradores podem excluir uma OS direto na planilha (botão Excluir na linha, com confirmação).", "Clicar na Discriminação da planilha abre a lista de serviços numa janela para mudar ali mesmo.", "A coluna Observação volta a começar oculta para todos.", "Anexar arquivo não marca mais a NF como recebida: ela fica recebida quando o número da NF é preenchido ou quando alguém marca.", "Planilha com painéis congelados, como no Excel: o cabeçalho fica fixo ao rolar para baixo e as colunas Data da OS e OS ficam fixas ao rolar para o lado.", "Apagar o número da NF (deixando 000000) volta o status para Aguardando a nota fiscal.", "Datas da planilha só com números e ano de 2 dígitos (05/11/26); para digitar, 051126.", "Local, Prestador e Discriminação ficam da largura do nome; a Observação cresce para mostrar o texto todo.", "No celular só o cabeçalho fica congelado.", "Excluir OS e Remover arquivo pedem confirmação com SIM e VOLTAR.", "A OS excluída some da planilha na hora, sem precisar atualizar a página.", "A discriminação escrita nas OS antigas passou a ser o item da Discriminação, e os 13 serviços que vinham marcados por padrão saíram."]], ["2026-11-04", ["Valores mostram o ,00 enquanto você digita, com o ponto do milhar aparecendo na hora.", "A coluna Data da OS passou a ser a primeira da planilha.", "Números de OS e de nota fiscal sempre com 6 dígitos (011 vira 000011).", "Valor unitário com 6 casas depois da vírgula, quantidade com ponto no milhar e valores zerados como 0,00.", "OS em ordem de data, da mais recente para a mais antiga. O mesmo número de OS pode ser usado mais de uma vez."]], ["2026-11-03", ["Filtros na planilha: Nota fiscal, Início do processo, Pagamento, Prestador, Mês da OS e Moeda.", "Planilha com 3 status (Recebimento da nota fiscal, Início do processo e Pagamento) e legenda das cores.", "Recebimento da nota fiscal pode ser marcado com um clique, mesmo antes de lançar a nota.", "Aba OS com quadro de pagamento e cards do topo: Aguardando a nota fiscal, Aguardando o início do processo de pagamento e Pendente de pagamento.", "Saíram o check Ciente e a linha TOTAL. Confirmado virou Processo de pagamento.", "Notas fiscais passam a ser criadas só pela aba Nota Fiscal, com anexo do arquivo (PDF ou foto).", "Datas aceitam o ano com 2 dígitos (26 vira 2026) e a planilha ficou mais compacta.", "Novas fotos de fundo e no menu das abas.", "Site ligado ao banco de dados: login com senha e as mesmas OS em todos os aparelhos.", "Número da OS editável, valor em real ou dólar, valor unitário e perfil Desenvolvedor."]], ["2026-10-30", ["Foto do jato no fundo da página.", "Planilha: Ajustar à tela, maximizar e esconder as abas.", "Checks de confirmação e pagamento na planilha e na OS.", "Quantidade com unidade (unidade, litros ou quilos).", "Aba Equipe para criar contas, aba Monitor e histórico de ações.", "Login com troca de senha no primeiro acesso e vencimento da nota fiscal."]], ["2026-10-29", ["Primeira versão: planilha de OS, nota fiscal e geração de Excel."]]];
 const novVista=()=>{ try{ return localStorage.getItem("cs-novidades")||""; }catch(_){ return ""; } };
 const novChave=()=>NOVIDADES[0][0]+"|"+NOVIDADES[0][1].length;
 function marcarNovidades(){ $("#novoBadge").hidden=novVista()===novChave(); }
@@ -1604,6 +1626,7 @@ $("#detail").addEventListener("change",e=>{
   }
 });
 $("#detail").addEventListener("click",async e=>{
+  const scd=e.target.closest("[data-servconf]"); if(scd){ const it=items.find(i=>i.id===scd.dataset.servconf); if(it) marcarConfServico(it); return; }
   const ed=e.target.closest("[data-edit-nf]"); if(ed){ abrirNf(notas.find(a=>a.id===ed.dataset.editNf)); return; }
   const it=items.find(i=>i.id===selId); if(!it) return;
   const id=e.target.id;
@@ -1675,7 +1698,7 @@ function gerarPlanilha(){
       "OS":it.numero, "Data da OS":dataBR(it.data), "Local":it.aeroporto,
       "Prestador de serviço":it.prestador||"",
       "Discriminação":discrTxt(it), "Qtd.":it.qtd==null?"":Number(it.qtd), "Unidade":it.qtd==null?"":(UNIDADES[it.unidade]||"un"), "Moeda":MOEDAS[moedaDe(it)], "Valor unitário":Number(it.valorUnit)||0, "Valor da OS":Number(it.valorOs)||0,
-      "Status":done(it)?"Paga":it.exec?"Em processo de pagamento":"Pendente", "Processo de pagamento por":it.exec?`${it.exec.por} (${dataBR(it.exec.em.slice(0,10))})`:"", "Pago por":it.conf?`${it.conf.por} (${dataBR(it.conf.em.slice(0,10))})`:"",
+      "Confirmação do serviço":it.servConf?`Confirmado por ${it.servConf.por} (${dataBR(it.servConf.em.slice(0,10))})`:"Pendente", "Status":done(it)?"Paga":it.exec?"Em processo de pagamento":"Pendente", "Processo de pagamento por":it.exec?`${it.exec.por} (${dataBR(it.exec.em.slice(0,10))})`:"", "Pago por":it.conf?`${it.conf.por} (${dataBR(it.conf.em.slice(0,10))})`:"",
       "NF nº":it.nf?.numero||"", "Data da NF":it.nf?.data?dataBR(it.nf.data):"", "Vencimento NF":it.nf?.vencimento?dataBR(it.nf.vencimento):"", "Valor da NF (R$)":valorNf(it)
     };
   });
