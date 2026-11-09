@@ -21,19 +21,23 @@ const MAX_ERROS_EMAIL = 5, MAX_ERROS_IP = 30, BLOQUEIO_MIN = 15;
 const DOC_MAX = 500 * 1024; // tamanho máximo de um registro (OS, nota...)
 
 let pronto = null;
+// "create table if not exists" pode falhar quando dois servidores criam a mesma tabela ao mesmo tempo
+// (Postgres responde 23505 ou 42P07): nesse caso a tabela já existe e está tudo certo.
+const criar = async q => { try { await q(); } catch (e) { if (e?.code !== "23505" && e?.code !== "42P07") throw e; } };
+// se a preparação falhar por outro motivo, tenta de novo na próxima requisição em vez de guardar o erro
 const iniciar = () => (pronto ??= (async () => {
-  await sql`create table if not exists docs (
+  await criar(() => sql`create table if not exists docs (
     coll text not null, id text not null, data jsonb not null,
-    atualizado timestamptz not null default now(), primary key (coll, id))`;
+    atualizado timestamptz not null default now(), primary key (coll, id))`);
   // arquivos anexados às notas fiscais (PDF ou foto)
-  await sql`create table if not exists anexos (
+  await criar(() => sql`create table if not exists anexos (
     id text primary key, nome text not null, tipo text not null, tamanho integer not null,
-    dados bytea not null, por text, criado timestamptz not null default now())`;
+    dados bytea not null, por text, criado timestamptz not null default now())`);
   // tentativas de login erradas, por e-mail e por IP
-  await sql`create table if not exists tentativas (
+  await criar(() => sql`create table if not exists tentativas (
     chave text primary key, falhas integer not null default 0,
-    desde timestamptz not null default now(), bloqueado_ate timestamptz)`;
-})());
+    desde timestamptz not null default now(), bloqueado_ate timestamptz)`);
+})().catch(e => { pronto = null; throw e; }));
 const ANEXO_MAX = 3 * 1024 * 1024; // 3 MB (o limite de envio da Vercel é 4,5 MB, e o arquivo vai em base64)
 const TIPOS_ANEXO = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
 
