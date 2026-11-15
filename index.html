@@ -9,7 +9,7 @@
 <title>Controle de Serviços Aéreos</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 /* Layout: sistema com menu lateral fixo (Planilha, Fichas, Nota Fiscal), barra superior com título e ações, indicadores e conteúdo. No celular o menu vira barra superior. */
@@ -237,6 +237,23 @@ table.sheet{border-collapse:collapse;width:100%;min-width:2050px;font-size:.86re
 .ck2 b{font-size:.78rem;font-weight:600;color:var(--ok);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ck2 i{font-style:normal;font-size:.7rem;color:var(--muted)}
 .sheet td.ck2cell{padding:6px 8px}
+/* visual de tabela (não de planilha): sem letras de coluna nem grade de Excel, cabeçalho escuro, linhas alternadas e fonte maior */
+.sheet-scroll{border-radius:10px;border-color:var(--line-strong)}
+table.sheet{font:500 15px/1.4 "Inter",var(--f-body);color:var(--ink);font-variant-numeric:tabular-nums}
+.sheet th,.sheet td{border-right:0;border-bottom:1px solid var(--line)}
+.sheet thead th{top:0;background:var(--side);color:#fff;font:600 13px/1.3 "Inter",var(--f-body);letter-spacing:.01em;padding:12px 10px;border-bottom:0;z-index:3}
+.sheet th.rn,.sheet td.rn{width:38px;background:var(--surface);color:var(--muted);font:500 13px "Inter",var(--f-body)}
+.sheet thead th.rn{background:var(--side);color:#fff}
+.sheet tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
+.sheet tbody tr:not(.total):hover td,.sheet tbody tr:not(.total):focus-within td{background:var(--accent-soft)}
+.sheet tr.total td{background:var(--head);border-top:2px solid var(--line-strong);font-weight:700}
+.sheet td>input,.sheet td>textarea,.sheet td.qtdcell input,.sheet td.qtdcell select{font:500 15px/1.4 "Inter",var(--f-body);color:var(--ink);padding:10px 8px}
+.sheet td.qtdcell select{color:var(--muted);padding:10px 2px}
+.sheet td.num input,.sheet td.qtdcell input,.sheet tr.total td.num{font-family:"Inter",var(--f-body);font-variant-numeric:tabular-nums}
+.sheet td.ro{padding:10px}
+.sheet td>textarea{min-height:44px;height:44px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sheet td>textarea:focus{white-space:pre-wrap;overflow:auto}
+.sheet .ck2 b{font-size:13px}.sheet .ck2 i{font-size:12px}
 .duplo{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}
 @media (max-width:640px){.duplo{grid-template-columns:1fr}}
 .duplo .status-sq{margin-bottom:0;align-items:flex-start}
@@ -647,8 +664,8 @@ let view="planilha";
 const COLS=[
   {h:"OS",k:"numero",ro:true,w:80},
   {h:"Data da OS",k:"data",type:"date",w:140},
-  {h:"Local",k:"aeroporto",w:160},
-  {h:"Prestador de serviço",k:"prestador",w:190},
+  {h:"Local",k:"aeroporto",w:200},
+  {h:"Prestador de serviço",k:"prestador",w:220},
   {h:"Discriminação",k:"obs",area:true,w:280},
   {h:"Qtd.",qtd:true,w:170},
   {h:"Valor da OS (R$)",k:"valorOs",type:"number",num:true,w:130,sum:true},
@@ -671,10 +688,8 @@ function renderSheet(){ renderSheet0(); ajustarPlanilha(); }
 function renderSheet0(){
   const rows=filtered(), dis=canWrite?"":"disabled";
   $("#sheetCount").textContent=`${rows.length} de ${items.length} serviços`;
-  const letters=COLS.map((c,i)=>`<th style="width:${c.w}px">${String.fromCharCode(65+i)}</th>`).join("");
-  $("#sheet").innerHTML=`<thead><tr class="letters"><th class="rn"></th>${letters}</tr>
-    <tr><th class="rn">1</th>${COLS.map(c=>`<th>${c.h}</th>`).join("")}</tr></thead>
-    <tbody>${rows.map((it,r)=>`<tr><td class="rn">${r+2}</td>${COLS.map(c=>{
+  $("#sheet").innerHTML=`<thead><tr><th class="rn">#</th>${COLS.map(c=>`<th style="width:${c.w}px">${c.h}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map((it,r)=>`<tr><td class="rn">${r+1}</td>${COLS.map(c=>{
       if(c.qtd) return `<td class="qtdcell"><div><input data-id="${esc(it.id)}" data-k="qtd" type="number" min="0" step="any" value="${it.qtd??""}" aria-label="Quantidade ${esc(it.numero)}" ${dis}><select data-id="${esc(it.id)}" data-k="unidade" aria-label="Unidade ${esc(it.numero)}" ${dis}>${unidOpts(it.unidade).replace(/ \(objeto\)| \(líquido\)/g,"").replace("Unidade","un").replace("Litros","L").replace("Quilos","kg")}</select></div></td>`;
       if(c.chk) return `<td class="ck2cell">${checkCell(it,c.chk)}</td>`;
       if(c.sq) return `<td class="sq"><label><input type="checkbox" data-status="${esc(it.id)}" ${done(it)?"checked":""} ${dis} aria-label="Concluída ${esc(it.numero)}" title="${done(it)?"Concluída":"Pendente"}"></label></td>`;
@@ -682,8 +697,8 @@ function renderSheet0(){
       const val=getF(it,c.k)??""; const a=`data-id="${esc(it.id)}" data-k="${c.k}" aria-label="${c.h} ${esc(it.numero)}" ${dis}`;
       return `<td class="${c.num?"num":""}">${c.area?`<textarea ${a}>${esc(val)}</textarea>`:`<input ${a} type="${c.type||"text"}" ${c.num?'step="0.01" min="0"':""} value="${esc(c.num&&!val?"":val)}">`}</td>`;
     }).join("")}</tr>`).join("")}
-    ${rows.length?"":`<tr><td class="rn">2</td><td class="ro" colspan="${COLS.length}">Nenhum serviço encontrado.</td></tr>`}
-    <tr class="total"><td class="rn">${rows.length+2+(rows.length?0:1)}</td>${COLS.map((c,i)=>c.sum?`<td class="num">${brl(rows.reduce((s,it)=>s+(Number(getF(it,c.k))||0),0))}</td>`:`<td>${i===0?"TOTAL":""}</td>`).join("")}</tr></tbody>`;
+    ${rows.length?"":`<tr><td class="rn"></td><td class="ro" colspan="${COLS.length}">Nenhum serviço encontrado.</td></tr>`}
+    <tr class="total"><td class="rn"></td>${COLS.map((c,i)=>c.sum?`<td class="num">${brl(rows.reduce((s,it)=>s+(Number(getF(it,c.k))||0),0))}</td>`:`<td>${i===0?"TOTAL":""}</td>`).join("")}</tr></tbody>`;
 }
 // --- ajustar à tela ---
 let ajustar=false;
