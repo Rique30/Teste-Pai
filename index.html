@@ -254,6 +254,19 @@ table.sheet{font:500 15px/1.4 "Inter",var(--f-body);color:var(--ink);font-varian
 .sheet td>textarea{min-height:44px;height:44px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sheet td>textarea:focus{white-space:pre-wrap;overflow:auto}
 .sheet .ck2 b{font-size:13px}.sheet .ck2 i{font-size:12px}
+/* células com cara de texto de tabela: sem setinhas, sem ícones e sem campo aparente; o campo só aparece ao passar o mouse ou clicar */
+.sheet td select,.sheet td.qtdcell select{-webkit-appearance:none;appearance:none;background-image:none;cursor:pointer}
+.sheet td input::-webkit-calendar-picker-indicator{opacity:0;cursor:pointer}
+.sheet td input:hover::-webkit-calendar-picker-indicator{opacity:.5}
+.sheet td input[type=number]{-moz-appearance:textfield;appearance:textfield}
+.sheet td input::-webkit-outer-spin-button,.sheet td input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.sheet td input[type=date][value=""]:not(:focus){color:transparent}
+.sheet td input:not(:focus)::placeholder{color:transparent}
+.sheet td>input,.sheet td>textarea,.sheet td>select,.sheet td.qtdcell input,.sheet td.qtdcell select{border-radius:6px;resize:none}
+.sheet td>input:hover,.sheet td>textarea:hover,.sheet td>select:hover,.sheet td.qtdcell input:hover,.sheet td.qtdcell select:hover{background:color-mix(in srgb,var(--ink) 6%,transparent)}
+.sheet td>input:focus,.sheet td>textarea:focus,.sheet td>select:focus,.sheet td.qtdcell input:focus,.sheet td.qtdcell select:focus{outline:2px solid var(--accent);outline-offset:-3px;background:var(--surface)}
+.sheet th.rn,.sheet td.rn{display:none}
+.sheet .fixa-ult{box-shadow:none}
 .duplo{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}
 @media (max-width:640px){.duplo{grid-template-columns:1fr}}
 .duplo .status-sq{margin-bottom:0;align-items:flex-start}
@@ -688,8 +701,8 @@ function renderSheet(){ renderSheet0(); ajustarPlanilha(); }
 function renderSheet0(){
   const rows=filtered(), dis=canWrite?"":"disabled";
   $("#sheetCount").textContent=`${rows.length} de ${items.length} serviços`;
-  $("#sheet").innerHTML=`<thead><tr><th class="rn">#</th>${COLS.map(c=>`<th style="width:${c.w}px">${c.h}</th>`).join("")}</tr></thead>
-    <tbody>${rows.map((it,r)=>`<tr><td class="rn">${r+1}</td>${COLS.map(c=>{
+  $("#sheet").innerHTML=`<thead><tr><th class="rn"></th>${COLS.map(c=>`<th style="width:${c.w}px">${c.h}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map((it,r)=>`<tr><td class="rn"></td>${COLS.map(c=>{
       if(c.qtd) return `<td class="qtdcell"><div><input data-id="${esc(it.id)}" data-k="qtd" type="number" min="0" step="any" value="${it.qtd??""}" aria-label="Quantidade ${esc(it.numero)}" ${dis}><select data-id="${esc(it.id)}" data-k="unidade" aria-label="Unidade ${esc(it.numero)}" ${dis}>${unidOpts(it.unidade).replace(/ \(objeto\)| \(líquido\)/g,"").replace("Unidade","un").replace("Litros","L").replace("Quilos","kg")}</select></div></td>`;
       if(c.chk) return `<td class="ck2cell">${checkCell(it,c.chk)}</td>`;
       if(c.sq) return `<td class="sq"><label><input type="checkbox" data-status="${esc(it.id)}" ${done(it)?"checked":""} ${dis} aria-label="Concluída ${esc(it.numero)}" title="${done(it)?"Concluída":"Pendente"}"></label></td>`;
