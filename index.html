@@ -1414,9 +1414,11 @@ document.addEventListener("beforeinput",e=>{
   try{ t.setSelectionRange(t.value.length,t.value.length); }catch(_){}
 });
 // valores em dinheiro: o campo mostra sempre o valor formatado (5.400,00) enquanto se digita.
-// Os números entram antes da vírgula; depois da vírgula (clicando ali ou digitando "," ) escrevem por cima dos zeros.
-function lerCampoValor(t){
-  const v=t.value, ci=v.indexOf(","), pos=t.selectionStart??v.length;
+// Os números entram antes da vírgula; depois da vírgula (clicando ali ou digitando "," ou ".") escrevem por cima dos zeros.
+// O campo não depende de bloquear a tecla antes de ela entrar (no celular muitos teclados não deixam):
+// deixa o teclado escrever e depois compara com o que estava no campo para saber o que foi digitado ou apagado.
+function lerCampoValor(v,pos){
+  v=String(v??""); const ci=v.indexOf(","); pos=pos??v.length;
   let int=(ci<0?v:v.slice(0,ci)).replace(/\D/g,""), dec=(ci<0?"":v.slice(ci+1)).replace(/\D/g,"");
   dec=(dec+"00").slice(0,2); if(/^0+$/.test(int)) int="";
   int=int.replace(/^0+(?=\d)/,"");
@@ -1432,45 +1434,87 @@ function mostrarCampoValor(t,st){
   if(st.parte==="dec") pos=intTxt.length+1+st.n;
   else if(!st.int) pos=1;
   else { pos=0; let k=0; while(pos<intTxt.length && k<st.n){ if(/\d/.test(intTxt[pos])) k++; pos++; } }
-  try{ t.setSelectionRange(pos,pos); }catch(_){}
-  t.dataset.mudou="1";
+  try{ if(document.activeElement===t) t.setSelectionRange(pos,pos); }catch(_){}
+  t.dataset.antes=t.value; t.dataset.mudou="1";
 }
-document.addEventListener("beforeinput",e=>{
-  const t=e.target; if(!t.matches?.('input[data-valor="2"]')) return;
-  const tipo=e.inputType, txt=e.data??"";
-  if(!["insertText","deleteContentBackward","deleteContentForward","insertFromPaste"].includes(tipo)) return;
-  e.preventDefault();
-  const tudo=t.value && t.selectionStart===0 && t.selectionEnd===t.value.length;
-  if(tipo==="insertFromPaste"){ const n=lerValor(e.dataTransfer?.getData("text")||txt); const [i,d]=n.toFixed(2).split("."); mostrarCampoValor(t,{int:i==="0"?"":i,dec:d,parte:"int",n:i.length}); return; }
-  const st=tudo?{int:"",dec:"00",parte:"int",n:0}:lerCampoValor(t);
-  if(tipo==="insertText"){
-    for(const ch of txt){
-      if(ch===","||ch==="."){ st.parte="dec"; st.n=0; continue; }
-      if(!/\d/.test(ch)) continue;
-      // cursor no fim (depois dos centavos): o número entra antes da vírgula e o ,00 fica
-      if(st.parte==="dec" && st.n>=2){ st.parte="int"; st.n=st.int.length; }
-      if(st.parte==="int"){ if(st.int.length>=13) continue; st.int=(st.int.slice(0,st.n)+ch+st.int.slice(st.n)); st.n++; const z=st.int.match(/^0+(?=\d)/); if(z){ st.int=st.int.slice(z[0].length); st.n=Math.max(0,st.n-z[0].length); } if(st.int==="0"){ st.int=""; st.n=0; } }
-      else if(st.n<2){ st.dec=st.dec.slice(0,st.n)+ch+st.dec.slice(st.n+1); st.n++; }
-    }
-  } else if(tipo==="deleteContentBackward"){
-    if(tudo){ mostrarCampoValor(t,{int:"",dec:"00",parte:"int",n:0}); return; }
-    if(st.parte==="int"){ if(st.n>0){ st.int=st.int.slice(0,st.n-1)+st.int.slice(st.n); st.n--; } }
-    else if(st.n>0){ st.dec=st.dec.slice(0,st.n-1)+"0"+st.dec.slice(st.n); st.n--; }
-    else { st.parte="int"; st.n=st.int.length; }
-  } else {
-    if(tudo){ mostrarCampoValor(t,{int:"",dec:"00",parte:"int",n:0}); return; }
-    if(st.parte==="int"){ if(st.n<st.int.length) st.int=st.int.slice(0,st.n)+st.int.slice(st.n+1); }
-    else if(st.n<2) st.dec=st.dec.slice(0,st.n)+"0"+st.dec.slice(st.n+1);
+const campoVazio=()=>({int:"",dec:"00",parte:"int",n:0});
+// escreve no campo: "," ou "." passam para os centavos; números entram onde está o cursor
+function digitarValor(st,txt){
+  for(const ch of txt){
+    if(ch===","||ch==="."){ st.parte="dec"; st.n=0; continue; }
+    if(!/\d/.test(ch)) continue;
+    // cursor no fim (depois dos centavos): o número entra antes da vírgula e o ,00 fica
+    if(st.parte==="dec" && st.n>=2){ st.parte="int"; st.n=st.int.length; }
+    if(st.parte==="int"){ if(st.int.length>=13) continue; st.int=(st.int.slice(0,st.n)+ch+st.int.slice(st.n)); st.n++; const z=st.int.match(/^0+(?=\d)/); if(z){ st.int=st.int.slice(z[0].length); st.n=Math.max(0,st.n-z[0].length); } if(st.int==="0"){ st.int=""; st.n=0; } }
+    else { st.dec=st.dec.slice(0,st.n)+ch+st.dec.slice(st.n+1); st.n++; }
   }
-  mostrarCampoValor(t,st);
+  return st;
+}
+// apaga uma casa antes do cursor (Backspace); na vírgula, só passa para os reais
+function apagarValor(st){
+  if(st.parte==="int"){ if(st.n>0){ st.int=st.int.slice(0,st.n-1)+st.int.slice(st.n); st.n--; } }
+  else if(st.n>0){ st.dec=st.dec.slice(0,st.n-1)+"0"+st.dec.slice(st.n); st.n--; }
+  else { st.parte="int"; st.n=st.int.length; }
+  return st;
+}
+const ehCampoValor=t=>t?.matches?.('input[data-valor="2"]');
+// guarda como o campo estava (e onde estava o cursor) antes de cada tecla
+function guardarCampoValor(t){ t.dataset.antes=t.value; t.dataset.ini=t.selectionStart??t.value.length; t.dataset.fim=t.selectionEnd??t.value.length; }
+["focusin","keydown","mousedown","mouseup","touchend","select","selectionchange"].forEach(ev=>document.addEventListener(ev,e=>{
+  const t=ev==="selectionchange"?document.activeElement:e.target;
+  if(ehCampoValor(t) && !t.disabled && !t.dataset.compondo) setTimeout(()=>{ if(document.activeElement===t && t.value===t.dataset.antes) guardarCampoValor(t); },0);
+},true));
+// colar: lê o valor inteiro do texto colado (1.500,75 / 1500.75 / R$ 1500,75)
+document.addEventListener("paste",e=>{
+  const t=e.target; if(!ehCampoValor(t)) return;
+  e.preventDefault();
+  const n=lerValor(e.clipboardData?.getData("text")||""); const [i,d]=n.toFixed(2).split(".");
+  mostrarCampoValor(t,{int:i==="0"?"":i,dec:d,parte:"int",n:i.length});
 });
-// teclados que não passam pelo beforeinput (alguns celulares): refaz o campo no formato com ,00 depois de digitar
+function corrigirCampoValor(t,tipo){
+  const antes=t.dataset.antes??"", agora=t.value, cur=t.selectionStart??agora.length;
+  if(agora===antes) return;
+  const ini=Math.min(+t.dataset.ini||0,antes.length), fim=Math.min(Math.max(+t.dataset.fim||0,ini),antes.length);
+  let st;
+  if(!antes){ st=digitarValor(campoVazio(),agora); }
+  else if(ini===0 && fim===antes.length && antes.length>0 && fim>ini){
+    // tudo selecionado e substituído: começa do zero com o que foi digitado
+    st=agora.length<antes.length && !/\d/.test(agora)?campoVazio():digitarValor(campoVazio(),agora.slice(0,Math.max(0,agora.length-(antes.length-fim))));
+  } else {
+    // o que mudou entre o começo e o fim iguais dos dois textos
+    let p=0; while(p<antes.length && p<agora.length && antes[p]===agora[p]) p++;
+    let s=0; while(s<antes.length-p && s<agora.length-p && antes[antes.length-1-s]===agora[agora.length-1-s]) s++;
+    // com números repetidos (5000 → 50000) o cursor diz onde o número entrou
+    const delta=agora.length-antes.length;
+    if(delta>0 && cur-delta>=0 && cur-delta<p && antes.slice(0,cur-delta)===agora.slice(0,cur-delta) && antes.slice(cur-delta)===agora.slice(cur)){ p=cur-delta; s=antes.length-p; }
+    const tirado=antes.slice(p,antes.length-s), posto=agora.slice(p,agora.length-s);
+    if(fim>ini && tirado.length>=fim-ini && posto.length>0){
+      // trecho selecionado substituído: apaga os números do trecho e escreve o novo
+      st=lerCampoValor(antes,fim); for(const ch of tirado) if(/\d/.test(ch)||ch===",") apagarValor(st);
+      digitarValor(st,posto);
+    } else if(tirado && !posto){
+      // apagou: Delete (cursor ficou no mesmo lugar) ou Backspace
+      const frente=tipo==="deleteContentForward" || (fim===ini && ini===p && tipo!=="deleteContentBackward");
+      st=lerCampoValor(antes,frente?p:antes.length-s);
+      if(frente){ for(const ch of tirado){ if(st.parte==="int"){ if(/\d/.test(ch)&&st.n<st.int.length) st.int=st.int.slice(0,st.n)+st.int.slice(st.n+1); else if(ch===","){ st.parte="dec"; st.n=0; } } else if(/\d/.test(ch)&&st.n<2){ st.dec=st.dec.slice(0,st.n)+"0"+st.dec.slice(st.n+1); st.n++; } } }
+      else for(const ch of [...tirado].reverse()) if(/\d/.test(ch)||ch===",") apagarValor(st);
+    } else {
+      st=lerCampoValor(antes,antes.length-s);
+      for(const ch of [...tirado].reverse()) if(/\d/.test(ch)||ch===",") apagarValor(st);
+      digitarValor(st,posto);
+    }
+  }
+  mostrarCampoValor(t,st); guardarCampoValor(t);
+}
+document.addEventListener("compositionstart",e=>{ if(ehCampoValor(e.target)) e.target.dataset.compondo="1"; },true);
+document.addEventListener("compositionend",e=>{ const t=e.target; if(!ehCampoValor(t)) return; delete t.dataset.compondo; setTimeout(()=>corrigirCampoValor(t,""),0); },true);
 document.addEventListener("input",e=>{
-  const t=e.target; if(!e.isTrusted || !t.matches?.('input[data-valor="2"]')) return;
-  const st=lerCampoValor(t); mostrarCampoValor(t,st);
+  const t=e.target; if(!e.isTrusted || !ehCampoValor(t)) return;
+  if(e.isComposing || t.dataset.compondo) return; // teclado ainda montando a tecla: corrige quando terminar
+  corrigirCampoValor(t,e.inputType);
 });
 // campo de valor vazio mostra 0,00 ao clicar
-document.addEventListener("focusin",e=>{ const t=e.target; if(t.matches?.('input[data-valor="2"]') && !t.value.trim() && !t.disabled){ t.value="0,00"; try{ t.setSelectionRange(1,1); }catch(_){} } });
+document.addEventListener("focusin",e=>{ const t=e.target; if(t.matches?.('input[data-valor="2"]') && !t.value.trim() && !t.disabled){ t.value="0,00"; try{ t.setSelectionRange(1,1); }catch(_){} } if(ehCampoValor(t)) guardarCampoValor(t); });
 // como o valor é escrito pela página, avisa a planilha e os formulários ao sair do campo
 document.addEventListener("focusout",e=>{ const t=e.target; if(t.dataset?.mudou){ delete t.dataset.mudou; t.dispatchEvent(new Event("input",{bubbles:true})); t.dispatchEvent(new Event("change",{bubbles:true})); } },true);
 document.addEventListener("focusout",e=>{
@@ -1551,7 +1595,7 @@ $("#tabNotas").addEventListener("click",()=>setView("notas"));
 $("#tabMonitor").addEventListener("click",()=>setView("monitor"));
 $("#tabEquipe").addEventListener("click",()=>setView("equipe"));
 // --- novidades: lista de atualizações; a bolinha vermelha aparece quando há novidade que a pessoa ainda não viu ---
-const NOVIDADES=[["2026-11-17", ["A tabela ficou com cara de tabela de verdade: sem número nas linhas, sem as setinhas e sem os ícones de calendário. O campo de edição só aparece ao passar o mouse ou clicar na célula."]], ["2026-11-15", ["A planilha ganhou visual de tabela: sem as letras das colunas e sem a grade do Excel, com cabeçalho escuro e linhas alternadas.", "A letra da tabela ficou maior e mais nítida (fonte Inter)."]], ["2026-11-10", ["A caixa de Observação começa sempre fechada e fecha sozinha ao clicar fora dela.", "A OS excluída some na hora da planilha e não reaparece.", "Ajustar à tela encolhe a planilha só até um tamanho legível; o que não couber dá para rolar para o lado."]], ["2026-11-09", ["Nova coluna Confirmação do serviço na planilha, logo depois do Recebimento da nota fiscal: Pendente ou Confirmado (em roxo), com o nome de quem confirmou e a data. Também aparece na OS e no Excel."]], ["2026-11-05", ["Discriminação virou uma lista de serviços: escolha um ou vários, e cada um aparece ao lado. Em \"Outro serviço…\" dá para criar um novo.", "Anexe o arquivo da nota fiscal direto na planilha (Anexar NF / Ver NF) e nos detalhes da OS.", "Caixa de Observação que abre e fecha na planilha, na OS e na nota fiscal. A coluna Observação da planilha pode ser ocultada.", "Novidades: esta lista com todas as atualizações do site.", "Aba Nota Fiscal: filtro por Processo de pagamento pendente, Pago e Pagamento pendente, e o status do pagamento em cada nota.", "Os cartões de nota fiscal não mostram mais a lista de serviços.", "No quadro da aba OS, cada cartão mostra Data / Prestador de serviço / Local.", "Saíram as caixas de legenda acima da planilha.", "A coluna Observação da planilha fica logo depois de Valor NF.", "Dá para anexar vários arquivos da nota fiscal na mesma OS, escolhendo vários de uma vez ou anexando mais depois.", "A janela de arquivos ficou mais larga e mostra o nome inteiro de cada arquivo.", "Os cartões da aba Nota Fiscal mostram os arquivos anexados, com o nome inteiro e o botão Ver, e dá para anexar dali.", "Saiu o Total geral da aba Nota Fiscal.", "Nº da OS e da NF começam em 000000 e os números digitados entram pela direita (427 vira 000427).", "O Valor da NF vem igual ao Valor da OS; se for diferente, é só digitar o valor da nota.", "A coluna Observação começa oculta (botão Mostrar observações). Linhas com observação mostram um balão no número da linha.", "A linha da planilha fica mais destacada ao passar o mouse ou editar.", "Administradores podem excluir uma OS direto na planilha (botão Excluir na linha, com confirmação).", "Clicar na Discriminação da planilha abre a lista de serviços numa janela para mudar ali mesmo.", "A coluna Observação volta a começar oculta para todos.", "Anexar arquivo não marca mais a NF como recebida: ela fica recebida quando o número da NF é preenchido ou quando alguém marca.", "Planilha com painéis congelados, como no Excel: o cabeçalho fica fixo ao rolar para baixo e as colunas Data da OS e OS ficam fixas ao rolar para o lado.", "Apagar o número da NF (deixando 000000) volta o status para Aguardando a nota fiscal.", "Datas da planilha só com números e ano de 2 dígitos (05/11/26); para digitar, 051126.", "Local, Prestador e Discriminação ficam da largura do nome; a Observação cresce para mostrar o texto todo.", "No celular só o cabeçalho fica congelado.", "Excluir OS e Remover arquivo pedem confirmação com SIM e VOLTAR.", "A OS excluída some da planilha na hora, sem precisar atualizar a página.", "A discriminação escrita nas OS antigas passou a ser o item da Discriminação, e os 13 serviços que vinham marcados por padrão saíram."]], ["2026-11-04", ["Valores mostram o ,00 enquanto você digita, com o ponto do milhar aparecendo na hora.", "A coluna Data da OS passou a ser a primeira da planilha.", "Números de OS e de nota fiscal sempre com 6 dígitos (011 vira 000011).", "Valor unitário com 6 casas depois da vírgula, quantidade com ponto no milhar e valores zerados como 0,00.", "OS em ordem de data, da mais recente para a mais antiga. O mesmo número de OS pode ser usado mais de uma vez."]], ["2026-11-03", ["Filtros na planilha: Nota fiscal, Início do processo, Pagamento, Prestador, Mês da OS e Moeda.", "Planilha com 3 status (Recebimento da nota fiscal, Início do processo e Pagamento) e legenda das cores.", "Recebimento da nota fiscal pode ser marcado com um clique, mesmo antes de lançar a nota.", "Aba OS com quadro de pagamento e cards do topo: Aguardando a nota fiscal, Aguardando o início do processo de pagamento e Pendente de pagamento.", "Saíram o check Ciente e a linha TOTAL. Confirmado virou Processo de pagamento.", "Notas fiscais passam a ser criadas só pela aba Nota Fiscal, com anexo do arquivo (PDF ou foto).", "Datas aceitam o ano com 2 dígitos (26 vira 2026) e a planilha ficou mais compacta.", "Novas fotos de fundo e no menu das abas.", "Site ligado ao banco de dados: login com senha e as mesmas OS em todos os aparelhos.", "Número da OS editável, valor em real ou dólar, valor unitário e perfil Desenvolvedor."]], ["2026-10-30", ["Foto do jato no fundo da página.", "Planilha: Ajustar à tela, maximizar e esconder as abas.", "Checks de confirmação e pagamento na planilha e na OS.", "Quantidade com unidade (unidade, litros ou quilos).", "Aba Equipe para criar contas, aba Monitor e histórico de ações.", "Login com troca de senha no primeiro acesso e vencimento da nota fiscal."]], ["2026-10-29", ["Primeira versão: planilha de OS, nota fiscal e geração de Excel."]]];
+const NOVIDADES=[["2026-11-17", ["Os centavos dos valores entram certo também no celular: em alguns teclados o número ia para o lugar errado (1500,75 virava 150.075,00 ou um número enorme). Agora o campo funciona com qualquer teclado, com vírgula ou ponto.", "A tabela ficou com cara de tabela de verdade: sem número nas linhas, sem as setinhas e sem os ícones de calendário. O campo de edição só aparece ao passar o mouse ou clicar na célula."]], ["2026-11-15", ["A planilha ganhou visual de tabela: sem as letras das colunas e sem a grade do Excel, com cabeçalho escuro e linhas alternadas.", "A letra da tabela ficou maior e mais nítida (fonte Inter)."]], ["2026-11-10", ["A caixa de Observação começa sempre fechada e fecha sozinha ao clicar fora dela.", "A OS excluída some na hora da planilha e não reaparece.", "Ajustar à tela encolhe a planilha só até um tamanho legível; o que não couber dá para rolar para o lado."]], ["2026-11-09", ["Nova coluna Confirmação do serviço na planilha, logo depois do Recebimento da nota fiscal: Pendente ou Confirmado (em roxo), com o nome de quem confirmou e a data. Também aparece na OS e no Excel."]], ["2026-11-05", ["Discriminação virou uma lista de serviços: escolha um ou vários, e cada um aparece ao lado. Em \"Outro serviço…\" dá para criar um novo.", "Anexe o arquivo da nota fiscal direto na planilha (Anexar NF / Ver NF) e nos detalhes da OS.", "Caixa de Observação que abre e fecha na planilha, na OS e na nota fiscal. A coluna Observação da planilha pode ser ocultada.", "Novidades: esta lista com todas as atualizações do site.", "Aba Nota Fiscal: filtro por Processo de pagamento pendente, Pago e Pagamento pendente, e o status do pagamento em cada nota.", "Os cartões de nota fiscal não mostram mais a lista de serviços.", "No quadro da aba OS, cada cartão mostra Data / Prestador de serviço / Local.", "Saíram as caixas de legenda acima da planilha.", "A coluna Observação da planilha fica logo depois de Valor NF.", "Dá para anexar vários arquivos da nota fiscal na mesma OS, escolhendo vários de uma vez ou anexando mais depois.", "A janela de arquivos ficou mais larga e mostra o nome inteiro de cada arquivo.", "Os cartões da aba Nota Fiscal mostram os arquivos anexados, com o nome inteiro e o botão Ver, e dá para anexar dali.", "Saiu o Total geral da aba Nota Fiscal.", "Nº da OS e da NF começam em 000000 e os números digitados entram pela direita (427 vira 000427).", "O Valor da NF vem igual ao Valor da OS; se for diferente, é só digitar o valor da nota.", "A coluna Observação começa oculta (botão Mostrar observações). Linhas com observação mostram um balão no número da linha.", "A linha da planilha fica mais destacada ao passar o mouse ou editar.", "Administradores podem excluir uma OS direto na planilha (botão Excluir na linha, com confirmação).", "Clicar na Discriminação da planilha abre a lista de serviços numa janela para mudar ali mesmo.", "A coluna Observação volta a começar oculta para todos.", "Anexar arquivo não marca mais a NF como recebida: ela fica recebida quando o número da NF é preenchido ou quando alguém marca.", "Planilha com painéis congelados, como no Excel: o cabeçalho fica fixo ao rolar para baixo e as colunas Data da OS e OS ficam fixas ao rolar para o lado.", "Apagar o número da NF (deixando 000000) volta o status para Aguardando a nota fiscal.", "Datas da planilha só com números e ano de 2 dígitos (05/11/26); para digitar, 051126.", "Local, Prestador e Discriminação ficam da largura do nome; a Observação cresce para mostrar o texto todo.", "No celular só o cabeçalho fica congelado.", "Excluir OS e Remover arquivo pedem confirmação com SIM e VOLTAR.", "A OS excluída some da planilha na hora, sem precisar atualizar a página.", "A discriminação escrita nas OS antigas passou a ser o item da Discriminação, e os 13 serviços que vinham marcados por padrão saíram."]], ["2026-11-04", ["Valores mostram o ,00 enquanto você digita, com o ponto do milhar aparecendo na hora.", "A coluna Data da OS passou a ser a primeira da planilha.", "Números de OS e de nota fiscal sempre com 6 dígitos (011 vira 000011).", "Valor unitário com 6 casas depois da vírgula, quantidade com ponto no milhar e valores zerados como 0,00.", "OS em ordem de data, da mais recente para a mais antiga. O mesmo número de OS pode ser usado mais de uma vez."]], ["2026-11-03", ["Filtros na planilha: Nota fiscal, Início do processo, Pagamento, Prestador, Mês da OS e Moeda.", "Planilha com 3 status (Recebimento da nota fiscal, Início do processo e Pagamento) e legenda das cores.", "Recebimento da nota fiscal pode ser marcado com um clique, mesmo antes de lançar a nota.", "Aba OS com quadro de pagamento e cards do topo: Aguardando a nota fiscal, Aguardando o início do processo de pagamento e Pendente de pagamento.", "Saíram o check Ciente e a linha TOTAL. Confirmado virou Processo de pagamento.", "Notas fiscais passam a ser criadas só pela aba Nota Fiscal, com anexo do arquivo (PDF ou foto).", "Datas aceitam o ano com 2 dígitos (26 vira 2026) e a planilha ficou mais compacta.", "Novas fotos de fundo e no menu das abas.", "Site ligado ao banco de dados: login com senha e as mesmas OS em todos os aparelhos.", "Número da OS editável, valor em real ou dólar, valor unitário e perfil Desenvolvedor."]], ["2026-10-30", ["Foto do jato no fundo da página.", "Planilha: Ajustar à tela, maximizar e esconder as abas.", "Checks de confirmação e pagamento na planilha e na OS.", "Quantidade com unidade (unidade, litros ou quilos).", "Aba Equipe para criar contas, aba Monitor e histórico de ações.", "Login com troca de senha no primeiro acesso e vencimento da nota fiscal."]], ["2026-10-29", ["Primeira versão: planilha de OS, nota fiscal e geração de Excel."]]];
 const novVista=()=>{ try{ return localStorage.getItem("cs-novidades")||""; }catch(_){ return ""; } };
 const novChave=()=>NOVIDADES[0][0]+"|"+NOVIDADES[0][1].length;
 function marcarNovidades(){ $("#novoBadge").hidden=novVista()===novChave(); }
