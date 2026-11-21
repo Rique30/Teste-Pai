@@ -1390,7 +1390,7 @@ $("#formNf").addEventListener("submit",async e=>{
   if(os && (!antiga || antiga.osId!==a.osId)) save(os,{},"Nota fiscal "+(a.numero||"sem número")+" vinculada a esta OS");
   notas=antiga?notas.map(x=>x.id===id?{id,...a}:x):[{id,...a},...notas];
   dlgNf.close(); render();
-  if(live) db.collection("notas").doc(id).set(a).catch(()=>notice("Não foi possível salvar a nota agora. Tente de novo em instantes."));
+  if(live) db.collection("notas").doc(id).set(a).catch(e=>{ if(e&&e.code===401) return; notice(`⚠ NÃO SALVOU a nota fiscal ${a.numero||""}. ${e&&e.code===0?"Sem conexão com a internet.":(e&&e.msg)||"O servidor não respondeu."} A tela voltou ao que está salvo. Faça de novo.`); db?.reler?.(); });
 });
 // --- datas com ano de dois dígitos ---
 // Quem digita só "26" no ano fica com 0026; ao sair do campo (ou ao salvar o formulário) vira 2026.
@@ -1579,6 +1579,7 @@ $("#nfBusca").addEventListener("input",renderNotas);
 $("#nfFiltro").addEventListener("change",renderNotas);
 
 function setView(v){
+  if(view==="fichas" && v!=="fichas" && typeof sairDaFicha==="function" && !sairDaFicha()) return;
   document.body.classList.toggle("view-planilha",v==="planilha");
   if(v!=="planilha") maximizar(false);
   view=v; $("#sheetView").hidden=v!=="planilha"; $("#fichasView").hidden=v!=="fichas"; $("#notasView").hidden=v!=="notas"; $("#monitorView").hidden=v!=="monitor"; $("#equipeView").hidden=v!=="equipe"; $("#tabEquipe").setAttribute("aria-selected",v==="equipe");
@@ -1683,17 +1684,36 @@ function save(it, patch, acao){
   writing=writing.then(()=>db.collection("solicitacoes").doc(it.id).set(body)).then(()=>true).catch(e=>{
     if(e&&e.code==="invalid_argument"){ canWrite=false; notice("Você pode ver as solicitações, mas não tem permissão para alterá-las."); render(); }
     else if(e&&e.code==="quota_exceeded"){ notice("Limite de registros atingido. Exclua solicitações antigas para criar novas."); }
-    else notice("Não foi possível salvar agora. Tente de novo em instantes.");
+    else falhaAoSalvar(it,acao,e);
     return false;
   });
   return writing;
+}
+// gravação que falhou de vez: avisa com clareza o que não foi salvo e faz a tela voltar ao que está no banco,
+// para nunca mostrar um valor como se estivesse salvo quando não está
+function falhaAoSalvar(it,acao,e){
+  if(e&&e.code===401) return; // sessão expirada: a página já volta para o login
+  const oQue=acao?`"${acao}" na OS ${it?.numero||""}`:`a alteração na OS ${it?.numero||""}`;
+  const porque=e&&e.code===0?"Sem conexão com a internet.":(e&&e.msg)||"O servidor não respondeu.";
+  notice(`⚠ NÃO SALVOU: ${oQue}. ${porque} A tela voltou ao que está salvo. Faça a alteração de novo.`);
+  $("#notice").scrollIntoView?.({block:"nearest"});
+  if(acao==="Criou a OS"){ items=items.filter(i=>i.id!==it.id); if(selId===it.id) selId=items[0]?.id||null; render(); }
+  db?.reler?.();
 }
 // aviso curto (ex.: "Solicitação salva"); continua visível mesmo se a tela for redesenhada
 let avisos={};
 function flash(id,txt){ avisos[id]={txt,ate:Date.now()+2500}; reporAvisos(); setTimeout(reporAvisos,2600); }
 function reporAvisos(){ for(const [id,a] of Object.entries(avisos)){ const s=$(id); if(s) s.textContent=Date.now()<a.ate?a.txt:""; } }
 
-$("#list").addEventListener("click",e=>{ const b=e.target.closest(".item"); if(b){ selId=b.dataset.id; render(); if(innerWidth<820) $("#detail").scrollIntoView({behavior:"smooth"}); }});
+// ficha com campos alterados e ainda sem clicar em Salvar
+let fichaSuja=null;
+$("#detail").addEventListener("input",e=>{ if(e.target.matches("input,textarea,select") && !e.target.closest(".checks")) fichaSuja=selId; });
+const sairDaFicha=()=>{
+  if(!fichaSuja || fichaSuja!==selId) return true;
+  if(!confirm("Você alterou esta OS e ainda não clicou em Salvar.\n\nOK = sair sem salvar   ·   Cancelar = continuar na OS para salvar")) return false;
+  fichaSuja=null; return true;
+};
+$("#list").addEventListener("click",e=>{ const b=e.target.closest(".item"); if(b && b.dataset.id!==selId && !sairDaFicha()) return; if(b){ selId=b.dataset.id; render(); if(innerWidth<820) $("#detail").scrollIntoView({behavior:"smooth"}); }});
 
 $("#detail").addEventListener("change",e=>{
   if(e.target.dataset.check){ const it=items.find(i=>i.id===selId); if(it) aplicarCheck(it,e.target.dataset.check,e.target.checked); return; }
@@ -1716,10 +1736,10 @@ $("#detail").addEventListener("click",async e=>{
     if(!num){ notice("Informe o número da OS."); $("#dNum").focus(); return; }
     notice("");
     const ok=await save(it,{numero:num, moeda:$("#dMoeda").value, valorUnit:lerValor($("#dValorUnit").value,6), data:$("#dData").value, aeroporto:$("#dAero").value.trim(), prestador:$("#dPrest").value.trim(), valorOs:lerValor($("#dValorOs").value), qtd:lerQtd($("#dQtd").value), unidade:$("#dUnid").value, obs:($("#dObs")?.value||"").trim(), checklist:lerMsel($("#dServ")).map(t=>({t,ok:!!it.checklist.find(c=>c.t===t)?.ok}))},"Editou os dados da OS");
-    if(ok) flash("#savedSol","Solicitação salva");
+    if(ok){ fichaSuja=null; flash("#savedSol","Solicitação salva"); }
   } else if(id==="btnSalvarNf"){
     const ok=await save(it,{nf:{numero:$("#fNum").value.trim(), data:$("#fData").value, valor:parseFloat($("#fValor").value)||0}});
-    if(ok) flash("#savedNf","Nota fiscal salva");
+    if(ok){ fichaSuja=null; flash("#savedNf","Nota fiscal salva"); }
   } else if(id==="btnAddItem"){
     const t=$("#novoItem").value.trim(); if(!t) return;
     keepPadrao=$("#salvarPadrao").checked;
@@ -1839,11 +1859,28 @@ const gravarSessao=email=>{ try{ localStorage.setItem(SESSAO,JSON.stringify({ema
 // Imita a parte da API de banco que a página usa: collection().doc().get/set/update/delete, orderBy, onSnapshot.
 // As listas se atualizam sozinhas a cada poucos segundos, então outros aparelhos veem as mudanças.
 let siteToken=null, modoSite=false;
+// Gravações: se a internet do celular cair ou o servidor demorar, tenta de novo sozinho (até 4 vezes).
+// keepalive deixa a gravação terminar mesmo se a página for fechada logo depois.
+const OPS_GRAVAR=new Set(["set","update","delete"]);
+let gravacoesPendentes=0;
 async function api(op,corpo={}){
-  const r=await fetch("/api/db",{method:"POST",headers:{"content-type":"application/json",...(siteToken?{authorization:"Bearer "+siteToken}:{})},body:JSON.stringify({op,...corpo})});
-  const j=await r.json().catch(()=>({}));
-  if(!r.ok){ const e=new Error(j.erro||"Falha no servidor"); e.code=r.status; e.msg=j.erro; throw e; }
-  return j;
+  const body=JSON.stringify({op,...corpo}), grava=OPS_GRAVAR.has(op);
+  const tentativas=grava?4:1;
+  if(grava) gravacoesPendentes++;
+  try{
+    for(let n=1;;n++){
+      let r, j;
+      try{
+        r=await fetch("/api/db",{method:"POST",keepalive:grava&&body.length<60000,headers:{"content-type":"application/json",...(siteToken?{authorization:"Bearer "+siteToken}:{})},body});
+        j=await r.json().catch(()=>({}));
+      }catch(err){ if(n<tentativas){ await new Promise(ok=>setTimeout(ok,800*n)); continue; } const e=new Error("Sem conexão"); e.code=0; e.msg="Sem conexão com a internet."; throw e; }
+      if(!r.ok){
+        if((r.status>=500||r.status===408) && n<tentativas){ await new Promise(ok=>setTimeout(ok,800*n)); continue; }
+        const e=new Error(j.erro||"Falha no servidor"); e.code=r.status; e.msg=j.erro; throw e;
+      }
+      return j;
+    }
+  }finally{ if(grava) gravacoesPendentes--; }
 }
 function criarDbSite(){
   const vigias=new Set();
@@ -1866,6 +1903,7 @@ function criarDbSite(){
       catch(e){ if(e.code===401){ sessaoExpirada(); } else if(erro) erro(e); }
       finally{ rodando=false; if(pendente){ pendente=false; v(); } }
     };
+    v.reler=()=>{ ultimo=null; v(); };
     vigias.add(v); v(); return ()=>vigias.delete(v);
   }
   setInterval(()=>{ if(!document.hidden) avisar(); },4000);
@@ -1878,7 +1916,9 @@ function criarDbSite(){
   return {
     collection:c=>col(c),
     doc:caminho=>{ const [c,id]=caminho.split("/"); return {...ref(c,id),onSnapshot:(cb,erro)=>vigiar(async()=>{ const j=await api("get",{c,id}); return {cru:j.data,snap:foto(id,j.data)}; },cb,erro)}; },
-    atualizar:avisar
+    atualizar:avisar,
+    // esquece o que já foi mostrado e lê tudo de novo do banco: a tela volta a mostrar o que está salvo de verdade
+    reler:()=>{ vigias.forEach(v=>v.reler?v.reler():v()); }
   };
 }
 function sessaoExpirada(){
@@ -2056,6 +2096,12 @@ items=EXEMPLOS.map(x=>structuredClone(x)).sort(porData); items.forEach(i=>{ i.nu
 try{ const v=localStorage.getItem("hangar-view"); if(["fichas","notas","monitor","equipe"].includes(v)) view=v; }catch(_){}
 setView(view);
 
+// celular: ao trocar de app ou bloquear a tela, o campo que estava sendo digitado é enviado na hora
+document.addEventListener("visibilitychange",()=>{ if(document.hidden){ const a=document.activeElement; if(a && $("#sheet").contains(a) && a.matches("input,textarea,select")) a.blur(); } });
+window.addEventListener("beforeunload",e=>{
+  const a=document.activeElement; if(a && $("#sheet").contains(a)) a.blur();
+  if(gravacoesPendentes>0 || (fichaSuja && fichaSuja===selId)){ e.preventDefault(); e.returnValue=""; }
+});
 (async()=>{
   let [d,user]=await Promise.all([window.claude?.use("db"), window.claude?.use("user")].map(p=>Promise.resolve(p).catch(()=>null)));
   // fora do claude.ai: usa o banco do site, se a API responder
@@ -2093,7 +2139,7 @@ setView(view);
     items=semExcluidas(snap.docs.map(s=>({id:s.id,...structuredClone(s.data())})));
     items.forEach(i=>{ i.checklist=i.checklist||[]; i.nf=i.nf||{}; i.numero=num6(i.numero); if(i.nf.numero) i.nf.numero=num6(i.nf.numero); });
     items.sort(porData);
-    const keepEditing=document.activeElement && $("#detail").contains(document.activeElement) && items.some(i=>i.id===selId);
+    const keepEditing=((document.activeElement && $("#detail").contains(document.activeElement)) || fichaSuja===selId) && items.some(i=>i.id===selId);
     if(!items.some(i=>i.id===selId)) selId=items[0]?.id||null;
     if(keepEditing) { renderList(); renderPagamentos(); renderKpis(); if(!sheetFocused()) renderSheet(); } else render();
   },()=>notice("A conexão com os dados foi interrompida. Recarregue a página."));
